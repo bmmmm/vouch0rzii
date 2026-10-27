@@ -37,6 +37,46 @@
   let plan = null;      // last export plus exportJson/markdown/csv/svg
   let selected = null;  // cell chosen as move source: {label, day, voucher}
 
+  // ---------- undo / redo: in memory, admin only; the link always holds the current state
+  const past = [], future = [];
+  // canon serialises with sorted keys, so the same data in another key order
+  // (Go JSON vs. objects built here) is not mistaken for a change.
+  const canon = (v) => Array.isArray(v) ? `[${v.map(canon).join(',')}]`
+    : v && typeof v === 'object' ? `{${Object.keys(v).sort().map((k) => `${JSON.stringify(k)}:${canon(v[k])}`).join(',')}}` : JSON.stringify(v);
+  const snapshot = () => canon({ event: state.event, pins: state.pins, collect: state.collect, status: state.status, statusAt: state.statusAt });
+  // mutate runs fn and remembers the state before it, if fn changed anything.
+  function mutate(fn) {
+    const before = snapshot();
+    fn();
+    if (snapshot() === before) return;
+    past.push(before);
+    if (past.length > 100) past.shift();
+    future.length = 0;
+  }
+  function restore(s) {
+    Object.assign(state, JSON.parse(s));
+    selected = null;
+    eventToForm();
+    peopleToRoster(state.event.people);
+    computePlan({ fromForm: false });
+  }
+  // Both first apply what is typed in the form, so pending roster edits
+  // become a step of their own instead of being overwritten.
+  function undo() {
+    if (!computePlan()) return;
+    if (!past.length) { toast('Nichts rückgängig zu machen'); return; }
+    future.push(snapshot());
+    restore(past.pop());
+    toast('Rückgängig');
+  }
+  function redo() {
+    if (!computePlan()) return;
+    if (!future.length) { toast('Nichts zu wiederholen'); return; }
+    past.push(snapshot());
+    restore(future.pop());
+    toast('Wiederholt');
+  }
+
   // ---------- wasm
   async function loadWasm() {
     const go = new Go();
@@ -175,8 +215,7 @@
       const f = readForm();
       const r = rosterToPeople();
       if (!r) return false;
-      state.event = { ...f.event, people: r.people };
-      state.collect = { to: f.to };
+      mutate(() => { state.event = { ...f.event, people: r.people }; state.collect = { to: f.to }; });
       warnings = r.warnings;
     }
     const r = bridge.plan(JSON.stringify(state.event), JSON.stringify(state.pins));
@@ -193,7 +232,7 @@
     return true;
   }
   function loadEvent(ev) {
-    state = { ...emptyState(), event: { ...DEFAULT_EVENT, ...ev } };
+    mutate(() => { state = { ...emptyState(), event: { ...DEFAULT_EVENT, ...ev } }; });
     selected = null;
     eventToForm();
     peopleToRoster(state.event.people);
@@ -201,13 +240,12 @@
   }
 
   // ---------- pins (manual moves)
+  const withPin = (pins, label, day, voucher) => [...pins.filter((p) => p.label !== label), { label, day, voucher }];
   function setPin(label, day, voucher) {
-    const i = state.pins.findIndex((p) => p.label === label);
-    const pin = { label, day, voucher };
-    if (i >= 0) state.pins[i] = pin; else state.pins.push(pin);
+    state.pins = withPin(state.pins, label, day, voucher);
   }
   function unpin(label) {
-    state.pins = state.pins.filter((p) => p.label !== label);
+    mutate(() => { state.pins = state.pins.filter((p) => p.label !== label); });
     selected = null;
     computePlan({ fromForm: false });
   }
@@ -219,28 +257,66 @@
   function moveSlot(label, target) {
     const src = positions().get(label);
     if (!src || (src.day === target.day && src.voucher === target.voucher)) { selected = null; renderMatrix(); return; }
-    if (target.label && target.label !== label) setPin(target.label, src.day, src.voucher);
-    setPin(label, target.day, target.voucher);
+    mutate(() => {
+      if (target.label && target.label !== label) setPin(target.label, src.day, src.voucher);
+      setPin(label, target.day, target.voucher);
+    });
     selected = null;
     computePlan({ fromForm: false });
   }
-  function onCellPick(cell) {
+  function onCellPick(cell, td) {
     if (!selected) {
-      if (!cell.label) return;
-      selected = cell;
-      renderMatrix();
+      if (cell.label) { selected = cell; renderMatrix(); } else if (!cell.extra) nameCell(td, cell);
       return;
     }
     if (selected.label === cell.label) { selected = null; renderMatrix(); return; }
     moveSlot(selected.label, cell);
+  }
+  // nameCell turns a free cell into an input. Enter commits, Escape cancels,
+  // any re-render of the matrix discards it; assignLabel resolves the text.
+  function nameCell(td, cell) {
+    const input = el('input', { class: 'cellname', placeholder: 'Handle', 'aria-label': 'Handle für diese Zelle' });
+    const refocus = () => { const c = $(`#matrix tbody tr:nth-child(${cell.voucher}) td:nth-child(${cell.day + 1})`); if (c) c.focus(); };
+    input.addEventListener('click', (e) => e.stopPropagation()); // not a second pick of the cell
+    input.addEventListener('keydown', (e) => {
+      e.stopPropagation();
+      if (e.key === 'Enter') { if (!input.value.trim() || !assignLabel(input.value.trim(), cell)) renderMatrix(); refocus(); } else if (e.key === 'Escape') { renderMatrix(); refocus(); }
+    });
+    td.replaceChildren(input);
+    input.focus();
+  }
+  // assignLabel pins a typed label to a cell: an existing slot moves there,
+  // "handle+k" raises that person's +N to k, an unknown handle joins the
+  // roster as Bekanntschaft. Pending form edits are applied first; the new
+  // roster is tried on a copy, so a rejected name changes nothing and the
+  // reasons stay on screen. Returns whether the label was applied.
+  function assignLabel(label, cell) {
+    if (!computePlan()) return false;
+    const m = label.match(/^(.+)\+(\d+)$/);
+    const base = (m ? m[1] : label).trim(), k = m ? Number(m[2]) : 0;
+    if (!base) return false;
+    const people = structuredClone(state.event.people);
+    let p = people.find((q) => q.id.toLowerCase() === base.toLowerCase());
+    if (!p) { p = { id: base, tier: 'acquaintance' }; people.push(p); }
+    if (k) p.plus = Math.max(p.plus || 0, k);
+    const pins = withPin(state.pins, k ? `${p.id}+${k}` : p.id, cell.day, cell.voucher);
+    const trial = bridge.plan(JSON.stringify({ ...state.event, people }), JSON.stringify(pins));
+    if (!trial.ok) { showMessages(trial.errors, trial.warnings); return false; }
+    mutate(() => { state.event = { ...state.event, people }; state.pins = pins; });
+    selected = null;
+    peopleToRoster(people);
+    computePlan({ fromForm: false });
+    return true;
   }
 
   // ---------- live status (curated by admins, carried in the link)
   const statusOf = (label) => (STATUS.includes(state.status[label]) ? state.status[label] : 'open');
   function cycleStatus(label) {
     const next = STATUS[(STATUS.indexOf(statusOf(label)) + 1) % STATUS.length];
-    if (next === 'open') delete state.status[label]; else state.status[label] = next;
-    state.statusAt = new Date().toISOString();
+    mutate(() => {
+      if (next === 'open') delete state.status[label]; else state.status[label] = next;
+      state.statusAt = new Date().toISOString();
+    });
     writeHash();
     renderResult();
   }
@@ -369,6 +445,8 @@
     if (state.mode === 'admin') toBoard.target = '_blank'; // keep the admin tab and its unsaved edits
     else toBoard.removeAttribute('target');
     $('#r-pinhelp').hidden = state.mode !== 'admin';
+    $('#undo').disabled = !past.length;
+    $('#redo').disabled = !future.length;
     renderLive();
     renderMatrix();
     $('#diagram').innerHTML = plan.svg; // our own SVG, labels escaped by the Go side
@@ -408,9 +486,10 @@
         const title = label ? `${h ? `${h.from} → ${h.to}` : 'bekommt den Voucher von der Orga'} · ${STATUS_LABEL[statusOf(label)]}` : d.extra ? '' : 'Voucher verfügbar, noch niemand eingeplant';
         const td = el('td', { class: cls.join(' '), draggable: editable && label ? 'true' : null, tabindex: editable ? '0' : null, title }, label || (d.extra ? '·' : 'frei'));
         if (editable) {
-          td.addEventListener('click', () => onCellPick(cell));
+          if (d.extra) cell.extra = true;
+          td.addEventListener('click', () => onCellPick(cell, td));
           td.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onCellPick(cell); } else if (e.key === 'Escape' && selected) { selected = null; renderMatrix(); }
+            if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onCellPick(cell, td); } else if (e.key === 'Escape' && selected) { selected = null; renderMatrix(); }
           });
           if (label) {
             td.addEventListener('dragstart', (e) => { selected = cell; e.dataTransfer.setData('text/plain', label); e.dataTransfer.effectAllowed = 'move'; });
@@ -569,16 +648,23 @@
       showMessages([], skipped.length ? [`Schon vorhanden, übersprungen: ${skipped.join(', ')}`] : []);
       toast(`${lines.length - skipped.length} Person(en) hinzugefügt`);
     });
-    $('#unpinAll').addEventListener('click', () => { state.pins = []; selected = null; computePlan({ fromForm: false }); });
+    $('#unpinAll').addEventListener('click', () => { mutate(() => { state.pins = []; }); selected = null; computePlan({ fromForm: false }); });
     $('#freezeToday').addEventListener('click', () => {
       if (!plan) return;
       const now = today();
-      const past = plan.sheets.filter((s) => s.date <= now);
-      if (!past.length) { toast('Noch kein Tag vergangen, nichts festzunageln'); return; }
-      for (const s of past) setPin(s.label, s.day, s.voucher);
+      const gone = plan.sheets.filter((s) => s.date <= now);
+      if (!gone.length) { toast('Noch kein Tag vergangen, nichts festzunageln'); return; }
+      mutate(() => { for (const s of gone) setPin(s.label, s.day, s.voucher); });
       selected = null;
       computePlan({ fromForm: false });
-      toast(`${past.length} Slot(s) bis heute festgenagelt`);
+      toast(`${gone.length} Slot(s) bis heute festgenagelt`);
+    });
+    $('#undo').addEventListener('click', undo);
+    $('#redo').addEventListener('click', redo);
+    document.addEventListener('keydown', (e) => { // Ctrl/Cmd+Z, Ctrl/Cmd+Shift+Z or Ctrl/Cmd+Y outside of inputs
+      if (state.mode !== 'admin' || !(e.ctrlKey || e.metaKey) || e.altKey || (e.target instanceof Element && e.target.matches('input, textarea, select'))) return;
+      const k = e.key.toLowerCase();
+      if (k === 'z') { e.preventDefault(); if (e.shiftKey) redo(); else undo(); } else if (k === 'y') { e.preventDefault(); redo(); }
     });
 
     $('#copyAdmin').addEventListener('click', () => { if (computePlan()) copy(linkFor('admin', {}), `Admin-Link, Stand ${plan.fingerprint},`); });
@@ -641,6 +727,7 @@
       }
       selected = null;
       plan = null;
+      past.length = future.length = 0; // a new link is a new baseline
       applyMode();
     };
     boot();

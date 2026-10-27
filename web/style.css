@@ -78,6 +78,7 @@ th small { display: block; color: var(--muted); font-weight: 400; }
 #matrix td.cell.na { background: repeating-linear-gradient(45deg, transparent 0 6px, var(--line) 6px 7px); cursor: default; }
 #matrix.editable td.cell { cursor: pointer; }
 #matrix.editable td.cell.dragover { background: var(--select); }
+#matrix input.cellname { width: 100%; min-width: 6rem; padding: .1rem .3rem; font-size: .85rem; }
 #matrix td.cell button.unpin { position: absolute; right: .2rem; top: .15rem; border: none; background: transparent; color: var(--muted); padding: 0 .2rem; font-size: 1rem; line-height: 1; }
 #matrix td.cell button.unpin:hover { color: var(--forbidden); }
 .legend { color: var(--muted); font-size: .85rem; margin: .5rem 0 0; }

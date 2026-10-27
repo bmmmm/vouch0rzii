@@ -31,6 +31,7 @@ go test ./...
 go build -o vouch0rzii . && scripts/build-web.sh
 node scripts/web-smoke.mjs            # wasm == CLI byte for byte, privacy contract
 node scripts/web-browser-smoke.mjs    # headless Chrome renders every mode; skips without Chrome
+node scripts/web-interact-smoke.mjs   # clicks and keys in the admin matrix via DevTools pipe; skips without Chrome
 ```
 
 All of it gates a commit; CI runs the same. Add one mutant per new operand

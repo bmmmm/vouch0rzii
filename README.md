@@ -41,6 +41,12 @@ data, and your browser history keeps it like any other link.
    with another slot. Pins are kept in the link and respected before the
    automatic placement fills the rest. A voucher may idle for a day; the
    handover then goes to the next holder and says on which day they buy.
+   A free cell takes a typed handle: an existing slot moves there,
+   `handle+2` raises that person's +N, a new handle joins the roster as
+   acquaintance, pinned to the cell. Ctrl+Z / Ctrl+Shift+Z (Cmd on a Mac)
+   or the buttons above the matrix undo and redo moves, pins, status and
+   roster changes while the tab is open; the link always carries the
+   current state.
 7. **Mid-run changes.** "Bis heute festnageln" pins every slot up to today,
    so roster edits only change the future. Someone who got a voucher
    elsewhere is marked `Ausgestiegen`/`out`: they stay in the draw (nobody
@@ -145,6 +151,7 @@ Exit status 2 means the input was rejected; the reasons are on stderr.
 go test ./... && go vet ./... && GOOS=js GOARCH=wasm go vet ./cmd/vouch0rzii-wasm
 go build -o vouch0rzii . && scripts/build-web.sh && node scripts/web-smoke.mjs
 node scripts/web-browser-smoke.mjs             # headless Chrome over web/dist, all modes
+node scripts/web-interact-smoke.mjs            # clicks, typing and undo in the admin matrix
 cd web/dist && python3 -m http.server 8077     # then open http://localhost:8077/ (file:// cannot fetch)
 ```
 
@@ -152,7 +159,8 @@ cd web/dist && python3 -m http.server 8077     # then open http://localhost:8077
 pins the privacy contract (CSP, no storage, no external resources);
 `scripts/web-browser-smoke.mjs` loads the page in headless Chrome and checks
 the DOM of the empty page and of a demo, an admin, a viewer, a board and a
-collect link. Agent instructions live in `AGENTS.md`, the security policy in
+collect link; `scripts/web-interact-smoke.mjs` drives the admin matrix over
+the DevTools protocol (swap, undo, redo, naming a free cell). Agent instructions live in `AGENTS.md`, the security policy in
 `SECURITY.md`, notable changes in `CHANGELOG.md`.
 Layout: `internal/plan` (model, codecs, scheduling, assignment, rendering,
 share state), `main.go` (CLI), `cmd/vouch0rzii-wasm` (browser bridge),

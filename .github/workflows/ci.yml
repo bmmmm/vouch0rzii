@@ -32,3 +32,4 @@ jobs:
           scripts/build-web.sh
           node scripts/web-smoke.mjs
           node scripts/web-browser-smoke.mjs
+          node scripts/web-interact-smoke.mjs

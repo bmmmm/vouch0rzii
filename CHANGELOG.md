@@ -15,7 +15,9 @@ what to check.
 - Planner: tiers (members, guests, acquaintances, then +1, +2, overflow),
   seeded draw per tier, minimal days, per-day assignment that favours
   handovers between people who know each other, 2-opt around pins.
-- Pins: move or swap slots; viewer links are frozen; "Bis heute festnageln".
+- Pins: move or swap slots, type a handle into a free cell (existing slot,
+  `handle+k`, or a new acquaintance); undo and redo (Ctrl+Z, Ctrl+Shift+Z,
+  buttons); viewer links are frozen; "Bis heute festnageln".
 - Mid-run changes: extra vouchers that start later, people who leave keep
   only pinned slots.
 - End of the voucher phase (`end`): the plan stops there, tickets that do
@@ -31,4 +33,4 @@ what to check.
 - Outputs: Markdown, CSV, JSON, SVG flow diagram; handover mails.
 - CLI (`-format md|csv|json|svg|event`, `-share`), wasm page, demo link.
 - Gates: Go tests, CLI == wasm smoke with privacy contract, headless-Chrome
-  DOM gate.
+  DOM gate, DevTools interaction gate for the admin matrix.

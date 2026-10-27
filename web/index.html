@@ -59,6 +59,8 @@
           <dt>auch Sa/So planen</dt><dd>Wochenenden als Kauftage nutzen statt zu überspringen.</dd>
           <dt>Ausgestiegen</dt><dd>Roster-Spalte. <code>ja</code>, wenn jemand anderswo einen Voucher bekommen hat und seine Plätze abgibt. Die Person bleibt in der Losung, damit niemand anderes verrutscht; nur ihre festgenagelten Slots bleiben stehen, alle anderen fallen weg und die Nachfolgenden rücken auf.</dd>
           <dt>Pins</dt><dd>Manuell festgenagelte Slots. Im Plan Zelle anklicken, dann Zielzelle: leer heißt festnageln, belegt heißt tauschen. Pins wandern mit dem Link.</dd>
+          <dt>Freie Zelle</dt><dd>Eine Zelle mit „frei" anklicken und einen Handle tippen, Enter. Ein vorhandener Slot wandert dorthin, <code>handle+2</code> hebt das +N der Person auf mindestens 2 und pinnt diesen Slot, ein unbekannter Handle kommt als Bekanntschaft ins Roster und sitzt festgenagelt in der Zelle. Was im Roster noch nicht übernommen war, wird dabei zuerst übernommen. Status und E-Mail trägst du danach im Roster nach.</dd>
+          <dt>Rückgängig</dt><dd><kbd>Strg</kbd>+<kbd>Z</kbd> und <kbd>Strg</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd> (am Mac mit Cmd) oder die Knöpfe über dem Plan nehmen Züge, Pins, Status und Roster-Änderungen zurück, solange der Tab offen ist. Noch nicht berechnete Eingaben im Formular werden dabei erst übernommen und dann als eigener Schritt zurückgenommen; im Roster-Textfeld selbst gilt das Rückgängig des Browsers. Der Link trägt immer den aktuellen Stand.</dd>
           <dt>Bis heute festnageln</dt><dd>Pinnt alle Slots bis einschließlich heute. Danach ändern Roster-Änderungen nur noch die Zukunft; die Vergangenheit bleibt, wie sie passiert ist.</dd>
           <dt>Kennung</dt><dd>Die vier Emojis im Kopf sind ein Fingerabdruck aus Einstellungen, Roster und Platzierung. Gleiche Emojis, gleicher Plan; so erkennen Admins veraltete Links. Status, Zeitstempel und Orga-Adresse zählen nicht hinein, dafür steht der Status-Stand in der Live-Karte.</dd>
           <dt>Status</dt><dd>Hängt am Slot-Namen. Wer einen Handle umbenennt, setzt dessen Status zurück.</dd>
@@ -152,7 +154,9 @@
       <p id="r-stats" class="stats"></p>
       <p id="r-phase" class="stats"></p>
       <div id="r-public" class="warning" hidden></div>
-      <p id="r-pinhelp" class="hint" hidden>Zelle anklicken oder ziehen, dann Zielzelle: leer = festnageln, belegt = tauschen. Gepinnte Zellen sind fett, × löst den Pin.
+      <p id="r-pinhelp" class="hint" hidden>Zelle anklicken oder ziehen, dann Zielzelle: leer = festnageln, belegt = tauschen. Freie Zelle anklicken und Handle tippen: vorhandener Slot wandert dorthin, <code>handle+2</code> erhöht das +N, ein neuer Name kommt als Bekanntschaft ins Roster. Gepinnte Zellen sind fett, × löst den Pin.
+        <button type="button" id="undo" class="small" title="Strg+Z" disabled>↶ Rückgängig</button>
+        <button type="button" id="redo" class="small" title="Strg+Shift+Z" disabled>↷ Wiederholen</button>
         <button type="button" id="freezeToday" class="small" title="Alle Slots bis heute pinnen, damit Änderungen nur die Zukunft treffen">Bis heute festnageln</button>
         <button type="button" id="unpinAll" class="small">Alle Pins lösen</button></p>
       <div class="scroll"><table id="matrix"></table></div>
