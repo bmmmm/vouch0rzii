@@ -221,6 +221,91 @@ try {
     return document.getElementById('c-line').value;
   })()`);
   check('collect: the German page writes the canonical line', line === 'yak; yak@example.org; guest; 1; panda; late', line);
+
+  // Contrast: every visible text and form field against the background it
+  // actually sits on, in light and dark, in every mode. WCAG AA: 4.5:1, 3:1
+  // for large text; disabled controls are exempt.
+  const probe = `(() => {
+    const rgba = (s) => { const m = /rgba?\\(([^)]+)\\)/.exec(s); if (!m) return null; const p = m[1].split(/[\\s,\\/]+/).filter(Boolean).map(Number); return [p[0], p[1], p[2], p.length > 3 ? p[3] : 1]; };
+    const over = (top, under) => [0, 1, 2].map((i) => top[i] * top[3] + under[i] * (1 - top[3])).concat(1);
+    const lum = (c) => { const v = c.slice(0, 3).map((x) => { x /= 255; return x <= 0.03928 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4; }); return 0.2126 * v[0] + 0.7152 * v[1] + 0.0722 * v[2]; };
+    const ratio = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p); return (x + 0.05) / (y + 0.05); };
+    const background = (el) => {
+      const layers = [];
+      for (let e = el; e; e = e.parentElement) { const b = rgba(getComputedStyle(e).backgroundColor); if (b && b[3] > 0) { layers.push(b); if (b[3] >= 1) break; } }
+      return layers.reduceRight((under, top) => over(top, under), [255, 255, 255, 1]);
+    };
+    const field = (el) => el.matches('input:not([type=checkbox]):not([type=radio]):not([type=file]):not([type=hidden]), textarea, select');
+    const bad = [];
+    for (const el of document.body.querySelectorAll('*')) {
+      const own = [...el.childNodes].some((n) => n.nodeType === 3 && n.nodeValue.trim());
+      if (!own && !field(el)) continue;
+      if (!el.getClientRects().length || el.closest(':disabled, [hidden]')) continue;
+      const cs = getComputedStyle(el);
+      if (cs.visibility !== 'visible') continue;
+      let opacity = 1;
+      for (let e = el; e; e = e.parentElement) opacity *= Number(getComputedStyle(e).opacity);
+      const placeholder = field(el) && !el.value && el.placeholder; // what shows is the placeholder
+      const bg = background(el), fg = rgba(placeholder ? getComputedStyle(el, '::placeholder').color : cs.color);
+      const r = ratio(over([fg[0], fg[1], fg[2], fg[3] * opacity], bg), bg);
+      const size = parseFloat(cs.fontSize), large = size >= 24 || (size >= 18.66 && Number(cs.fontWeight) >= 700);
+      if (r < (large ? 3 : 4.5)) bad.push(el.tagName.toLowerCase() + (el.id ? '#' + el.id : '') + (el.className && typeof el.className === 'string' ? '.' + el.className.trim().replace(/\\s+/g, '.') : '') + ' "' + (el.value || placeholder || el.textContent).trim().slice(0, 24) + '" ' + r.toFixed(2) + ' rgb(' + fg.slice(0, 3).join(', ') + ') on rgb(' + bg.slice(0, 3).map(Math.round).join(', ') + ')');
+    }
+    return bad;
+  })()`;
+  const contrast = async (mode) => {
+    for (const scheme of ['light', 'dark']) {
+      await send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-color-scheme', value: scheme }] }, sessionId);
+      const bad = await js(probe);
+      check(`contrast: ${mode}, ${scheme}`, bad.length === 0, bad.slice(0, 8).join('\n      '));
+    }
+    await send('Emulation.setEmulatedMedia', { features: [] }, sessionId);
+  };
+  const share = (mode, ...extra) => execFileSync(cli, ['-event', join(root, 'events', 'congress2026.json'), '-share', mode, ...extra, '-base', page]).toString().trim();
+  const go = async (url, id) => {
+    await js(`location.hash = ${JSON.stringify(url.slice(url.indexOf('#')))}; 0`);
+    for (let i = 0; i < 100 && (await js(`document.getElementById('${id}').hidden`)); i++) await sleep(50);
+  };
+  await js(`document.querySelectorAll('#collect input, #collect textarea').forEach((f) => { f.value = ''; }); 0`); // placeholders show
+  await contrast('collect form');
+  await go(link, 'result');
+  const tinted = await js(`(() => {
+    document.querySelectorAll('details').forEach((d) => { d.open = true; });
+    ['received', 'bought', 'passed'].forEach((st, i) => { // the table is rebuilt after every status, so look the row up each time
+      document.querySelectorAll('#sheets tbody tr')[i].querySelector('input.pick').click();
+      document.querySelector('#bulk button[data-st="' + st + '"]').click();
+      document.getElementById('pickNone').click();
+    });
+    document.querySelector('#matrix td.cell:not(.empty)').click();
+    document.querySelector('#matrix td.cell.empty').classList.add('dragover'); // throws, and fails the gate, if the plan has no free cell
+    // The demo has no handover to someone's own +N; add the mark the page renders for one.
+    const li = document.createElement('li');
+    li.append(Object.assign(document.createElement('span'), { className: 'mark forbidden-text', textContent: '!' }), ' sample');
+    document.querySelector('#handovers ul').append(li);
+    document.getElementById('inbox').value = 'zebu; vegan';
+    document.getElementById('addInbox').click();
+    return ['received', 'bought', 'passed'].map((st) => document.querySelectorAll('#sheets .badge.st-' + st).length + '/' + document.querySelectorAll('#matrix td.cell.st-' + st).length).join(' ');
+  })()`);
+  check('contrast: admin shows one received, bought and passed slot', tinted === '1/1 1/1 1/1', tinted);
+  await contrast('admin with statuses, help, drag target and a warning');
+  await js(`document.getElementById('inbox').value = '; x@example.org'; document.getElementById('addInbox').click(); 0`);
+  await contrast('admin with an error');
+  await send('Emulation.setEmulatedMedia', { media: 'print', features: [{ name: 'prefers-color-scheme', value: 'dark' }] }, sessionId);
+  const printed = await js(probe);
+  check('contrast: admin printed from a browser in dark mode', printed.length === 0, printed.slice(0, 8).join('\n      '));
+  await send('Emulation.setEmulatedMedia', { media: '', features: [] }, sessionId);
+  await go(share('board'), 'board');
+  await contrast('board');
+  await go(share('view'), 'result');
+  await js(`(() => { const w = document.getElementById('who'); w.value = 'mammut'; w.dispatchEvent(new Event('input')); })(); 0`);
+  check('contrast: viewer highlights the own rows', await js(`document.querySelectorAll('#sheets tr.me').length > 0`));
+  await contrast('viewer with own rows');
+  await js(`document.getElementById('who').value = ''; 0`);
+  await contrast('viewer, empty handle field');
+  await send('Page.navigate', { url: page }, sessionId);
+  for (let i = 0; i < 200 && !(await js('!!globalThis.vouch0rzii && !document.getElementById("intro").hidden').catch(() => false)); i++) await sleep(50);
+  check('contrast: landing page with the intro shown', await js('!document.getElementById("intro").hidden'));
+  await contrast('landing page');
 } catch (e) {
   check(`no exception: ${e.message}`, false);
 } finally {

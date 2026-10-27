@@ -3,9 +3,48 @@
 package plan
 
 import (
+	"math"
+	"os"
+	"regexp"
+	"strconv"
 	"strings"
 	"testing"
 )
+
+// TestEdgeColoursContrast keeps every handover line at 3:1 (WCAG non-text)
+// against both card colours of web/style.css, light and dark.
+func TestEdgeColoursContrast(t *testing.T) {
+	css, err := os.ReadFile("../../web/style.css")
+	if err != nil {
+		t.Fatal(err)
+	}
+	cards := regexp.MustCompile(`--card: (#[0-9a-f]{6})`).FindAllStringSubmatch(string(css), -1)
+	if len(cards) != 2 {
+		t.Fatalf("want a light and a dark --card in web/style.css, got %v", cards)
+	}
+	lum := func(hex string) float64 {
+		var c [3]float64
+		for i := range c {
+			v, _ := strconv.ParseUint(hex[1+2*i:3+2*i], 16, 8)
+			x := float64(v) / 255
+			if x <= 0.03928 {
+				c[i] = x / 12.92
+			} else {
+				c[i] = math.Pow((x+0.055)/1.055, 2.4)
+			}
+		}
+		return 0.2126*c[0] + 0.7152*c[1] + 0.0722*c[2]
+	}
+	for _, k := range edgeKinds {
+		for _, m := range cards {
+			card := m[1]
+			a, b := lum(k.color), lum(card)
+			if r := (math.Max(a, b) + 0.05) / (math.Min(a, b) + 0.05); r < 3 {
+				t.Errorf("%s %s on %s: %.2f:1, want 3:1", k.name, k.color, card, r)
+			}
+		}
+	}
+}
 
 // a knows c<x and a+1 is pinned to day 2 on voucher 1, so the planner puts
 // b on voucher 1 (b → a+1, strangers) and a on voucher 2 (a → c<x, known)

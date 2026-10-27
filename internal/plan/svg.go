@@ -8,10 +8,11 @@ import (
 	"strings"
 )
 
-// edgeKinds colours handovers like the page: green = know each other,
-// grey = strangers, red = direct to own +N.
+// edgeKinds colours handovers green = know each other, grey = strangers,
+// red = direct to own +N; one colour each that reaches 3:1 on both the light
+// and the dark card of the page (TestEdgeColoursContrast).
 var edgeKinds = [...]struct{ name, color string }{
-	{"known", "#2f8f5b"}, {"stranger", "#9a9a9a"}, {"forbidden", "#c62828"},
+	{"known", "#2f8f5b"}, {"stranger", "#8c8c8c"}, {"forbidden", "#e04a4a"},
 }
 
 func kindOf(h Handover) int {
@@ -53,7 +54,7 @@ func (p *Plan) SVG() string {
 		fmt.Fprintf(&b, `<text x="%d" y="22" text-anchor="middle" font-weight="600">%s</text>`+"\n", padX+(d-1)*cellW+cellW/2, html.EscapeString(p.dayLabel(d)))
 	}
 	for v := 1; v <= vouchers; v++ {
-		fmt.Fprintf(&b, `<text x="8" y="%d" opacity="0.6">V%d</text>`+"\n", padY+(v-1)*cellH+cellH/2+4, v)
+		fmt.Fprintf(&b, `<text x="8" y="%d" opacity="0.7">V%d</text>`+"\n", padY+(v-1)*cellH+cellH/2+4, v)
 	}
 	for _, hd := range p.Handovers { // arrows first, boxes cover their ends
 		x1, y1 := box(hd.From.Day, hd.Voucher)

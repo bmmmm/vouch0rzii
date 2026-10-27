@@ -31,6 +31,13 @@ what to check.
   anywhere on the line, alone or as a further list, each handle once. Words
   kept as note are reported in one warning per line.
 - Someone who knows their own handle gets a warning, as the docs said.
+- Contrast in the light and the dark scheme: links and native controls
+  follow the dark scheme instead of staying dark blue on grey; text and
+  placeholders reach WCAG AA (4.5:1) on the landing page, the sign-up form,
+  the admin view (statuses, help, messages, a drag target), the board and
+  the viewer, which the browser gate measures; field borders, the selection
+  ring, the stranger mark and the diagram's lines are set to 3:1. Printing
+  from a dark-mode browser uses the light colours.
 
 ## [0.1.0] - 2026-10-27
 
