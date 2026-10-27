@@ -28,7 +28,8 @@ func TestMarkdownAndCSV(t *testing.T) {
 		"**Fr 30.10., 23:00**",
 		"- Voucher 1: a → c (c@example.org)\n",
 		"- Voucher 2: b → a+1 (a@example.org)\n",
-		"2 handovers, 0 between people who know each other, 2 between strangers.",
+		"2 handovers, 0 between buddies, 2 new connections.",
+		"handover at 23:00. Version " + p.Fingerprint(),
 	} {
 		if !strings.Contains(md, want) {
 			t.Errorf("markdown missing %q:\n%s", want, md)

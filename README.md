@@ -31,7 +31,8 @@ data, and your browser history keeps it like any other link.
    that as many handovers as possible happen between people who know each
    other (`Kennt`/`knows`). +N slots stand in for their sponsor. Without manual
    pins this day-by-day optimum is already the global optimum; with pins a
-   2-opt pass cleans up around them.
+   2-opt pass cleans up around them. The page calls these handovers
+   *Buddies*, all others *neue Verbindung*.
 5. **Credit card** is shown as an emergency fallback only and never affects
    the plan (instant SEPA transfers are the default).
 6. **Pins.** In the admin view a slot can be moved to another cell or swapped
@@ -60,7 +61,10 @@ English, in any order:
 
 The page keeps its whole state in the URL fragment (`#s=…`,
 base64url-encoded deflated JSON). Three modes, all views on the same data —
-**not** access control: whoever has a link has what is in it.
+**not** access control: whoever has a link has what is in it. The header
+shows a four-emoji fingerprint of the current data (settings, roster,
+placement); admin and viewer links of the same state show the same emoji,
+so two people can tell at a glance whether they look at the same plan.
 
 - **Admin**: settings, roster, pins and the organiser's address. Edit, compute,
   pin cells, copy links.

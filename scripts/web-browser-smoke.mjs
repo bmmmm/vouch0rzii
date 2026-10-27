@@ -62,12 +62,15 @@ check('admin: matrix editable and shows the group slot', admin.includes('<table 
 check('admin: one sheet row per slot', (admin.match(/data-who=/g) || []).length === 47);
 check('admin: share buttons visible', admin.includes('<nav id="sharebar">'));
 check('admin: no error box', noError(admin));
+const fp = (html) => (html.match(/id="fingerprint"[^>]*>([^<]*)</) || [])[1] || '';
+check('admin: four-emoji fingerprint shown', [...fp(admin)].length === 4);
 
 const view = dom(link('view'));
 check('view: plan rendered, matrix not editable', planned(view) && !view.includes('class="editable"'));
 check('view: frozen (47 pinned)', view.includes('47 gepinnt'));
 check('view: editor and share buttons hidden', view.includes('<section id="editor" hidden=""') && view.includes('<nav id="sharebar" hidden=""'));
 check('view: no error box', noError(view));
+check('view: same fingerprint as admin', fp(view) === fp(admin));
 
 const collect = dom(link('collect', ['-to', 'orga@example.org']));
 check('collect: form shown with the event name', collect.includes('<section id="collect" class="card">') && collect.includes('<span id="c-event">congress2026</span>'));

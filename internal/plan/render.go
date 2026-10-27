@@ -11,16 +11,17 @@ import (
 // Export is the serialisable view of a plan: what the CLI prints as JSON and
 // what the page renders. Grid is [day-1][voucher-1] with "" for an empty cell.
 type Export struct {
-	Event     string           `json:"event"`
-	Vouchers  int              `json:"vouchers"`
-	Handover  string           `json:"handover"`
-	Days      []DayExport      `json:"days"`
-	Grid      [][]string       `json:"grid"`
-	Handovers []HandoverExport `json:"handovers"`
-	Sheets    []Sheet          `json:"sheets"`
-	Pins      []Pin            `json:"pins"`
-	Stats     Stats            `json:"stats"`
-	Warnings  []string         `json:"warnings"`
+	Event       string           `json:"event"`
+	Fingerprint string           `json:"fingerprint"`
+	Vouchers    int              `json:"vouchers"`
+	Handover    string           `json:"handover"`
+	Days        []DayExport      `json:"days"`
+	Grid        [][]string       `json:"grid"`
+	Handovers   []HandoverExport `json:"handovers"`
+	Sheets      []Sheet          `json:"sheets"`
+	Pins        []Pin            `json:"pins"`
+	Stats       Stats            `json:"stats"`
+	Warnings    []string         `json:"warnings"`
 }
 
 // DayExport names one column of the plan.
@@ -84,13 +85,14 @@ func (p *Plan) dayLabel(d int) string {
 // ToExport flattens the plan.
 func (p *Plan) ToExport() *Export {
 	ex := &Export{
-		Event:     p.Event.Name,
-		Vouchers:  p.Event.Vouchers,
-		Handover:  p.Event.HandoverOrDefault(),
-		Handovers: []HandoverExport{},
-		Pins:      Freeze(p),
-		Stats:     p.Stats,
-		Warnings:  append([]string{}, p.Warnings...),
+		Event:       p.Event.Name,
+		Fingerprint: p.Fingerprint(),
+		Vouchers:    p.Event.Vouchers,
+		Handover:    p.Event.HandoverOrDefault(),
+		Handovers:   []HandoverExport{},
+		Pins:        Freeze(p),
+		Stats:       p.Stats,
+		Warnings:    append([]string{}, p.Warnings...),
 	}
 	for d := range p.Grid {
 		ex.Days = append(ex.Days, DayExport{Day: d + 1, Date: p.Dates[d], Label: p.dayLabel(d + 1)})
@@ -145,7 +147,7 @@ func (p *Plan) JSON() ([]byte, error) {
 func (p *Plan) Markdown() string {
 	var b strings.Builder
 	s := p.Stats
-	fmt.Fprintf(&b, "# %s\n\n%d vouchers, %d days, %d slots, handover at %s.\n\n", p.Event.Name, p.Event.Vouchers, s.Days, s.Slots, p.Event.HandoverOrDefault())
+	fmt.Fprintf(&b, "# %s\n\n%d vouchers, %d days, %d slots, handover at %s. Version %s\n\n", p.Event.Name, p.Event.Vouchers, s.Days, s.Slots, p.Event.HandoverOrDefault(), p.Fingerprint())
 	b.WriteString("| Voucher |")
 	for d := range p.Grid {
 		fmt.Fprintf(&b, " %s |", p.dayLabel(d+1))
@@ -183,11 +185,11 @@ func (p *Plan) Markdown() string {
 			b.WriteString(" ✓")
 		}
 		if h.Forbidden {
-			b.WriteString(" ⚠ direct to own +N")
+			b.WriteString(" ⚠ own +N directly")
 		}
 		b.WriteByte('\n')
 	}
-	fmt.Fprintf(&b, "\n%d handovers, %d between people who know each other, %d between strangers.\n", s.Handovers, s.Known, s.Unknown)
+	fmt.Fprintf(&b, "\n%d handovers, %d between buddies, %d new connections.\n", s.Handovers, s.Known, s.Unknown)
 	for _, w := range p.Warnings {
 		fmt.Fprintf(&b, "\n> ⚠ %s\n", w)
 	}

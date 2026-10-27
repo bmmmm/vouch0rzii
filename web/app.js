@@ -213,12 +213,13 @@
   // ---------- rendering
   function renderResult() {
     $('#result').hidden = !plan;
+    $('#fingerprint').textContent = plan ? plan.fingerprint : '';
     if (!plan) return;
     const s = plan.stats;
     $('#r-title').textContent = `Plan ${plan.event}`;
     $('#r-stats').textContent =
-      `${plan.vouchers} Vouchers · ${s.days} Tage · ${s.slots} Slots · ${s.handovers} Übergaben, davon ${s.known} unter Bekannten, ${s.unknown} unter Fremden` +
-      (s.forbidden ? `, ${s.forbidden} direkt an eigene +N` : '') + (s.pinned ? ` · ${s.pinned} gepinnt` : '') + ` · Übergabe ${plan.handover}`;
+      `${plan.vouchers} Vouchers · ${s.days} Tage · ${s.slots} Slots · ${s.handovers} Übergaben, davon ${s.known} unter Buddies, ${s.unknown} neue Verbindungen` +
+      (s.forbidden ? `, ${s.forbidden} direkt an eigene Begleitung` : '') + (s.pinned ? ` · ${s.pinned} gepinnt` : '') + ` · Übergabe ${plan.handover}`;
     $('#r-pinhelp').hidden = state.mode !== 'admin';
     renderMatrix();
     $('#diagram').innerHTML = plan.svg; // our own SVG, labels escaped by the Go side
@@ -288,7 +289,7 @@
         list = el('ul');
         box.append(list);
       }
-      const mark = h.forbidden ? el('span', { class: 'mark forbidden-text', title: 'direkt an eigene +N' }, '!') : h.known ? el('span', { class: 'mark known-text', title: 'kennen sich' }, '✓') : el('span', { class: 'mark' }, '·');
+      const mark = h.forbidden ? el('span', { class: 'mark forbidden-text', title: 'direkt an eigene Begleitung' }, '!') : h.known ? el('span', { class: 'mark known-text', title: 'Buddies, kennen sich schon' }, '✓') : el('span', { class: 'mark', title: 'neue Verbindung' }, '·');
       const toDay = pos.get(h.to).day;
       list.append(el('li', {}, mark, ` Voucher ${h.voucher}: ${h.from} → ${h.to}`, h.toEmail && ` <${h.toEmail}>`, toDay !== h.day + 1 && `, kauft am ${plan.days[toDay - 1].label}`));
     }
@@ -403,8 +404,8 @@
     });
     $('#unpinAll').addEventListener('click', () => { state.pins = []; selected = null; computePlan({ fromForm: false }); });
 
-    $('#copyAdmin').addEventListener('click', () => { if (computePlan()) copy(linkFor('admin', {}), 'Admin-Link'); });
-    $('#copyView').addEventListener('click', () => { if (computePlan()) copy(linkFor('view', { pins: plan.pins }), 'Viewer-Link'); });
+    $('#copyAdmin').addEventListener('click', () => { if (computePlan()) copy(linkFor('admin', {}), `Admin-Link, Stand ${plan.fingerprint},`); });
+    $('#copyView').addEventListener('click', () => { if (computePlan()) copy(linkFor('view', { pins: plan.pins }), `Viewer-Link, Stand ${plan.fingerprint},`); });
     $('#copyCollect').addEventListener('click', () => {
       formToEvent();
       if (!state.collect.to) { showMessages(['Für den Sammel-Link braucht es die Orga-Adresse (Feld oben).']); return; }
