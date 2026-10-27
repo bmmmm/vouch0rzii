@@ -75,4 +75,16 @@ func TestJSONExport(t *testing.T) {
 			t.Errorf("missing %s in\n%s", want, one)
 		}
 	}
+	// Everyone left and nothing is pinned: no slots, still a complete export.
+	none := mkEvent(2, ordered("a", "b")...)
+	none.People[0].Out, none.People[1].Out = true, true
+	empty, err := mustCompute(t, none, nil).JSON()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{`"sheets": []`, `"handovers": []`, `"days": 1`} {
+		if !strings.Contains(string(empty), want) {
+			t.Errorf("zero-slot export missing %s in\n%s", want, empty)
+		}
+	}
 }

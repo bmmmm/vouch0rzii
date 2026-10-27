@@ -3,7 +3,6 @@
 package plan
 
 import (
-	"encoding/csv"
 	"errors"
 	"fmt"
 	"strconv"
@@ -65,26 +64,33 @@ func ParseBool(s string) (bool, error) {
 	return false, fmt.Errorf("not a yes/no value: %q", s)
 }
 
-// ParseRoster parses a pasted spreadsheet: tab, semicolon or comma separated
-// (decided by the header line), header row required with at least a name
-// column. Unknown columns are ignored with a warning, a missing status column
-// makes everyone a member with a warning. Hard errors are joined.
+// ParseRoster parses a pasted spreadsheet: one person per line, fields
+// separated by tab, semicolon or comma (decided by the header line), header
+// row required with at least a name column. Quotes are literal; a field must
+// not contain the separator or a line break. Unknown columns are ignored with
+// a warning, a missing status column makes everyone a member with a warning.
+// Hard errors are joined.
 func ParseRoster(text string) (people []Person, warnings []string, err error) {
-	text = strings.TrimSpace(strings.ReplaceAll(strings.TrimPrefix(text, "\uFEFF"), "\r\n", "\n"))
-	if text == "" {
+	lines := strings.Split(strings.ReplaceAll(strings.TrimPrefix(text, "\uFEFF"), "\r\n", "\n"), "\n")
+	for len(lines) > 0 && strings.TrimSpace(lines[0]) == "" {
+		lines = lines[1:]
+	}
+	for len(lines) > 0 && strings.TrimSpace(lines[len(lines)-1]) == "" {
+		lines = lines[:len(lines)-1]
+	}
+	if len(lines) == 0 {
 		return nil, nil, errors.New("roster is empty")
 	}
-	r := csv.NewReader(strings.NewReader(text))
-	switch header, _, _ := strings.Cut(text, "\n"); {
-	case strings.Contains(header, "\t"):
-		r.Comma = '\t'
-	case strings.Contains(header, ";"):
-		r.Comma = ';'
+	sep := ","
+	switch {
+	case strings.Contains(lines[0], "\t"):
+		sep = "\t"
+	case strings.Contains(lines[0], ";"):
+		sep = ";"
 	}
-	r.FieldsPerRecord = -1
-	records, rerr := r.ReadAll()
-	if rerr != nil {
-		return nil, nil, fmt.Errorf("roster: %w", rerr)
+	records := make([][]string, len(lines))
+	for i, l := range lines {
+		records[i] = strings.Split(l, sep)
 	}
 
 	cols := map[int]int{} // column index → field

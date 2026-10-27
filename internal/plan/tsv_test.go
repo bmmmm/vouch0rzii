@@ -103,3 +103,15 @@ func TestParseBool(t *testing.T) {
 		t.Error("maybe must fail")
 	}
 }
+
+func TestRosterQuotesAreLiteralAndEmptyHeaderCellIgnored(t *testing.T) {
+	in := []Person{{ID: "alpha", Note: `komme "spät"`}}
+	out, _, err := ParseRoster(FormatRoster(in))
+	if err != nil || len(out) != 1 || out[0].Note != in[0].Note {
+		t.Fatalf("quotes must round-trip: %v %+v", err, out)
+	}
+	people, _, err := ParseRoster("\tName\tE-Mail\n1\talpha\ta@example.org\n")
+	if err != nil || len(people) != 1 || people[0].ID != "alpha" || people[0].Email != "a@example.org" {
+		t.Fatalf("empty first header cell must be ignored: %v %+v", err, people)
+	}
+}

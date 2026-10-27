@@ -22,6 +22,7 @@ var fingerprintEmoji = strings.Fields(
 // the same plan.
 func (p *Plan) Fingerprint() string {
 	ev := *p.Event
+	ev.index = nil
 	ev.People = append([]Person(nil), ev.People...)
 	for i := range ev.People {
 		ev.People[i].Note = ""

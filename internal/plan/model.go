@@ -103,6 +103,8 @@ type Event struct {
 	Seed     string   `json:"seed,omitempty"`     // "" = Name; a different seed is a new draw
 	Handover string   `json:"handover,omitempty"` // display only, "" = DefaultHandover
 	People   []Person `json:"people"`
+
+	index map[string]*Person // built by Normalize; nil on copies
 }
 
 // PlusMaxOrDefault returns the +N limit for people without the group flag.
@@ -131,6 +133,9 @@ func (e *Event) HandoverOrDefault() string {
 
 // Person returns the roster entry with the given ID, or nil.
 func (e *Event) Person(id string) *Person {
+	if e.index != nil {
+		return e.index[id]
+	}
 	for i := range e.People {
 		if e.People[i].ID == id {
 			return &e.People[i]
@@ -155,7 +160,6 @@ type Slot struct {
 	Day      int // 1-based, 0 until placed
 	Voucher  int // 1-based, 0 until placed
 	Pinned   bool
-	rank     int // position in the priority list
 }
 
 // SlotLabel builds the label of the k-th slot of a person: "alpha", "alpha+1".

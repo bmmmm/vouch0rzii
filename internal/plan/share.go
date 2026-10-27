@@ -64,6 +64,7 @@ func EncodeState(st *State) (string, error) {
 	case ModeView:
 		if out.Event != nil {
 			ev := *out.Event
+			ev.index = nil
 			ev.People = append([]Person(nil), ev.People...)
 			for i := range ev.People {
 				ev.People[i].Note = ""

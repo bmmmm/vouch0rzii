@@ -67,7 +67,7 @@ func buildSlots(e *Event, keep map[string]bool) []*Slot {
 		if p.Out && !keep[label] {
 			return
 		}
-		slots = append(slots, &Slot{Label: label, PersonID: p.ID, K: k, rank: len(slots)})
+		slots = append(slots, &Slot{Label: label, PersonID: p.ID, K: k})
 	}
 	for _, p := range named {
 		add(p, 0)
@@ -116,6 +116,12 @@ func voucherStarts(e *Event) ([]int, error) {
 		}
 	}
 	return from, nil
+}
+
+// pinCellOK reports whether a pin names a cell that exists: a day within the
+// horizon and a voucher that is available on that day.
+func pinCellOK(pin Pin, from []int) bool {
+	return pin.Day >= 1 && pin.Day <= MaxDays && pin.Voucher >= 1 && pin.Voucher <= len(from) && from[pin.Voucher-1] <= pin.Day
 }
 
 // placeSlots fixes pinned slots to their cells and fills the remaining cells
@@ -198,7 +204,7 @@ func placeSlots(slots []*Slot, pins []Pin, from []int) (grid [][]*Slot, warnings
 	row(days)
 	grid = grid[:days]
 	if lastFill > 0 && maxPin > lastFill {
-		warnings = append(warnings, fmt.Sprintf("pins stretch the plan to %d days, %d would do", days, lastFill))
+		warnings = append(warnings, fmt.Sprintf("pins stretch the plan to %d days; the automatic placement ends on day %d", days, lastFill))
 	}
 	return grid, warnings, nil
 }

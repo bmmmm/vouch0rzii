@@ -82,12 +82,12 @@ func planFn(_ js.Value, args []js.Value) any {
 	if err != nil {
 		return fail(err, nil)
 	}
-	js, err := p.JSON()
+	out, err := p.JSON()
 	if err != nil {
 		return fail(err, nil)
 	}
 	return ok(p.Warnings, map[string]any{
-		"exportJson": string(js),
+		"exportJson": string(out),
 		"markdown":   p.Markdown(),
 		"csv":        p.CSV(),
 		"svg":        p.SVG(),

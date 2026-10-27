@@ -92,6 +92,7 @@ func (p *Plan) ToExport() *Export {
 		VoucherFrom: p.From,
 		Handover:    p.Event.HandoverOrDefault(),
 		Handovers:   []HandoverExport{},
+		Sheets:      []Sheet{},
 		Pins:        Freeze(p),
 		Stats:       p.Stats,
 		Warnings:    append([]string{}, p.Warnings...),

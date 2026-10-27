@@ -298,3 +298,24 @@ func TestOutPersonKeepsOnlyPinnedSlots(t *testing.T) {
 		t.Fatalf("others moved: %v vs %v", after, want)
 	}
 }
+
+func TestHandoversSortedByDayThenVoucher(t *testing.T) {
+	// b knows d, so d takes voucher 2 on day 2; voucher 1 idles on day 2 and
+	// continues with the pinned c on day 3. Both handovers happen on the
+	// evening of day 1 and must be listed voucher 1 first.
+	ps := ordered("a", "b", "c", "d")
+	ps[1].Knows = []string{"d"}
+	p := mustCompute(t, mkEvent(2, ps...), []Pin{{Label: "c", Day: 3, Voucher: 1}})
+	if len(p.Handovers) != 2 || p.Handovers[0].Day != 1 || p.Handovers[0].Voucher != 1 || p.Handovers[0].To.Label != "c" || p.Handovers[1].Voucher != 2 {
+		t.Fatalf("handovers %+v %+v", p.Handovers[0], p.Handovers[1])
+	}
+}
+
+func TestOutPersonWithDroppedPinStaysOut(t *testing.T) {
+	ps := ordered("a", "b", "c", "d")
+	ps[2].Out = true
+	p := mustCompute(t, mkEvent(2, ps...), []Pin{{Label: "c", Day: 1, Voucher: 3}}) // voucher 3 does not exist
+	if got := labels(p.Slots); !reflect.DeepEqual(got, []string{"a", "b", "d"}) {
+		t.Fatalf("a dropped pin must not bring back a person who left: %v", got)
+	}
+}

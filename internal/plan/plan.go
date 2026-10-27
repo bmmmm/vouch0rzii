@@ -17,30 +17,34 @@ func Compute(e *Event, pins []Pin) (*Plan, error) {
 		return nil, err
 	}
 	start, _ := ParseDate(e.Start)
-	from, err := voucherStarts(e)
+	starts, err := voucherStarts(e)
 	if err != nil {
 		return nil, err
 	}
+	// Slots of people who left survive only under a pin that will actually
+	// be applied, so a pin on a vanished cell does not resurrect them.
 	keep := make(map[string]bool, len(pins))
 	for _, pin := range pins {
-		keep[pin.Label] = true
+		if pinCellOK(pin, starts) {
+			keep[pin.Label] = true
+		}
 	}
 	slots := buildSlots(e, keep)
-	grid, pinWarnings, err := placeSlots(slots, pins, from)
+	grid, pinWarnings, err := placeSlots(slots, pins, starts)
 	if err != nil {
 		return nil, err
 	}
 	warnings = append(warnings, pinWarnings...)
-	assignChains(e, slots, grid, from)
+	assignChains(e, slots, grid, starts)
 
-	p := &Plan{Event: e, From: from, Slots: slots, Grid: grid, Warnings: warnings}
+	p := &Plan{Event: e, From: starts, Slots: slots, Grid: grid, Warnings: warnings}
 	for _, t := range Dates(start, len(grid), e.Weekends) {
 		p.Dates = append(p.Dates, t.Format(DateLayout))
 	}
 	// Every holder except the first of a chain receives the voucher from the
 	// previous holder, even across days on which the voucher idles.
 	for d := 1; d <= len(grid); d++ {
-		for v := 1; v <= len(from); v++ {
+		for v := 1; v <= len(starts); v++ {
 			to := grid[d-1][v-1]
 			if to == nil {
 				continue

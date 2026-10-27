@@ -14,8 +14,10 @@ data, and your browser history keeps it like any other link.
 
 ## Rules the planner follows
 
-1. **As few days as possible.** With `V` vouchers and `N` ticket slots the plan
-   has `ceil(N / V)` days. Weekends are skipped unless the event says otherwise.
+1. **As few days as possible.** With `V` vouchers from day 1 and `N` ticket
+   slots the plan has `ceil(N / V)` days; extra vouchers, pins and people who
+   leave change that, the grid shows the result. Weekends are skipped unless
+   the event says otherwise.
 2. **Tiers.** Named people first — members, then frequent guests, then
    acquaintances. After all named people come everybody's +1, then everybody's
    +2, each round ordered by the sponsor's position. Within a tier the order is
@@ -94,7 +96,8 @@ There is no server, so the status is curated: admins click a slot's status
 through *offen → Voucher da → Ticket gekauft → weitergegeben* in the sheet
 table, the status and its timestamp travel in the link, and a re-shared
 viewer link shows everyone where each voucher is, who is next, and what is
-overdue (date before today, status not advanced). Participants report their
+overdue (date before today, status not advanced; marked only once the first
+status has been set, so an untouched plan is never "overdue"). Participants report their
 status with the "melden" mail link; admins enter it. Two admins compare
 fingerprint and status timestamp to see who holds the newer link.
 

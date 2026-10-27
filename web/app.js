@@ -120,8 +120,11 @@
   }
 
   // ---------- form <-> state.event
-  function formToEvent() {
-    const ev = state.event;
+  // readForm returns the settings as typed, without touching state; only a
+  // successful computePlan commits them, so links and the fingerprint never
+  // mix a new form with an old plan.
+  function readForm() {
+    const ev = { ...state.event };
     ev.name = $('#f-name').value.trim();
     ev.vouchers = Number($('#f-vouchers').value) || 0;
     ev.start = $('#f-start').value;
@@ -134,7 +137,7 @@
       return m ? { date: m[1], count: Number(m[2] || 1) } : { date: tok, count: 1 }; // Go rejects a bad date
     });
     if (extra.length) ev.extra = extra; else delete ev.extra;
-    state.collect = { to: $('#f-collectTo').value.trim() };
+    return { event: ev, to: $('#f-collectTo').value.trim() };
   }
   function eventToForm() {
     const ev = state.event;
@@ -166,10 +169,11 @@
   function computePlan({ fromForm } = { fromForm: true }) {
     let warnings = [];
     if (fromForm) {
-      formToEvent();
+      const f = readForm();
       const r = rosterToPeople();
       if (!r) return false;
-      state.event.people = r.people;
+      state.event = { ...f.event, people: r.people };
+      state.collect = { to: f.to };
       warnings = r.warnings;
     }
     const r = bridge.plan(JSON.stringify(state.event), JSON.stringify(state.pins));
@@ -246,6 +250,7 @@
   }
   function renderLive() {
     const now = today();
+    const tracking = Object.keys(state.status).length > 0; // overdue marks only once the sale is being tracked
     const items = [];
     for (let v = 1; v <= plan.vouchers; v++) {
       const chain = plan.sheets.filter((s) => s.voucher === v); // in day order
@@ -257,25 +262,26 @@
       if (passed > holder) {
         const next = chain[passed + 1];
         if (!next) text = `Voucher ${v}: Kette abgeschlossen`;
-        else { text = `Voucher ${v}: unterwegs zu ${next.label}, ${chain[passed].label} hat weitergegeben, Kauf am ${day(next)}`; late = next.date < now; }
+        else { text = `Voucher ${v}: unterwegs zu ${next.label}, ${chain[passed].label} hat weitergegeben, Kauf am ${day(next)}`; late = tracking && next.date < now; }
       } else if (holder >= 0) {
         const h = chain[holder];
         const next = chain.slice(holder + 1).find((s) => statusOf(s.label) === 'open');
         text = `Voucher ${v}: bei ${h.label} (${STATUS_LABEL[st[holder]]})` + (next ? `, als Nächstes ${next.label} am ${day(next)}` : ', letzte Station');
-        late = h.date < now;
+        late = tracking && h.date < now && !(st[holder] === 'bought' && !next); // a bought last station is done, not late
       } else if (chain.length) {
         text = `Voucher ${v}: noch bei der Orga, Start ${chain[0].label} am ${day(chain[0])}`;
-        late = chain[0].date < now;
+        late = tracking && chain[0].date < now;
       } else {
         text = `Voucher ${v}: ohne Slots`;
       }
       items.push(el('li', { class: late ? 'live overdue' : 'live' }, text, late ? ' — überfällig' : ''));
     }
     $('#liveList').replaceChildren(...items);
-    const n = Object.keys(state.status).length;
+    const labels = new Set(plan.sheets.map((s) => s.label));
+    const n = Object.keys(state.status).filter((l) => labels.has(l)).length;
     $('#liveAt').textContent = n
       ? `${n} Slot(s) mit Status, Stand ${fmtAt(state.statusAt)}.`
-      : 'Noch kein Status gesetzt.';
+      : 'Noch kein Status gesetzt. Überfällig wird erst markiert, sobald der erste Status gesetzt ist.';
   }
 
   // ---------- rendering
@@ -314,7 +320,7 @@
     for (let v = 1; v <= plan.vouchers; v++) {
       const tds = days.map((d) => {
         const label = d.extra ? '' : (plan.grid[d.day - 1][v - 1] || '');
-        const na = !d.extra && plan.voucherFrom[v - 1] > d.day; // voucher does not exist yet
+        const na = plan.voucherFrom[v - 1] > d.day; // voucher does not exist yet (also in the "+ Tag" column)
         if (na) return el('td', { class: 'cell na', title: 'Voucher noch nicht verfügbar' });
         const cell = { label, day: d.day, voucher: v };
         const h = incoming.get(`${d.day}-${v}`);
@@ -403,7 +409,7 @@
         ? el('button', { type: 'button', class: `badge st-${st}`, title: 'Klick: nächster Status', onclick: () => cycleStatus(s.label) }, STATUS_LABEL[st])
         : el('span', { class: `badge st-${st}` }, STATUS_LABEL[st]);
       const report = !admin && reportMail(s);
-      return el('tr', { dataset: { who: `${s.label} ${s.person} ${s.email || ''}`.toLowerCase() } },
+      return el('tr', { dataset: { who: `${s.label} ${s.person} ${s.email || ''}`.toLowerCase(), person: s.person.toLowerCase() } },
         el('td', {}, s.label, s.pinned ? ' 📌' : ''),
         el('td', {}, s.person, s.email && el('small', {}, el('br'), s.email), s.card ? el('small', { title: 'Kreditkarte für den Notfall' }, ' 💳') : ''),
         el('td', {}, plan.days[s.day - 1].label, el('small', {}, el('br'), s.date)),
@@ -420,8 +426,9 @@
   }
   function filterSheets() {
     const q = $('#who').value.trim().toLowerCase();
+    const exact = !!state.me && q === state.me.toLowerCase(); // personal link: this person only, not every substring match
     for (const tr of $('#sheets').querySelectorAll('tbody tr')) {
-      const hit = q && tr.dataset.who.includes(q);
+      const hit = q && (exact ? tr.dataset.person === q : tr.dataset.who.includes(q));
       tr.classList.toggle('me', !!hit);
       tr.classList.toggle('hidden', !!q && !hit);
     }
@@ -460,11 +467,10 @@
       e.target.value = '';
     });
     $('#saveFile').addEventListener('click', () => {
-      formToEvent();
+      const f = readForm();
       const r = rosterToPeople();
       if (!r) return;
-      state.event.people = r.people;
-      download(`${state.event.name || 'event'}.json`, JSON.stringify(state.event, null, 2) + '\n', 'application/json');
+      download(`${f.event.name || 'event'}.json`, JSON.stringify({ ...f.event, people: r.people }, null, 2) + '\n', 'application/json');
     });
     $('#addInbox').addEventListener('click', () => {
       const lines = $('#inbox').value.split('\n').map((l) => l.trim()).filter(Boolean);
@@ -504,10 +510,10 @@
     $('#copyAdmin').addEventListener('click', () => { if (computePlan()) copy(linkFor('admin', {}), `Admin-Link, Stand ${plan.fingerprint},`); });
     $('#copyView').addEventListener('click', () => { if (computePlan()) copy(linkFor('view', { pins: plan.pins }), `Viewer-Link, Stand ${plan.fingerprint},`); });
     $('#copyCollect').addEventListener('click', () => {
-      formToEvent();
-      if (!state.collect.to) { showMessages(['Für den Sammel-Link braucht es die Orga-Adresse (Feld oben).']); return; }
-      if (!state.event.name) { showMessages(['Für den Sammel-Link braucht es den Event-Namen.']); return; }
-      copy(linkFor('collect', {}), 'Sammel-Link');
+      const f = readForm();
+      if (!f.to) { showMessages(['Für den Sammel-Link braucht es die Orga-Adresse (Feld oben).']); return; }
+      if (!f.event.name) { showMessages(['Für den Sammel-Link braucht es den Event-Namen.']); return; }
+      copy(linkFor('collect', { event: f.event, collect: { to: f.to } }), 'Sammel-Link');
     });
   }
 

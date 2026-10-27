@@ -39,3 +39,11 @@ func TestSVGDrawsBoxesArrowsAndEscapes(t *testing.T) {
 		t.Errorf("want 2 arrows for 2 handovers, got %d / %d", n, p.Stats.Handovers)
 	}
 }
+
+func TestSVGEscapesTitle(t *testing.T) {
+	e := renderEvent()
+	e.Name = "t<1"
+	if svg := mustCompute(t, e, nil).SVG(); !strings.Contains(svg, "<title>t&lt;1</title>") {
+		t.Fatalf("title not escaped:\n%.200s", svg)
+	}
+}

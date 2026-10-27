@@ -61,7 +61,7 @@ const admin = dom(link('admin'));
 check('admin: plan rendered from the link', planned(admin));
 check('admin: matrix editable and shows the group slot', admin.includes('<table id="matrix" class="editable">') && admin.includes('mammut+10'));
 check('admin: one sheet row per slot', (admin.match(/data-who=/g) || []).length === 47);
-check('admin: live status lists every voucher', (admin.match(/<li class="live"/g) || []).length === 7);
+check('admin: live status lists every voucher', (admin.match(/<li class="live/g) || []).length === 7);
 check('admin: status buttons on every sheet row', (admin.match(/<button type="button" class="badge st-open"/g) || []).length === 47);
 check('admin: freeze and extra-voucher controls present', admin.includes('id="freezeToday"') && admin.includes('id="f-extra"'));
 check('admin: matrix cells keyboard-focusable', (admin.match(/tabindex="0"/g) || []).length >= 47);

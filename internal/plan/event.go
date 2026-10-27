@@ -63,22 +63,26 @@ func Normalize(e *Event) (warnings []string, err error) {
 		errs = append(errs, fmt.Errorf("vouchers must be between 1 and %d, got %d", MaxVouchers, e.Vouchers))
 	}
 	total := e.Vouchers
+	if len(e.Extra) > MaxVouchers {
+		errs = append(errs, fmt.Errorf("%d extra entries, more than %d", len(e.Extra), MaxVouchers))
+	}
 	for i := range e.Extra {
 		x := &e.Extra[i]
 		x.Date = strings.TrimSpace(x.Date)
 		if _, derr := ParseDate(x.Date); derr != nil {
 			errs = append(errs, fmt.Errorf("extra vouchers %d: date must be YYYY-MM-DD, got %q", i+1, x.Date))
 		}
-		if x.Count < 1 {
-			errs = append(errs, fmt.Errorf("extra vouchers %d: count must be at least 1", i+1))
+		if x.Count < 1 || x.Count > MaxVouchers {
+			errs = append(errs, fmt.Errorf("extra vouchers %d: count must be between 1 and %d", i+1, MaxVouchers))
+			continue
 		}
 		total += x.Count
 	}
 	if total > MaxVouchers {
 		errs = append(errs, fmt.Errorf("%d vouchers in total, more than %d", total, MaxVouchers))
 	}
-	if e.PlusMax < 0 {
-		errs = append(errs, fmt.Errorf("plusMax must not be negative, got %d", e.PlusMax))
+	if e.PlusMax < 0 || e.PlusMax > MaxPlus {
+		errs = append(errs, fmt.Errorf("plusMax must be between 0 and %d, got %d", MaxPlus, e.PlusMax))
 	}
 	if _, derr := ParseDate(strings.TrimSpace(e.Start)); derr != nil {
 		errs = append(errs, fmt.Errorf("start must be YYYY-MM-DD, got %q", e.Start))
@@ -121,6 +125,10 @@ func Normalize(e *Event) (warnings []string, err error) {
 	}
 	if len(errs) > 0 {
 		return nil, errors.Join(errs...)
+	}
+	e.index = make(map[string]*Person, len(e.People))
+	for i := range e.People {
+		e.index[e.People[i].ID] = &e.People[i]
 	}
 
 	// Knows: resolve case-insensitively to canonical IDs, drop unknown and
