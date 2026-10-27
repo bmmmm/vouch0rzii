@@ -195,7 +195,7 @@ const RosterHeader = "Order\tName\tStatus\t+N\tEmail\tKnows\tGroup\tOut\tNote"
 
 // FormatRoster renders people as TSV with English labels, the shape the page
 // shows for editing. ParseRoster(FormatRoster(p)) yields p again as long as no
-// field contains a tab or a line break.
+// field contains a tab or a line break and Knows names each handle once.
 func FormatRoster(people []Person) string {
 	var b strings.Builder
 	b.WriteString(RosterHeader)
@@ -224,10 +224,11 @@ const SignupFields = "Name; Email; Status; +N; Knows; Note"
 // of the former credit-card field are in the way. Any other line is read by
 // content: the first field is the handle, "@" marks the e-mail, a tier word
 // the status, a number the +N, the first list of handles separated by commas
-// and every later word or list that names only other people's handles (known,
-// or a name in text) the connections, anything else the note; yes/no words
-// and words or lists kept as note are reported. Unknown handles in the first
-// list are reported by Normalize.
+// and every word or list, before or after it, that names only other people's
+// handles (known, or a name in text) the connections, anything else the
+// note. Reported are yes/no words and, kept as note, single words and lists
+// without spaces, "+" or "|"; prose stays the note silently. Unknown handles
+// in the first list are reported by Normalize.
 func ParseSignup(text string, known []string) (people []Person, warnings []string, err error) {
 	lines := strings.Split(strings.ReplaceAll(text, "\r\n", "\n"), "\n")
 	handles := map[string]bool{}
@@ -367,8 +368,9 @@ func signupByContent(row int, f []string, handles map[string]bool) (p Person, wa
 		n, nerr := strconv.Atoi(v)
 		_, berr := ParseBool(v)
 		single := !strings.Contains(v, ",")
+		ids := splitHandles(v)
 		switch {
-		case v == "":
+		case len(ids) == 0: // nothing, or only commas
 		case strings.Contains(v, "@") && p.Email == "":
 			p.Email = v
 		case isTier && !tier:
@@ -379,15 +381,11 @@ func signupByContent(row int, f []string, handles map[string]bool) (p Person, wa
 			warnings = append(warnings, fmt.Sprintf("line %d: %s: %q ignored, that field is already set", row, p.ID, v))
 		case berr == nil:
 			warnings = append(warnings, fmt.Sprintf("line %d: %s: %q ignored, no field takes yes/no", row, p.ID, v))
-		case isHandles(v) && !single && !list:
-			for _, id := range splitHandles(v) {
+		case isHandles(v) && !single && !list, !slices.ContainsFunc(ids, func(id string) bool { return !handles[strings.ToLower(id)] || strings.EqualFold(id, p.ID) }):
+			for _, id := range ids {
 				p.Knows = addHandle(p.Knows, id)
 			}
-			list = true
-		case !slices.ContainsFunc(splitHandles(v), func(id string) bool { return !handles[strings.ToLower(id)] || strings.EqualFold(id, p.ID) }):
-			for _, id := range splitHandles(v) {
-				p.Knows = addHandle(p.Knows, id)
-			}
+			list = list || !single
 		case isHandles(v):
 			if at < 0 {
 				at = len(warnings)

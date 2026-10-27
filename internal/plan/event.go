@@ -139,7 +139,7 @@ func Normalize(e *Event) (warnings []string, err error) {
 	}
 
 	// Knows: resolve case-insensitively to canonical IDs, drop unknown and
-	// self, then close symmetrically.
+	// self (warning), then close symmetrically.
 	known := make([]map[string]bool, len(e.People))
 	for i := range known {
 		known[i] = map[string]bool{}
@@ -157,6 +157,7 @@ func Normalize(e *Event) (warnings []string, err error) {
 				continue
 			}
 			if j == i {
+				warnings = append(warnings, fmt.Sprintf("%s: knows own handle %q, dropped", p.ID, id))
 				continue
 			}
 			known[i][e.People[j].ID] = true
