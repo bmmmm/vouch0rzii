@@ -36,10 +36,10 @@ const withStatus = (href, status) =>
   page + '#s=' + deflateRawSync(JSON.stringify({ ...decode(href), status, statusAt: '2026-10-27T12:00:00Z' })).toString('base64url');
 const hrefOf = (html, id) => (html.match(new RegExp(`id="${id}" class="button" href="([^"]+)"`)) || [])[1] || '';
 
-function dom(url) {
+function dom(url, lang = 'de') { // the page follows the browser language; pinned so checks do not depend on the machine
   const r = spawnSync(chrome, [
     '--headless=new', '--disable-gpu', '--no-sandbox', '--allow-file-access-from-files',
-    `--user-data-dir=${join(tmpdir(), 'vouch0rzii-chrome')}`, '--virtual-time-budget=10000', '--dump-dom', url,
+    `--user-data-dir=${join(tmpdir(), 'vouch0rzii-chrome')}`, `--accept-lang=${lang}`, '--virtual-time-budget=10000', '--dump-dom', url,
   ], { encoding: 'utf8', maxBuffer: 64 << 20 });
   if (r.status !== 0) throw new Error(`chrome exit ${r.status}: ${r.stderr}`);
   return r.stdout;
@@ -79,7 +79,7 @@ check('admin: voucher phase summary, free cells marked, nothing for the public s
 check('admin: "+ Tag" column offered while the phase has room', admin.includes('>+ Tag<'));
 check('admin: the draw is explained with the seed', admin.includes('entscheidet das Los mit Seed „congress2026"'));
 check('admin: share buttons visible', admin.includes('<nav id="sharebar">'));
-check('admin: board hidden, "Board" opens a board state in a new tab', admin.includes('<section id="board" class="card" hidden="">') && /id="toBoard" class="button" href="[^"]+" title="[^"]*" rel="noopener" target="_blank"/.test(admin) && decode(hrefOf(admin, 'toBoard')).mode === 'board');
+check('admin: board hidden, "Board" opens a board state in a new tab', admin.includes('<section id="board" class="card" hidden="">') && /id="toBoard" class="button" href="[^"]+"[^>]* rel="noopener"[^>]* target="_blank"/.test(admin) && decode(hrefOf(admin, 'toBoard')).mode === 'board');
 check('admin: no error box', noError(admin));
 const fp = (html) => (html.match(/id="fingerprint"[^>]*>([^<]*)</) || [])[1] || '';
 check('admin: four-emoji fingerprint shown', [...fp(admin)].length === 4);
@@ -127,6 +127,19 @@ rmSync(scratch, { recursive: true });
 const collect = dom(link('collect', ['-to', 'orga@example.org']));
 check('collect: form shown with the event name', collect.includes('<section id="collect" class="card">') && collect.includes('<span id="c-event">congress2026</span>'));
 check('collect: editor hidden', collect.includes('<section id="editor" hidden=""'));
+
+// An English browser gets the English page: <html lang> picks the static
+// text, app.js renders its own strings, day labels and attributes in English.
+const en = dom(link('admin'), 'en-US');
+check('en: page language follows the browser', en.includes('<html lang="en">') && en.includes('<title>vouch0rzii — voucher chain planner</title>'));
+check('en: plan summary, phase and free cells in English', en.includes('7 vouchers · 7 days · 47 slots') && en.includes('Voucher phase until Fri 13/11 (11 days) · 30 slots free') && (en.match(/>free<\/td>/g) || []).length === 2 && en.includes('>+ day<'));
+check('en: draw, counter and status badges in English', en.includes('the draw with seed "congress2026" decides') && en.includes('0 of 47 tickets bought') && (en.match(/class="badge st-open"[^>]*>open</g) || []).length === 47);
+check('en: attributes swapped, German kept beside them', en.includes('title="This link holds the roster, settings and pins"') && en.includes('data-de-title="Dieser Link enthält Roster, Einstellungen und Pins"') && en.includes('>DE</button>'));
+check('en: same plan as German', fp(en) === fp(admin) && noError(en));
+const enBoard = dom(link('board'), 'en-US');
+check('en: board in English', enBoard.includes('0 of 47 tickets bought') && enBoard.includes('<b>30</b><span>slots free</span>'));
+const enCollect = dom(link('collect', ['-to', 'orga@example.org']), 'en-US');
+check('en: collect form options in English', enCollect.includes('<option value="guest" data-en-text="frequent guest" data-de-text="häufiger Gast">frequent guest</option>'));
 
 console.log(failures ? `\n${failures} browser check(s) failed` : '\nall browser checks passed');
 process.exit(failures ? 1 : 0);

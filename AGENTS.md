@@ -50,6 +50,8 @@ and watch a test go red before trusting it.
   input yields the same plan on every platform.
 - Limits in `model.go` bound everything a link can carry. Keep them when you
   add inputs.
-- UI strings German, code, comments and docs English, commits conventional
-  (`feat:`, `fix:`, `refactor!:` …).
+- UI strings German and English, every one in both: static text in
+  `index.html` as `lang="de"`/`lang="en"` pairs plus `data-en-*` attributes,
+  built text in `TEXT` in `app.js`. Code, comments and docs English, commits
+  conventional (`feat:`, `fix:`, `refactor!:` …).
 - Page changes count as unverified until the browser gate ran.

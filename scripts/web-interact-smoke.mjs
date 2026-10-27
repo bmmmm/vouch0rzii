@@ -32,7 +32,7 @@ const link = execFileSync(cli, ['-event', join(root, 'events', 'congress2026.jso
 const profile = mkdtempSync(join(tmpdir(), 'vouch0rzii-cdp-'));
 const proc = spawn(chrome, [
   '--headless=new', '--disable-gpu', '--no-sandbox', '--allow-file-access-from-files',
-  '--remote-debugging-pipe', `--user-data-dir=${profile}`, 'about:blank',
+  '--remote-debugging-pipe', `--user-data-dir=${profile}`, '--accept-lang=de', 'about:blank', // the page follows the browser language
 ], { stdio: ['ignore', 'ignore', 'ignore', 'pipe', 'pipe'] });
 const pending = new Map();
 let nextId = 0, buf = '';
@@ -173,6 +173,16 @@ try {
   await js(`location.hash = ${JSON.stringify(other.slice(other.indexOf('#')))}; 0`);
   for (let i = 0; i < 100 && (await js(`document.querySelectorAll('#sheets input.pick').length`)) !== 47; i++) await sleep(50);
   check('new link in the same tab: selection cleared', await js(`document.querySelectorAll('#sheets input.pick:checked').length === 0 && document.getElementById('pickCount').textContent.startsWith('Zeilen ankreuzen')`));
+
+  // Language switch: re-renders in place, keeps pending input, and switching
+  // back restores the German text and attributes.
+  await js(`document.getElementById('roster').value += 'pending'; 0`);
+  const typed = await roster();
+  await js(`document.getElementById('lang').click(); 0`);
+  check('lang: English re-renders plan, bulk bar and attributes', await js(`document.documentElement.lang === 'en' && document.getElementById('r-stats').textContent.startsWith('7 vouchers · 7 days · 47 slots') && document.getElementById('pickCount').textContent.startsWith('Tick rows') && document.getElementById('copyAdmin').title === 'This link holds the roster, settings and pins' && getComputedStyle(document.querySelector('#compute [lang="de"]')).display === 'none' && document.getElementById('lang').textContent === 'DE'`));
+  await js(`document.getElementById('lang').click(); 0`);
+  check('lang: German again, pending input untouched', (await roster()) === typed && await js(`document.documentElement.lang === 'de' && document.getElementById('r-stats').textContent.includes('47 Slots') && document.getElementById('copyAdmin').title === 'Dieser Link enthält Roster, Einstellungen und Pins' && document.getElementById('roster').placeholder.startsWith('Reihenfolge') && getComputedStyle(document.querySelector('#compute [lang="en"]')).display === 'none'`));
+  await js(`(() => { const r = document.getElementById('roster'); r.value = r.value.replace(/pending$/, ''); })(); 0`);
 
   // Sign-up lines: a hand-typed line in its own order lands in the roster;
   // messages appear under the button that was clicked, not at the top.

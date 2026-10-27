@@ -25,10 +25,139 @@
     return n;
   };
 
+  // ---------- language. Static text sits in index.html in both languages;
+  // TEXT holds what this file builds. The choice follows the browser and
+  // the header button, and stays out of the link.
+  const TEXT = {
+    de: {
+      title: 'vouch0rzii — Voucher-Kettenplaner',
+      mode: { admin: 'Admin', view: 'Ansicht', board: 'Board', collect: 'Anmeldung' },
+      status: { open: 'offen', received: 'Voucher da', bought: 'Ticket gekauft', passed: 'weitergegeben' },
+      tier: { member: 'Mitglied', guest: 'Gast', acquaintance: 'Bekanntschaft' },
+      nothingToUndo: 'Nichts rückgängig zu machen', undone: 'Rückgängig', nothingToRedo: 'Nichts zu wiederholen', redone: 'Wiederholt',
+      errorsHead: 'Das geht so nicht:', warningsHead: 'Hinweise:',
+      copied: (what) => `${what} kopiert`, copyFailed: 'Kopieren fehlgeschlagen',
+      linkUnreadable: (e) => `Der Link konnte nicht gelesen werden: ${e}`,
+      cellAria: 'Handle für diese Zelle',
+      newStatus: 'Neuer Status',
+      chainDone: 'Kette abgeschlossen',
+      moving: (to, from, day) => `unterwegs zu ${to}, ${from} hat weitergegeben, Kauf am ${day}`,
+      holding: (who, st) => `bei ${who} (${st})`, holdingNext: (who, day) => `, als Nächstes ${who} am ${day}`, lastStop: ', letzte Station',
+      atOrga: (who, day) => `noch bei der Orga, Start ${who} am ${day}`, noSlots: 'ohne Slots',
+      statusStand: (n, at) => `${n} Slot(s) mit Status, Stand ${at}.`,
+      noStatus: 'Noch kein Status gesetzt. Überfällig wird erst markiert, sobald der erste Status gesetzt ist.',
+      publicHead: 'Freier Verkauf: ', publicText: (n) => `${n} Ticket(s) passen nicht mehr in die Voucher-Phase und müssen regulär gekauft werden: `,
+      overdue: 'überfällig',
+      startOn: (day) => `Start am ${day}`, phaseOver: 'Voucher-Phase beendet', lastDayWas: (day) => `Letzter Plantag war ${day}`,
+      dayOf: (n, total) => `Tag ${n} von ${total}`, endAt: (day) => ` · Ende ${day}`,
+      kpiMoving: 'Voucher unterwegs', kpiDone: 'Ketten abgeschlossen', kpiFree: 'Slots frei',
+      nobody: 'niemand', nextOn: (day) => `Als Nächstes, ${day}`, next: 'Als Nächstes', fingerprint: (fp) => ` Kennung ${fp}.`,
+      bought: (n, total) => `${n} von ${total} Tickets gekauft`,
+      stats: (v, s) => `${v} Vouchers · ${s.days} Tage · ${s.slots} Slots · ${s.handovers} Übergaben, davon ${s.known} unter Buddies, ${s.unknown} neue Verbindungen` +
+        (s.forbidden ? `, ${s.forbidden} direkt an eigene Begleitung` : '') + (s.pinned ? ` · ${s.pinned} gepinnt` : ''),
+      handoverAt: (at) => ` · Übergabe ${at}`,
+      order: (seed) => `Reihenfolge: erst Mitglieder, dann häufige Gäste, dann Bekanntschaften; innerhalb jeder Gruppe entscheidet das Los mit Seed „${seed}" (gleicher Seed, gleiche Losung). Danach die Begleitungen rundenweise: alle +1, dann alle +2 und so weiter. Eine Zahl in „Reihenfolge" überstimmt das Los.`,
+      phase: (day, days, free) => `Voucher-Phase bis ${day} (${days} Tage) · ${free} Slots frei`,
+      noEnd: (free) => `Kein Ende der Voucher-Phase gesetzt · ${free} Slots frei im Plan`,
+      addDay: '+ Tag', free: 'frei', notYet: 'Voucher noch nicht verfügbar', fromOrga: 'bekommt den Voucher von der Orga',
+      freeCell: 'Voucher verfügbar, noch niemand eingeplant', unpin: 'Pin lösen',
+      evening: (day, date, at) => `${day} (${date}), ${at} Uhr`,
+      forbidden: 'direkt an eigene Begleitung', known: 'Buddies, kennen sich schon', stranger: 'neue Verbindung',
+      buysOn: (day) => `, kauft am ${day}`, oneDay: 'Nur ein Tag, keine Übergaben.',
+      mail: (to, label, date, v, ev, at, next, nextMail, from) => [
+        `Hallo ${to}${label !== to ? ` (für ${label})` : ''},`, '',
+        `am ${date} bekommst du von mir Voucher ${v} für ${ev}:`, '', '<CODE HIER EINFÜGEN>', '',
+        `Kauf bitte an dem Tag dein Ticket und gib den neuen Voucher um ${at} Uhr weiter` +
+          (next ? ` an ${next}${nextMail ? ` (${nextMail})` : ''}.` : '. Du bist die letzte Station dieser Kette.'),
+        '', `Viele Grüße, ${from}`,
+      ],
+      mailSubject: (v, ev) => `Voucher ${v} für ${ev}`,
+      pickAll: 'Alle sichtbaren Zeilen auswählen', pickRow: (label) => `${label} auswählen`,
+      heads: ['Slot', 'Kontakt', 'Tag', 'Voucher', 'bekommt von', 'gibt weiter an', 'Status', ''],
+      nextStatus: 'Klick: nächster Status', chainEnds: '— Kette endet',
+      report: 'melden', reportTitle: 'Statusmeldung an die Orga vorbereiten', mailTitle: 'Mail an die nächste Person vorbereiten',
+      linkTitle: (who) => `Viewer-Link, der die Zeilen von ${who} hervorhebt`, linkFor: (who) => `Link für ${who}`,
+      picked: (n, hidden) => `${n} ausgewählt${hidden ? `, davon ${hidden} vom Filter ausgeblendet` : ''}, Status setzen:`,
+      pickHint: 'Zeilen ankreuzen, dann Status für alle setzen:',
+      fileUnreadable: (e) => `Datei nicht lesbar: ${e}`, skipped: (list) => `Schon vorhanden, übersprungen: ${list}`,
+      added: (n) => `${n} Person(en) hinzugefügt, jetzt „Plan berechnen"`, nothingAdded: 'Nichts Neues hinzugefügt',
+      noneGone: 'Noch kein Tag vergangen, nichts festzunageln', frozen: (n) => `${n} Slot(s) bis heute festgenagelt`,
+      adminLink: (fp) => `Admin-Link, Stand ${fp},`, viewLink: (fp) => `Viewer-Link, Stand ${fp},`, boardLink: (fp) => `Board-Link, Stand ${fp},`,
+      collectLink: 'Sammel-Link', needTo: 'Für den Sammel-Link braucht es die Orga-Adresse (Feld oben).', needName: 'Für den Sammel-Link braucht es den Event-Namen.',
+      line: 'Zeile', theEvent: 'das Event',
+      loadFailed: (e) => `Der Planer konnte nicht geladen werden. Der Browser braucht WebAssembly. ${e}`,
+    },
+    en: {
+      title: 'vouch0rzii — voucher chain planner',
+      mode: { admin: 'Admin', view: 'View', board: 'Board', collect: 'Sign-up' },
+      status: { open: 'open', received: 'voucher received', bought: 'ticket bought', passed: 'passed on' },
+      tier: { member: 'member', guest: 'guest', acquaintance: 'acquaintance' },
+      nothingToUndo: 'Nothing to undo', undone: 'Undone', nothingToRedo: 'Nothing to redo', redone: 'Redone',
+      errorsHead: 'That does not work:', warningsHead: 'Notes:',
+      copied: (what) => `${what} copied`, copyFailed: 'Copying failed',
+      linkUnreadable: (e) => `The link could not be read: ${e}`,
+      cellAria: 'Handle for this cell',
+      newStatus: 'New status',
+      chainDone: 'chain complete',
+      moving: (to, from, day) => `on its way to ${to}, ${from} passed it on, buys on ${day}`,
+      holding: (who, st) => `with ${who} (${st})`, holdingNext: (who, day) => `, next ${who} on ${day}`, lastStop: ', last stop',
+      atOrga: (who, day) => `still with the organisers, starts with ${who} on ${day}`, noSlots: 'no slots',
+      statusStand: (n, at) => `${n} slot(s) with a status, as of ${at}.`,
+      noStatus: 'No status set yet. Overdue is only marked once the first status is set.',
+      publicHead: 'Public sale: ', publicText: (n) => `${n} ticket(s) no longer fit into the voucher phase and have to be bought regularly: `,
+      overdue: 'overdue',
+      startOn: (day) => `Starts on ${day}`, phaseOver: 'Voucher phase over', lastDayWas: (day) => `Last plan day was ${day}`,
+      dayOf: (n, total) => `Day ${n} of ${total}`, endAt: (day) => ` · ends ${day}`,
+      kpiMoving: 'vouchers on their way', kpiDone: 'chains complete', kpiFree: 'slots free',
+      nobody: 'nobody', nextOn: (day) => `Next, ${day}`, next: 'Next', fingerprint: (fp) => ` Fingerprint ${fp}.`,
+      bought: (n, total) => `${n} of ${total} tickets bought`,
+      stats: (v, s) => `${v} vouchers · ${s.days} days · ${s.slots} slots · ${s.handovers} handovers, ${s.known} of them between buddies, ${s.unknown} new connections` +
+        (s.forbidden ? `, ${s.forbidden} straight to one's own companion` : '') + (s.pinned ? ` · ${s.pinned} pinned` : ''),
+      handoverAt: (at) => ` · handover ${at}`,
+      order: (seed) => `Order: members first, then frequent guests, then acquaintances; within each tier the draw with seed "${seed}" decides (same seed, same draw). Then the companions round by round: every +1, then every +2 and so on. A number in "Order" overrides the draw.`,
+      phase: (day, days, free) => `Voucher phase until ${day} (${days} days) · ${free} slots free`,
+      noEnd: (free) => `No end of the voucher phase set · ${free} slots free in the plan`,
+      addDay: '+ day', free: 'free', notYet: 'Voucher not available yet', fromOrga: 'gets the voucher from the organisers',
+      freeCell: 'Voucher available, nobody planned yet', unpin: 'Release pin',
+      evening: (day, date, at) => `${day} (${date}), ${at}`,
+      forbidden: "straight to one's own companion", known: 'buddies, already know each other', stranger: 'new connection',
+      buysOn: (day) => `, buys on ${day}`, oneDay: 'Only one day, no handovers.',
+      mail: (to, label, date, v, ev, at, next, nextMail, from) => [
+        `Hello ${to}${label !== to ? ` (for ${label})` : ''},`, '',
+        `on ${date} you get voucher ${v} for ${ev} from me:`, '', '<PASTE CODE HERE>', '',
+        `Please buy your ticket on that day and pass the new voucher on at ${at}` +
+          (next ? ` to ${next}${nextMail ? ` (${nextMail})` : ''}.` : '. You are the last stop of this chain.'),
+        '', `Best, ${from}`,
+      ],
+      mailSubject: (v, ev) => `Voucher ${v} for ${ev}`,
+      pickAll: 'Select all visible rows', pickRow: (label) => `Select ${label}`,
+      heads: ['Slot', 'Contact', 'Day', 'Voucher', 'gets it from', 'passes it to', 'Status', ''],
+      nextStatus: 'Click: next status', chainEnds: '— chain ends',
+      report: 'report', reportTitle: 'Prepare a status report to the organisers', mailTitle: 'Prepare a mail to the next person',
+      linkTitle: (who) => `Viewer link that highlights the rows of ${who}`, linkFor: (who) => `Link for ${who}`,
+      picked: (n, hidden) => `${n} selected${hidden ? `, ${hidden} of them hidden by the filter` : ''}, set status:`,
+      pickHint: 'Tick rows, then set a status for all of them:',
+      fileUnreadable: (e) => `File not readable: ${e}`, skipped: (list) => `Already there, skipped: ${list}`,
+      added: (n) => `${n} person(s) added, now "Compute plan"`, nothingAdded: 'Nothing new added',
+      noneGone: 'No day has passed yet, nothing to pin', frozen: (n) => `${n} slot(s) pinned until today`,
+      adminLink: (fp) => `Admin link, state ${fp},`, viewLink: (fp) => `Viewer link, state ${fp},`, boardLink: (fp) => `Board link, state ${fp},`,
+      collectLink: 'Sign-up link', needTo: 'The sign-up link needs the organiser address (field above).', needName: 'The sign-up link needs the event name.',
+      line: 'Line', theEvent: 'the event',
+      loadFailed: (e) => `The planner could not be loaded. The browser needs WebAssembly. ${e}`,
+    },
+  };
+  let lang = 'de';
+  const t = (key, ...args) => { const v = TEXT[lang][key]; return typeof v === 'function' ? v(...args) : v; };
+  // dayName labels a plan day ({date, label}); Go writes German labels.
+  const dayName = (d) => {
+    if (lang === 'de' || !d.date) return d.label;
+    const [y, m, day] = d.date.split('-').map(Number);
+    return new Date(y, m - 1, day).toLocaleDateString('en-GB', { weekday: 'short', day: '2-digit', month: '2-digit' });
+  };
+
   const DEFAULT_EVENT = { name: '', vouchers: 7, start: '', weekends: false, plusMax: 2, seed: '', handover: '23:00', people: [] };
-  const MODE_LABEL = { admin: 'Admin', view: 'Ansicht', board: 'Board', collect: 'Anmeldung' };
   const STATUS = ['open', 'received', 'bought', 'passed'];
-  const STATUS_LABEL = { open: 'offen', received: 'Voucher da', bought: 'Ticket gekauft', passed: 'weitergegeben' };
+  const statusLabel = (st) => t('status')[st];
 
   const emptyState = () => ({ v: 1, mode: 'admin', event: { ...DEFAULT_EVENT }, pins: [], collect: { to: '' }, status: {}, statusAt: '', me: '' });
   let bridge = null;
@@ -63,17 +192,17 @@
   // become a step of their own instead of being overwritten.
   function undo() {
     if (!computePlan()) return;
-    if (!past.length) { toast('Nichts rückgängig zu machen'); return; }
+    if (!past.length) { toast(t('nothingToUndo')); return; }
     future.push(snapshot());
     restore(past.pop());
-    toast('Rückgängig');
+    toast(t('undone'));
   }
   function redo() {
     if (!computePlan()) return;
-    if (!future.length) { toast('Nichts zu wiederholen'); return; }
+    if (!future.length) { toast(t('nothingToRedo')); return; }
     past.push(snapshot());
     restore(future.pop());
-    toast('Wiederholt');
+    toast(t('redone'));
   }
 
   // ---------- wasm
@@ -100,8 +229,8 @@
     const box = $('#messages');
     (anchor || $('#loading')).after(box);
     box.replaceChildren();
-    if (errors.length) box.append(el('div', { class: 'error' }, el('strong', {}, 'Das geht so nicht:'), el('ul', {}, errors.map((e) => el('li', {}, e)))));
-    if (warnings.length) box.append(el('div', { class: 'warning' }, el('strong', {}, 'Hinweise:'), el('ul', {}, warnings.map((w) => el('li', {}, w)))));
+    if (errors.length) box.append(el('div', { class: 'error' }, el('strong', {}, t('errorsHead')), el('ul', {}, errors.map((e) => el('li', {}, e)))));
+    if (warnings.length) box.append(el('div', { class: 'warning' }, el('strong', {}, t('warningsHead')), el('ul', {}, warnings.map((w) => el('li', {}, w)))));
     if (errors.length) box.scrollIntoView({ block: 'nearest' });
   }
   let toastTimer = 0;
@@ -115,9 +244,9 @@
   async function copy(text, what) {
     try {
       await navigator.clipboard.writeText(text);
-      toast(`${what} kopiert`);
+      toast(t('copied', what));
     } catch {
-      toast('Kopieren fehlgeschlagen');
+      toast(t('copyFailed'));
     }
   }
   function download(name, text, type) {
@@ -136,7 +265,7 @@
   const today = () => fmtDate(new Date());
   function fmtAt(iso) {
     const d = new Date(iso);
-    return isNaN(d) ? iso : d.toLocaleString('de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+    return isNaN(d) ? iso : d.toLocaleString(lang === 'de' ? 'de-DE' : 'en-GB', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
   }
 
   // ---------- state <-> URL
@@ -150,7 +279,7 @@
     if (!m) return null;
     const r = bridge.decodeState(m[1]);
     if (!r.ok) {
-      showMessages(['Der Link konnte nicht gelesen werden: ' + r.errors.join('; ')]);
+      showMessages([t('linkUnreadable', r.errors.join('; '))]);
       return null;
     }
     return JSON.parse(r.stateJson);
@@ -281,7 +410,7 @@
   // nameCell turns a free cell into an input. Enter commits, Escape cancels,
   // any re-render of the matrix discards it; assignLabel resolves the text.
   function nameCell(td, cell) {
-    const input = el('input', { class: 'cellname', placeholder: 'Handle', 'aria-label': 'Handle für diese Zelle' });
+    const input = el('input', { class: 'cellname', placeholder: 'Handle', 'aria-label': t('cellAria') });
     const refocus = () => { const c = $(`#matrix tbody tr:nth-child(${cell.voucher}) td:nth-child(${cell.day + 1})`); if (c) c.focus(); };
     input.addEventListener('click', (e) => e.stopPropagation()); // not a second pick of the cell
     input.addEventListener('keydown', (e) => {
@@ -332,15 +461,15 @@
     renderResult();
   }
   const boughtCount = () => plan.sheets.filter((s) => ['bought', 'passed'].includes(statusOf(s.label))).length;
-  const boughtText = () => `${boughtCount()} von ${plan.sheets.length} Tickets gekauft`;
+  const boughtText = () => t('bought', boughtCount(), plan.sheets.length);
   const cycleStatus = (label) => setStatus([label], STATUS[(STATUS.indexOf(statusOf(label)) + 1) % STATUS.length]);
   const picked = new Set(); // slot labels ticked in the sheet table for a bulk status action
   function reportMail(sheet) {
     const to = state.collect && state.collect.to;
     if (!to) return null;
     const next = STATUS[Math.min(STATUS.indexOf(statusOf(sheet.label)) + 1, STATUS.length - 1)];
-    const body = `Slot: ${sheet.label}\nVoucher: ${sheet.voucher}\nNeuer Status: ${STATUS_LABEL[next]}\nPlan: ${plan.fingerprint}\n`;
-    return mailto(to, `vouch0rzii ${plan.event}: ${sheet.label} ${STATUS_LABEL[next]}`, body);
+    const body = `Slot: ${sheet.label}\nVoucher: ${sheet.voucher}\n${t('newStatus')}: ${statusLabel(next)}\nPlan: ${plan.fingerprint}\n`;
+    return mailto(to, `vouch0rzii ${plan.event}: ${sheet.label} ${statusLabel(next)}`, body);
   }
   // voucherState reads the curated status of one chain: where the voucher is
   // (kind: done, moving, holding, orga, none) and whether it is overdue.
@@ -350,23 +479,23 @@
     const st = chain.map((s) => statusOf(s.label));
     const holder = Math.max(st.lastIndexOf('received'), st.lastIndexOf('bought'));
     const passed = st.lastIndexOf('passed');
-    const day = (s) => plan.days[s.day - 1].label;
+    const day = (s) => dayName(plan.days[s.day - 1]);
     if (passed > holder) {
       const next = chain[passed + 1];
-      if (!next) return { v, kind: 'done', text: 'Kette abgeschlossen' };
-      return { v, kind: 'moving', text: `unterwegs zu ${next.label}, ${chain[passed].label} hat weitergegeben, Kauf am ${day(next)}`, late: track && next.date < now };
+      if (!next) return { v, kind: 'done', text: t('chainDone') };
+      return { v, kind: 'moving', text: t('moving', next.label, chain[passed].label, day(next)), late: track && next.date < now };
     }
     if (holder >= 0) {
       const h = chain[holder];
       const next = chain.slice(holder + 1).find((s) => statusOf(s.label) === 'open');
       return {
         v, kind: 'holding',
-        text: `bei ${h.label} (${STATUS_LABEL[st[holder]]})` + (next ? `, als Nächstes ${next.label} am ${day(next)}` : ', letzte Station'),
+        text: t('holding', h.label, statusLabel(st[holder])) + (next ? t('holdingNext', next.label, day(next)) : t('lastStop')),
         late: track && h.date < now && !(st[holder] === 'bought' && !next), // a bought last station is done, not late
       };
     }
-    if (chain.length) return { v, kind: 'orga', text: `noch bei der Orga, Start ${chain[0].label} am ${day(chain[0])}`, late: track && chain[0].date < now };
-    return { v, kind: 'none', text: 'ohne Slots' };
+    if (chain.length) return { v, kind: 'orga', text: t('atOrga', chain[0].label, day(chain[0])), late: track && chain[0].date < now };
+    return { v, kind: 'none', text: t('noSlots') };
   }
   // trackedCount is the number of statuses that belong to a slot of this plan;
   // statuses of renamed or vanished slots neither count nor start tracking.
@@ -377,18 +506,18 @@
   const tracking = () => trackedCount() > 0;
   function statusStand() {
     const n = trackedCount();
-    return n ? `${n} Slot(s) mit Status, Stand ${fmtAt(state.statusAt)}.` : 'Noch kein Status gesetzt. Überfällig wird erst markiert, sobald der erste Status gesetzt ist.';
+    return n ? t('statusStand', n, fmtAt(state.statusAt)) : t('noStatus');
   }
   const publicBox = (box) => {
     box.hidden = !plan.public.length;
-    box.replaceChildren(el('strong', {}, 'Freier Verkauf: '), `${plan.public.length} Ticket(s) passen nicht mehr in die Voucher-Phase und müssen regulär gekauft werden: `, el('b', {}, plan.public.join(', ')));
+    box.replaceChildren(el('strong', {}, t('publicHead')), t('publicText', plan.public.length), el('b', {}, plan.public.join(', ')));
   };
   function renderLive() {
     const now = today(), track = tracking();
     const items = [];
     for (let v = 1; v <= plan.vouchers; v++) {
       const s = voucherState(v, now, track);
-      items.push(el('li', { class: s.late ? 'live overdue' : 'live' }, `Voucher ${v}: ${s.text}`, s.late ? ' — überfällig' : ''));
+      items.push(el('li', { class: s.late ? 'live overdue' : 'live' }, `Voucher ${v}: ${s.text}`, s.late ? ` — ${t('overdue')}` : ''));
     }
     $('#liveList').replaceChildren(...items);
     $('#liveAt').textContent = statusStand();
@@ -410,9 +539,9 @@
     const last = plan.days[plan.days.length - 1];
     const ended = plan.end.day ? now > plan.end.date : now > last.date;
     $('#b-title').textContent = plan.event;
-    $('#b-day').textContent = now < first.date ? `Start am ${first.label}`
-      : ended ? (plan.end.day ? 'Voucher-Phase beendet' : `Letzter Plantag war ${last.label}`)
-        : `Tag ${planDay(now)} von ${total}` + (plan.end.day ? ` · Ende ${plan.end.label}` : '');
+    $('#b-day').textContent = now < first.date ? t('startOn', dayName(first))
+      : ended ? (plan.end.day ? t('phaseOver') : t('lastDayWas', dayName(last)))
+        : t('dayOf', planDay(now), total) + (plan.end.day ? t('endAt', dayName(plan.end)) : '');
     const states = [];
     for (let v = 1; v <= plan.vouchers; v++) states.push(voucherState(v, now, track));
     const bar = $('#b-bar');
@@ -420,19 +549,19 @@
     bar.value = boughtCount();
     $('#b-progress').textContent = boughtText();
     $('#b-kpis').replaceChildren(...[
-      ['Voucher unterwegs', states.filter((s) => s.kind === 'moving').length],
-      ['Ketten abgeschlossen', states.filter((s) => s.kind === 'done').length],
-      ['überfällig', states.filter((s) => s.late).length],
-      ['Slots frei', plan.stats.free],
+      [t('kpiMoving'), states.filter((s) => s.kind === 'moving').length],
+      [t('kpiDone'), states.filter((s) => s.kind === 'done').length],
+      [t('overdue'), states.filter((s) => s.late).length],
+      [t('kpiFree'), plan.stats.free],
     ].map(([k, n]) => el('div', { class: 'kpi' }, el('b', {}, n), el('span', {}, k))));
-    $('#b-vouchers').replaceChildren(...states.map((s) => el('li', { class: `tile ${s.kind}${s.late ? ' late' : ''}` }, el('b', {}, `Voucher ${s.v}`), s.text, s.late && el('small', { class: 'late' }, 'überfällig'))));
+    $('#b-vouchers').replaceChildren(...states.map((s) => el('li', { class: `tile ${s.kind}${s.late ? ' late' : ''}` }, el('b', {}, `Voucher ${s.v}`), s.text, s.late && el('small', { class: 'late' }, t('overdue')))));
     const nextDay = plan.days.find((d) => d.date > now);
-    const who = (list) => list.length ? list.map((s) => el('li', {}, el('span', { class: `badge st-${statusOf(s.label)}` }, STATUS_LABEL[statusOf(s.label)]), ` ${s.label} · Voucher ${s.voucher}`)) : [el('li', { class: 'hint' }, 'niemand')];
+    const who = (list) => list.length ? list.map((s) => el('li', {}, el('span', { class: `badge st-${statusOf(s.label)}` }, statusLabel(statusOf(s.label))), ` ${s.label} · Voucher ${s.voucher}`)) : [el('li', { class: 'hint' }, t('nobody'))];
     $('#b-today').replaceChildren(...who(sheets.filter((s) => s.date === now)));
-    $('#b-nextLabel').textContent = nextDay ? `Als Nächstes, ${nextDay.label}` : 'Als Nächstes';
+    $('#b-nextLabel').textContent = nextDay ? t('nextOn', dayName(nextDay)) : t('next');
     $('#b-next').replaceChildren(...who(nextDay ? sheets.filter((s) => s.day === nextDay.day) : []));
     publicBox($('#b-public'));
-    $('#b-at').textContent = `${statusStand()} Kennung ${plan.fingerprint}.`;
+    $('#b-at').textContent = statusStand() + t('fingerprint', plan.fingerprint);
     $('#b-plan').href = linkFor('view', {});
   }
 
@@ -448,12 +577,11 @@
     const s = plan.stats;
     $('#r-title').textContent = `Plan ${plan.event}`;
     $('#r-stats').textContent =
-      `${plan.vouchers} Vouchers · ${s.days} Tage · ${s.slots} Slots · ${s.handovers} Übergaben, davon ${s.known} unter Buddies, ${s.unknown} neue Verbindungen` +
-      (s.forbidden ? `, ${s.forbidden} direkt an eigene Begleitung` : '') + (s.pinned ? ` · ${s.pinned} gepinnt` : '') + ` · Übergabe ${plan.handover}`;
-    $('#r-order').textContent = `Reihenfolge: erst Mitglieder, dann häufige Gäste, dann Bekanntschaften; innerhalb jeder Gruppe entscheidet das Los mit Seed „${state.event.seed || state.event.name}" (gleicher Seed, gleiche Losung). Danach die Begleitungen rundenweise: alle +1, dann alle +2 und so weiter. Eine Zahl in „Reihenfolge" überstimmt das Los.`;
+      t('stats', plan.vouchers, s) + t('handoverAt', plan.handover);
+    $('#r-order').textContent = t('order', state.event.seed || state.event.name);
     $('#r-phase').textContent = plan.end.day
-      ? `Voucher-Phase bis ${plan.end.label} (${plan.end.day} Tage) · ${s.free} Slots frei`
-      : `Kein Ende der Voucher-Phase gesetzt · ${s.free} Slots frei im Plan`;
+      ? t('phase', dayName(plan.end), plan.end.day, s.free)
+      : t('noEnd', s.free);
     publicBox($('#r-public'));
     const toBoard = $('#toBoard');
     toBoard.href = linkFor('board', { pins: plan.pins });
@@ -479,15 +607,15 @@
     for (const h of plan.handovers) incoming.set(`${pos.get(h.to).day}-${h.voucher}`, h);
     const pinned = new Set(state.pins.map((p) => p.label));
     const days = plan.days.slice();
-    if (editable && !(plan.end.day && days.length >= plan.end.day)) days.push({ day: days.length + 1, date: '', label: '+ Tag', extra: true }); // no day after the end
+    if (editable && !(plan.end.day && days.length >= plan.end.day)) days.push({ day: days.length + 1, date: '', label: t('addDay'), extra: true }); // no day after the end
 
-    const head = el('tr', {}, el('th', {}, 'Voucher'), days.map((d) => el('th', { class: d.extra ? 'extra' : d.date === now ? 'today' : null }, d.label, d.date && el('small', {}, d.date))));
+    const head = el('tr', {}, el('th', {}, 'Voucher'), days.map((d) => el('th', { class: d.extra ? 'extra' : d.date === now ? 'today' : null }, dayName(d), d.date && el('small', {}, d.date))));
     const rows = [];
     for (let v = 1; v <= plan.vouchers; v++) {
       const tds = days.map((d) => {
         const label = d.extra ? '' : (plan.grid[d.day - 1][v - 1] || '');
         const na = plan.voucherFrom[v - 1] > d.day; // voucher does not exist yet (also in the "+ Tag" column)
-        if (na) return el('td', { class: 'cell na', title: 'Voucher noch nicht verfügbar' });
+        if (na) return el('td', { class: 'cell na', title: t('notYet') });
         const cell = { label, day: d.day, voucher: v };
         const h = incoming.get(`${d.day}-${v}`);
         const cls = ['cell'];
@@ -498,8 +626,8 @@
         if (label && pinned.has(label)) cls.push('pinned');
         if (label && statusOf(label) !== 'open') cls.push('st-' + statusOf(label));
         if (selected && label && selected.label === label) cls.push('selected');
-        const title = label ? `${h ? `${h.from} → ${h.to}` : 'bekommt den Voucher von der Orga'} · ${STATUS_LABEL[statusOf(label)]}` : d.extra ? '' : 'Voucher verfügbar, noch niemand eingeplant';
-        const td = el('td', { class: cls.join(' '), draggable: editable && label ? 'true' : null, tabindex: editable ? '0' : null, title }, label || (d.extra ? '·' : 'frei'));
+        const title = label ? `${h ? `${h.from} → ${h.to}` : t('fromOrga')} · ${statusLabel(statusOf(label))}` : d.extra ? '' : t('freeCell');
+        const td = el('td', { class: cls.join(' '), draggable: editable && label ? 'true' : null, tabindex: editable ? '0' : null, title }, label || (d.extra ? '·' : t('free')));
         if (editable) {
           if (d.extra) cell.extra = true;
           td.addEventListener('click', () => onCellPick(cell, td));
@@ -510,7 +638,7 @@
             td.addEventListener('dragstart', (e) => { selected = cell; e.dataTransfer.setData('text/plain', label); e.dataTransfer.effectAllowed = 'move'; });
             td.addEventListener('dragend', () => { if (selected) { selected = null; renderMatrix(); } });
             if (pinned.has(label)) {
-              td.append(el('button', { class: 'unpin', type: 'button', title: 'Pin lösen', onclick: (e) => { e.stopPropagation(); unpin(label); } }, '×'));
+              td.append(el('button', { class: 'unpin', type: 'button', title: t('unpin'), onclick: (e) => { e.stopPropagation(); unpin(label); } }, '×'));
             }
           }
           td.addEventListener('dragover', (e) => { e.preventDefault(); td.classList.add('dragover'); });
@@ -536,33 +664,22 @@
     for (const h of plan.handovers) {
       if (h.day !== day) {
         day = h.day;
-        box.append(el('h3', {}, `${plan.days[day - 1].label} (${h.date}), ${plan.handover} Uhr`));
+        box.append(el('h3', {}, t('evening', dayName(plan.days[day - 1]), h.date, plan.handover)));
         list = el('ul');
         box.append(list);
       }
-      const mark = h.forbidden ? el('span', { class: 'mark forbidden-text', title: 'direkt an eigene Begleitung' }, '!') : h.known ? el('span', { class: 'mark known-text', title: 'Buddies, kennen sich schon' }, '✓') : el('span', { class: 'mark', title: 'neue Verbindung' }, '·');
+      const mark = h.forbidden ? el('span', { class: 'mark forbidden-text', title: t('forbidden') }, '!') : h.known ? el('span', { class: 'mark known-text', title: t('known') }, '✓') : el('span', { class: 'mark', title: t('stranger') }, '·');
       const toDay = pos.get(h.to).day;
-      list.append(el('li', {}, mark, ` Voucher ${h.voucher}: ${h.from} → ${h.to}`, h.toEmail && ` <${h.toEmail}>`, toDay !== h.day + 1 && `, kauft am ${plan.days[toDay - 1].label}`));
+      list.append(el('li', {}, mark, ` Voucher ${h.voucher}: ${h.from} → ${h.to}`, h.toEmail && ` <${h.toEmail}>`, toDay !== h.day + 1 && t('buysOn', dayName(plan.days[toDay - 1]))));
     }
-    if (!plan.handovers.length) box.append(el('p', { class: 'hint' }, 'Nur ein Tag, keine Übergaben.'));
+    if (!plan.handovers.length) box.append(el('p', { class: 'hint' }, t('oneDay')));
   }
 
   function mailFor(sheet) {
     const next = sheet.to && plan.sheets.find((s) => s.label === sheet.to);
     if (!next || !next.email) return null;
-    const body = [
-      `Hallo ${next.person}${next.label !== next.person ? ` (für ${next.label})` : ''},`,
-      '',
-      `am ${next.date} bekommst du von mir Voucher ${sheet.voucher} für ${plan.event}:`,
-      '',
-      '<CODE HIER EINFÜGEN>',
-      '',
-      `Kauf bitte an dem Tag dein Ticket und gib den neuen Voucher um ${plan.handover} Uhr weiter` +
-        (next.to ? ` an ${next.to}${next.toEmail ? ` (${next.toEmail})` : ''}.` : '. Du bist die letzte Station dieser Kette.'),
-      '',
-      `Viele Grüße, ${sheet.person}`,
-    ].join('\n');
-    return mailto(next.email, `Voucher ${sheet.voucher} für ${plan.event}`, body);
+    const body = t('mail', next.person, next.label, next.date, sheet.voucher, plan.event, plan.handover, next.to, next.toEmail, sheet.person).join('\n');
+    return mailto(next.email, t('mailSubject', sheet.voucher, plan.event), body);
   }
 
   function renderSheets() {
@@ -571,31 +688,31 @@
     const labels = new Set(plan.sheets.map((s) => s.label));
     for (const l of picked) if (!labels.has(l)) picked.delete(l);
     $('#sheets-count').textContent = boughtText();
-    const pickAll = admin && el('input', { type: 'checkbox', id: 'pickAll', title: 'Alle sichtbaren Zeilen auswählen', onchange: () => {
+    const pickAll = admin && el('input', { type: 'checkbox', id: 'pickAll', title: t('pickAll'), onchange: () => {
       const visible = [...table.querySelectorAll('tbody tr:not(.hidden)')].map((tr) => tr.dataset.label);
       if (visible.every((l) => picked.has(l))) for (const l of visible) picked.delete(l); else for (const l of visible) picked.add(l);
       renderSheets();
       $('#pickAll').focus();
     } });
-    const head = el('tr', {}, admin && el('th', {}, pickAll), ['Slot', 'Kontakt', 'Tag', 'Voucher', 'bekommt von', 'gibt weiter an', 'Status', ''].map((h) => el('th', {}, h)));
+    const head = el('tr', {}, admin && el('th', {}, pickAll), t('heads').map((h) => el('th', {}, h)));
     const rows = plan.sheets.map((s) => {
       const mail = mailFor(s);
       const st = statusOf(s.label);
       const badge = admin
-        ? el('button', { type: 'button', class: `badge st-${st}`, title: 'Klick: nächster Status', onclick: () => cycleStatus(s.label) }, STATUS_LABEL[st])
-        : el('span', { class: `badge st-${st}` }, STATUS_LABEL[st]);
+        ? el('button', { type: 'button', class: `badge st-${st}`, title: t('nextStatus'), onclick: () => cycleStatus(s.label) }, statusLabel(st))
+        : el('span', { class: `badge st-${st}` }, statusLabel(st));
       const report = !admin && reportMail(s);
       return el('tr', { class: `st-${st}`, dataset: { label: s.label, who: `${s.label} ${s.person} ${s.email || ''}`.toLowerCase(), person: s.person.toLowerCase() } },
-        admin && el('td', {}, el('input', { type: 'checkbox', class: 'pick', 'aria-label': `${s.label} auswählen`, checked: picked.has(s.label), onchange: (e) => { if (e.target.checked) picked.add(s.label); else picked.delete(s.label); renderBulk(); } })),
+        admin && el('td', {}, el('input', { type: 'checkbox', class: 'pick', 'aria-label': t('pickRow', s.label), checked: picked.has(s.label), onchange: (e) => { if (e.target.checked) picked.add(s.label); else picked.delete(s.label); renderBulk(); } })),
         el('td', {}, s.label, s.pinned ? ' 📌' : ''),
         el('td', {}, s.person, s.email && el('small', {}, el('br'), s.email)),
-        el('td', {}, plan.days[s.day - 1].label, el('small', {}, el('br'), s.date)),
+        el('td', {}, dayName(plan.days[s.day - 1]), el('small', {}, el('br'), s.date)),
         el('td', {}, s.voucher),
         el('td', {}, s.from, s.fromEmail && el('small', {}, el('br'), s.fromEmail)),
-        el('td', {}, s.to || '— Kette endet', s.toEmail && el('small', {}, el('br'), s.toEmail)),
-        el('td', {}, badge, report && [' ', el('a', { href: report, title: 'Statusmeldung an die Orga vorbereiten' }, 'melden')]),
-        el('td', {}, mail && el('a', { href: mail, title: 'Mail an die nächste Person vorbereiten' }, 'Mail'),
-          admin && [' ', el('button', { type: 'button', class: 'small', title: `Viewer-Link, der die Zeilen von ${s.person} hervorhebt`, onclick: () => copy(linkFor('view', { pins: plan.pins, me: s.person }), `Link für ${s.person}`) }, 'Link')]),
+        el('td', {}, s.to || t('chainEnds'), s.toEmail && el('small', {}, el('br'), s.toEmail)),
+        el('td', {}, badge, report && [' ', el('a', { href: report, title: t('reportTitle') }, t('report'))]),
+        el('td', {}, mail && el('a', { href: mail, title: t('mailTitle') }, 'Mail'),
+          admin && [' ', el('button', { type: 'button', class: 'small', title: t('linkTitle', s.person), onclick: () => copy(linkFor('view', { pins: plan.pins, me: s.person }), t('linkFor', s.person)) }, 'Link')]),
       );
     });
     table.replaceChildren(el('thead', {}, head), el('tbody', {}, rows));
@@ -608,8 +725,8 @@
     const visible = [...$('#sheets').querySelectorAll('tbody tr:not(.hidden)')];
     const hidden = picked.size - visible.filter((tr) => picked.has(tr.dataset.label)).length;
     $('#pickCount').textContent = picked.size
-      ? `${picked.size} ausgewählt${hidden ? `, davon ${hidden} vom Filter ausgeblendet` : ''}, Status setzen:`
-      : 'Zeilen ankreuzen, dann Status für alle setzen:';
+      ? t('picked', picked.size, hidden)
+      : t('pickHint');
     for (const b of bar.querySelectorAll('button')) b.disabled = !picked.size;
     const all = $('#pickAll');
     if (all) all.checked = visible.length > 0 && visible.every((tr) => picked.has(tr.dataset.label));
@@ -627,14 +744,14 @@
   // ---------- modes
   function applyMode() {
     const m = state.mode;
-    $('#modeLabel').textContent = MODE_LABEL[m] || m;
+    $('#modeLabel').textContent = t('mode')[m] || m;
     $('#editor').hidden = m !== 'admin';
     $('#sharebar').hidden = m !== 'admin';
     $('#collect').hidden = m !== 'collect';
     $('#result').hidden = true;
     $('#board').hidden = true;
     if (m === 'collect') {
-      $('#c-event').textContent = state.event.name || 'das Event';
+      $('#c-event').textContent = state.event.name || t('theEvent');
       $('#c-plus').max = String(state.event.plusMax || 2);
       return;
     }
@@ -653,7 +770,7 @@
       try {
         loadEvent(JSON.parse(await f.text()));
       } catch (err) {
-        showMessages([`Datei nicht lesbar: ${err}`]);
+        showMessages([t('fileUnreadable', err)]);
       }
       e.target.value = '';
     });
@@ -685,19 +802,19 @@
       }
       peopleToRoster(current);
       $('#inbox').value = '';
-      showMessages([], r.warnings.concat(skipped.length ? [`Schon vorhanden, übersprungen: ${skipped.join(', ')}`] : []), near);
-      toast(added ? `${added} Person(en) hinzugefügt, jetzt „Plan berechnen"` : 'Nichts Neues hinzugefügt');
+      showMessages([], r.warnings.concat(skipped.length ? [t('skipped', skipped.join(', '))] : []), near);
+      toast(added ? t('added', added) : t('nothingAdded'));
     });
     $('#unpinAll').addEventListener('click', () => { mutate(() => { state.pins = []; }); selected = null; computePlan({ fromForm: false }); });
     $('#freezeToday').addEventListener('click', () => {
       if (!plan) return;
       const now = today();
       const gone = plan.sheets.filter((s) => s.date <= now);
-      if (!gone.length) { toast('Noch kein Tag vergangen, nichts festzunageln'); return; }
+      if (!gone.length) { toast(t('noneGone')); return; }
       mutate(() => { for (const s of gone) setPin(s.label, s.day, s.voucher); });
       selected = null;
       computePlan({ fromForm: false });
-      toast(`${gone.length} Slot(s) bis heute festgenagelt`);
+      toast(t('frozen', gone.length));
     });
     $('#undo').addEventListener('click', undo);
     $('#redo').addEventListener('click', redo);
@@ -709,14 +826,14 @@
       if (k === 'z') { e.preventDefault(); if (e.shiftKey) redo(); else undo(); } else if (k === 'y') { e.preventDefault(); redo(); }
     });
 
-    $('#copyAdmin').addEventListener('click', () => { if (computePlan()) copy(linkFor('admin', {}), `Admin-Link, Stand ${plan.fingerprint},`); });
-    $('#copyView').addEventListener('click', () => { if (computePlan()) copy(linkFor('view', { pins: plan.pins }), `Viewer-Link, Stand ${plan.fingerprint},`); });
-    $('#copyBoard').addEventListener('click', () => { if (computePlan()) copy(linkFor('board', { pins: plan.pins }), `Board-Link, Stand ${plan.fingerprint},`); });
+    $('#copyAdmin').addEventListener('click', () => { if (computePlan()) copy(linkFor('admin', {}), t('adminLink', plan.fingerprint)); });
+    $('#copyView').addEventListener('click', () => { if (computePlan()) copy(linkFor('view', { pins: plan.pins }), t('viewLink', plan.fingerprint)); });
+    $('#copyBoard').addEventListener('click', () => { if (computePlan()) copy(linkFor('board', { pins: plan.pins }), t('boardLink', plan.fingerprint)); });
     $('#copyCollect').addEventListener('click', () => {
       const f = readForm();
-      if (!f.to) { showMessages(['Für den Sammel-Link braucht es die Orga-Adresse (Feld oben).']); return; }
-      if (!f.event.name) { showMessages(['Für den Sammel-Link braucht es den Event-Namen.']); return; }
-      copy(linkFor('collect', { event: f.event, collect: { to: f.to } }), 'Sammel-Link');
+      if (!f.to) { showMessages([t('needTo')]); return; }
+      if (!f.event.name) { showMessages([t('needName')]); return; }
+      copy(linkFor('collect', { event: f.event, collect: { to: f.to } }), t('collectLink'));
     });
   }
 
@@ -734,7 +851,7 @@
       const clean = (s) => s.replace(/[;\n\r\t]/g, ' ').trim();
       const handle = clean($('#c-handle').value);
       const line = [
-        handle, clean($('#c-email').value), $('#c-tier').value, String(Number($('#c-plus').value) || 0),
+        handle, clean($('#c-email').value), t('tier')[$('#c-tier').value], String(Number($('#c-plus').value) || 0),
         clean($('#c-knows').value), clean($('#c-note').value),
       ].join('; ');
       $('#c-line').value = line;
@@ -744,14 +861,44 @@
       a.hidden = !to;
       if (to) a.href = mailto(to, `vouch0rzii ${state.event.name || ''}: ${handle}`.trim(), line + '\n');
     });
-    $('#c-copy').addEventListener('click', () => copy($('#c-line').value, 'Zeile'));
+    $('#c-copy').addEventListener('click', () => copy($('#c-line').value, t('line')));
+  }
+
+  // ---------- language switch
+  function browserLang() {
+    for (const l of navigator.languages || [navigator.language]) {
+      const p = String(l).slice(0, 2).toLowerCase();
+      if (p === 'de' || p === 'en') return p;
+    }
+    return 'en';
+  }
+  // setLang shows one language: CSS hides the other's static text, the
+  // data-en-* attributes swap in (the German originals are kept beside
+  // them), and whatever this file rendered is rendered again.
+  function setLang(l) {
+    lang = l;
+    document.documentElement.lang = l;
+    document.title = t('title');
+    for (const n of document.querySelectorAll('[data-en-title], [data-en-placeholder], [data-en-text]')) {
+      for (const [prop, key] of [['title', 'Title'], ['placeholder', 'Placeholder'], ['textContent', 'Text']]) {
+        if (n.dataset[`en${key}`] === undefined) continue;
+        if (n.dataset[`de${key}`] === undefined) n.dataset[`de${key}`] = n[prop];
+        n[prop] = n.dataset[`${l}${key}`];
+      }
+    }
+    $('#lang').textContent = l === 'de' ? 'EN' : 'DE';
+    $('#modeLabel').textContent = t('mode')[state.mode] || state.mode;
+    if (state.mode === 'collect') $('#c-event').textContent = state.event.name || t('theEvent');
+    if (plan) renderResult();
   }
 
   async function main() {
+    setLang(browserLang());
+    $('#lang').addEventListener('click', () => setLang(lang === 'de' ? 'en' : 'de'));
     try {
       bridge = await loadWasm();
     } catch (e) {
-      $('#loading').textContent = 'Der Planer konnte nicht geladen werden. Der Browser braucht WebAssembly. ' + e;
+      $('#loading').textContent = t('loadFailed', e);
       return;
     }
     $('#loading').hidden = true;

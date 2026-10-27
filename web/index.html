@@ -10,43 +10,47 @@
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ctext y='54' font-size='56'%3E%F0%9F%8E%9F%3C/text%3E%3C/svg%3E">
   <link rel="stylesheet" href="style.css">
 </head>
+<!-- Static text comes in both languages: <span lang="de">/<span lang="en">
+     (style.css hides the other one), attributes as data-en-title,
+     data-en-placeholder, data-en-aria-label, data-en-text (app.js swaps them). -->
 <body>
 <header>
   <div class="brand">
     <h1>vouch0rzii</h1>
-    <p class="tagline">Voucher-Kettenplaner · <span id="modeLabel"></span> <span id="fingerprint" title="Kennung dieses Stands: gleiche Emojis, gleicher Plan"></span></p>
+    <p class="tagline"><span lang="de">Voucher-Kettenplaner</span><span lang="en">voucher chain planner</span> · <span id="modeLabel"></span> <span id="fingerprint" title="Kennung dieses Stands: gleiche Emojis, gleicher Plan" data-en-title="Fingerprint of this state: same emojis, same plan"></span></p>
   </div>
   <nav id="sharebar" hidden>
-    <button type="button" id="copyAdmin" title="Dieser Link enthält Roster, Einstellungen und Pins">Admin-Link kopieren</button>
-    <button type="button" id="copyView" title="Eingefrorener Plan zum Weitergeben">Viewer-Link kopieren</button>
-    <button type="button" id="copyBoard" title="Dashboard zum Mitfiebern, gleiche Daten wie der Viewer-Link">Board-Link kopieren</button>
-    <button type="button" id="copyCollect" title="Formular für Interessierte, ohne Roster">Sammel-Link kopieren</button>
+    <button type="button" id="copyAdmin" title="Dieser Link enthält Roster, Einstellungen und Pins" data-en-title="This link holds the roster, settings and pins"><span lang="de">Admin-Link kopieren</span><span lang="en">Copy admin link</span></button>
+    <button type="button" id="copyView" title="Eingefrorener Plan zum Weitergeben" data-en-title="Frozen plan to pass on"><span lang="de">Viewer-Link kopieren</span><span lang="en">Copy viewer link</span></button>
+    <button type="button" id="copyBoard" title="Dashboard zum Mitfiebern, gleiche Daten wie der Viewer-Link" data-en-title="Dashboard to follow along, same data as the viewer link"><span lang="de">Board-Link kopieren</span><span lang="en">Copy board link</span></button>
+    <button type="button" id="copyCollect" title="Formular für Interessierte, ohne Roster" data-en-title="Form for people who want in, without the roster"><span lang="de">Sammel-Link kopieren</span><span lang="en">Copy sign-up link</span></button>
   </nav>
+  <button type="button" id="lang" class="small" title="Sprache: English" data-en-title="Language: Deutsch">EN</button>
 </header>
 
 <main>
-  <p id="loading">Planer wird geladen …</p>
+  <p id="loading"><span lang="de">Planer wird geladen …</span><span lang="en">Loading the planner …</span></p>
   <div id="messages" aria-live="polite"></div>
 
   <section id="editor" hidden>
-    <p id="intro" class="intro">So geht's: <b>1</b> Event-Daten eintragen · <b>2</b> Roster aus der Tabelle einfügen · <b>3</b> Plan berechnen · <b>4</b> Admin-Link für dich sichern, Viewer-Link teilen. Oder erst die <a href="__DEMO__">Demo</a> ansehen.</p>
+    <p id="intro" class="intro"><span lang="de">So geht's: <b>1</b> Event-Daten eintragen · <b>2</b> Roster aus der Tabelle einfügen · <b>3</b> Plan berechnen · <b>4</b> Admin-Link für dich sichern, Viewer-Link teilen. Oder erst die <a href="__DEMO__">Demo</a> ansehen.</span><span lang="en">How it works: <b>1</b> enter the event data · <b>2</b> paste the roster from your sheet · <b>3</b> compute the plan · <b>4</b> keep the admin link for yourself, share the viewer link. Or look at the <a href="__DEMO__">demo</a> first.</span></p>
     <form id="settings" class="card" autocomplete="off">
       <h2>Event</h2>
       <div class="grid">
-        <label title="Erscheint in Links, Mails und Exporten. Ohne Seed ist der Name auch der Seed der Losung.">Name <input id="f-name" required placeholder="congress2026"></label>
-        <label title="Wie viele Voucher gleichzeitig im Umlauf sind. Jeder Voucher ist eine eigene Kette von Personen.">Vouchers <input id="f-vouchers" type="number" min="1" max="200" value="7" required></label>
-        <label title="Datum des ersten Kauftags. Danach ein Kauftag pro Tag, Wochenenden nur mit Häkchen.">Tag 1 <input id="f-start" type="date" required></label>
-        <label title="Letzter Kauftag der Voucher-Phase. Wer bis dahin nicht mehr in den Plan passt, kauft im freien Verkauf. Leer = ohne Ende.">Ende <input id="f-end" type="date"></label>
-        <label title="Wie viele zusätzliche Personen (+1, +2 …) jemand normal mitbringen darf. Mehr nur mit Gruppe = ja im Roster.">+N max <input id="f-plusMax" type="number" min="1" max="20" value="2"></label>
-        <label title="Startwert der Losung innerhalb einer Stufe. Gleicher Seed, gleiche Reihenfolge. Anderer Seed, neue Losung. Leer = Event-Name.">Seed <input id="f-seed" placeholder="leer = Name"></label>
-        <label title="Uhrzeit, zu der der Voucher abends weitergegeben wird. Reine Anzeige in Listen und Mails.">Übergabe um <input id="f-handover" value="23:00" placeholder="23:00"></label>
-        <label title="E-Mail der Orga. Dorthin gehen Sammel-Zeilen und Statusmeldungen; steht im Sammel- und im Viewer-Link.">Orga-Adresse <input id="f-collectTo" type="email" placeholder="für Sammel-Link und Statusmeldungen"></label>
-        <label title="Vouchers, die später dazukommen: Datum:Anzahl, mit Komma getrennt. Diese Ketten starten an dem Tag frisch von der Orga.">Zusätzliche Vouchers <input id="f-extra" placeholder="2026-11-05:2, 2026-11-09:1"></label>
-        <label class="check" title="Samstag und Sonntag als Kauftage nutzen."><input id="f-weekends" type="checkbox"> auch Sa/So planen</label>
+        <label title="Erscheint in Links, Mails und Exporten. Ohne Seed ist der Name auch der Seed der Losung." data-en-title="Shows up in links, mails and exports. Without a seed the name is also the seed of the draw.">Name <input id="f-name" required placeholder="congress2026"></label>
+        <label title="Wie viele Voucher gleichzeitig im Umlauf sind. Jeder Voucher ist eine eigene Kette von Personen." data-en-title="How many vouchers circulate at the same time. Each voucher is its own chain of people.">Vouchers <input id="f-vouchers" type="number" min="1" max="200" value="7" required></label>
+        <label title="Datum des ersten Kauftags. Danach ein Kauftag pro Tag, Wochenenden nur mit Häkchen." data-en-title="Date of the first buying day. Then one buying day per day, weekends only when ticked."><span lang="de">Tag 1</span><span lang="en">Day 1</span> <input id="f-start" type="date" required></label>
+        <label title="Letzter Kauftag der Voucher-Phase. Wer bis dahin nicht mehr in den Plan passt, kauft im freien Verkauf. Leer = ohne Ende." data-en-title="Last buying day of the voucher phase. Whoever no longer fits into the plan by then buys in the public sale. Empty = no end."><span lang="de">Ende</span><span lang="en">End</span> <input id="f-end" type="date"></label>
+        <label title="Wie viele zusätzliche Personen (+1, +2 …) jemand normal mitbringen darf. Mehr nur mit Gruppe = ja im Roster." data-en-title="How many extra people (+1, +2 …) someone may usually bring. More only with Group = yes in the roster.">+N max <input id="f-plusMax" type="number" min="1" max="20" value="2"></label>
+        <label title="Startwert der Losung innerhalb einer Stufe. Gleicher Seed, gleiche Reihenfolge. Anderer Seed, neue Losung. Leer = Event-Name." data-en-title="Starting value of the draw within a tier. Same seed, same order. Another seed, a new draw. Empty = event name.">Seed <input id="f-seed" placeholder="leer = Name" data-en-placeholder="empty = name"></label>
+        <label title="Uhrzeit, zu der der Voucher abends weitergegeben wird. Reine Anzeige in Listen und Mails." data-en-title="Time in the evening when the voucher is passed on. Shown in lists and mails only."><span lang="de">Übergabe um</span><span lang="en">Handover at</span> <input id="f-handover" value="23:00" placeholder="23:00"></label>
+        <label title="E-Mail der Orga. Dorthin gehen Sammel-Zeilen und Statusmeldungen; steht im Sammel- und im Viewer-Link." data-en-title="E-mail of the organisers. Sign-up lines and status reports go there; it is part of the sign-up and the viewer link."><span lang="de">Orga-Adresse</span><span lang="en">Organiser address</span> <input id="f-collectTo" type="email" placeholder="für Sammel-Link und Statusmeldungen" data-en-placeholder="for the sign-up link and status reports"></label>
+        <label title="Vouchers, die später dazukommen: Datum:Anzahl, mit Komma getrennt. Diese Ketten starten an dem Tag frisch von der Orga." data-en-title="Vouchers that come later: date:count, separated by commas. These chains start fresh from the organisers on that day."><span lang="de">Zusätzliche Vouchers</span><span lang="en">Extra vouchers</span> <input id="f-extra" placeholder="2026-11-05:2, 2026-11-09:1"></label>
+        <label class="check" title="Samstag und Sonntag als Kauftage nutzen." data-en-title="Use Saturday and Sunday as buying days."><input id="f-weekends" type="checkbox"> <span lang="de">auch Sa/So planen</span><span lang="en">plan Sat/Sun too</span></label>
       </div>
       <details class="help">
-        <summary>Was bedeuten die Felder?</summary>
-        <dl>
+        <summary><span lang="de">Was bedeuten die Felder?</span><span lang="en">What do the fields mean?</span></summary>
+        <dl lang="de">
           <dt>Name</dt><dd>Name des Events. Erscheint in Links, Mails und Exporten und ist ohne Seed auch der Seed der Losung.</dd>
           <dt>Vouchers</dt><dd>Wie viele Voucher gleichzeitig im Umlauf sind. Jeder Voucher ist eine Kette: eine Person pro Tag, abends Übergabe an die nächste.</dd>
           <dt>Tag 1</dt><dd>Datum des ersten Kauftags. Es folgt ein Kauftag pro Tag; Samstag und Sonntag nur mit Häkchen.</dd>
@@ -66,70 +70,100 @@
           <dt>Status</dt><dd>Hängt am Slot-Namen. Wer einen Handle umbenennt, setzt dessen Status zurück. In der Tabelle unten klickt der Status-Knopf eine Stufe weiter; mehrere Zeilen ankreuzen (Kopf-Checkbox: alle sichtbaren, auch gefiltert mit „Ich bin"; angekreuzt bleibt, was der Filter später ausblendet, die Leiste zählt es mit) und mit der Leiste darüber einen Status für alle setzen, ein Schritt für Rückgängig. Zeilen sind nach Status getönt, der Zähler im Kopf zeigt gekaufte Tickets.</dd>
           <dt>Link je Person</dt><dd>In der Tabelle unten kopiert „Link" einen Viewer-Link, der die Zeilen dieser Person sofort hervorhebt.</dd>
           <dt>Board</dt><dd>Dashboard zum Mitfiebern für alle: Fortschritt, eine Kachel je Voucher, wer heute und morgen kauft. „Board" im Plan öffnet es als Admin in einem neuen Tab, „Board-Link kopieren" oben gibt den Link zum Teilen; er enthält dieselben Daten wie der Viewer-Link.</dd>
+          <dt>Sprache</dt><dd>Die Seite folgt der Sprache des Browsers; der Knopf oben rechts schaltet zwischen Deutsch und Englisch um. Die Wahl steht nicht im Link.</dd>
+        </dl>
+        <dl lang="en">
+          <dt>Name</dt><dd>Name of the event. Shows up in links, mails and exports and, without a seed, is also the seed of the draw.</dd>
+          <dt>Vouchers</dt><dd>How many vouchers circulate at the same time. Each voucher is a chain: one person per day, handed over to the next one in the evening.</dd>
+          <dt>Day 1</dt><dd>Date of the first buying day. One buying day per day follows; Saturday and Sunday only when ticked.</dd>
+          <dt>End</dt><dd>Last buying day of the voucher phase, the official end. The plan fills up to that day only; whoever no longer fits is listed under "Public sale" and buys regularly. The summary shows how many slots are still free until the end. Without an end the plan runs until everybody is placed.</dd>
+          <dt>+N max</dt><dd>How many extra people (+1, +2 …) someone may usually bring. More only with <code>Group = yes</code> in the roster, for example for someone who stands for a whole group.</dd>
+          <dt>Seed</dt><dd>Starting value of the draw. Within a tier (members, guests, acquaintances) the order is drawn; the same seed means the same order, another seed draws anew. Empty means the event name.</dd>
+          <dt>Handover at</dt><dd>Time of the evening handover. Shown in lists and mails only, it does not enter the computation.</dd>
+          <dt>Organiser address</dt><dd>E-mail of the organisers. People who want in send their sign-up line there, participants their status report. It is part of the sign-up and the viewer link.</dd>
+          <dt>Extra vouchers</dt><dd>Vouchers that only become available later, often towards the end. Enter <code>date:count</code>, several separated by commas. Each of these chains starts fresh from the organisers on the first plan day from that date on; the cells before are locked.</dd>
+          <dt>plan Sat/Sun too</dt><dd>Use weekends as buying days instead of skipping them.</dd>
+          <dt>Out</dt><dd>Roster column. <code>yes</code> when someone got a voucher elsewhere and gives up their places. The person stays in the draw so nobody else shifts; only their pinned slots stay, all others go and the people after them move up.</dd>
+          <dt>Pins</dt><dd>Slots fixed by hand. Click a cell in the plan, then the target cell: empty means pin, taken means swap. Pins travel with the link.</dd>
+          <dt>Free cell</dt><dd>Click a cell marked "free", type a handle, Enter. An existing slot moves there, <code>handle+2</code> raises the person's +N to at least 2 and pins that slot, an unknown handle joins the roster as an acquaintance, pinned to the cell. Pending roster edits are applied first. Add status and e-mail in the roster afterwards.</dd>
+          <dt>Undo</dt><dd><kbd>Ctrl</kbd>+<kbd>Z</kbd> and <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd> (Cmd on a Mac) or the buttons above the plan take back moves, pins, statuses and roster changes while the tab is open. Form input that has not been computed yet is applied first and taken back as a step of its own; inside the roster text field the browser's own undo applies. The link always carries the current state.</dd>
+          <dt>Pin until today</dt><dd>Pins every slot up to and including today. From then on roster changes only affect the future; the past stays as it happened.</dd>
+          <dt>Fingerprint</dt><dd>The four emojis in the header are a fingerprint of settings, roster and placement. Same emojis, same plan; that is how admins spot outdated links. Statuses, timestamps and the organiser address do not count; the live card shows the status stand instead.</dd>
+          <dt>Status</dt><dd>Belongs to the slot name. Renaming a handle resets its status. In the table below the status button steps one stage further; tick several rows (header checkbox: all visible ones, also filtered with "I am"; ticked rows the filter hides later stay ticked and are counted) and set one status for all of them with the bar above, one step for undo. Rows are tinted by status, the counter in the header shows bought tickets.</dd>
+          <dt>Link per person</dt><dd>In the table below, "Link" copies a viewer link that highlights this person's rows right away.</dd>
+          <dt>Board</dt><dd>Dashboard for everyone to follow along: progress, one tile per voucher, who buys today and tomorrow. "Board" in the plan opens it as admin in a new tab, "Copy board link" at the top gives the link to share; it holds the same data as the viewer link.</dd>
+          <dt>Language</dt><dd>The page follows the browser's language; the button at the top right switches between German and English. The choice is not part of the link.</dd>
         </dl>
       </details>
     </form>
 
     <section class="card">
       <h2>Roster</h2>
-      <p class="hint">Aus der Tabelle einfügen. Erste Zeile ist die Kopfzeile, Spalten in beliebiger Reihenfolge:
+      <p class="hint" lang="de">Aus der Tabelle einfügen. Erste Zeile ist die Kopfzeile, Spalten in beliebiger Reihenfolge:
         <code>Reihenfolge</code> <code>Name</code> <code>Status</code> <code>+N</code> <code>E-Mail</code> <code>Kennt</code> <code>Gruppe</code> <code>Ausgestiegen</code> <code>Notiz</code>; andere Spalten werden ignoriert.
         Status: Mitglied, Gast, Bekanntschaft. Gruppe = ja erlaubt mehr als +N max. Ausgestiegen = ja gibt alle nicht festgenagelten Plätze frei.
         Innerhalb jeder Gruppe (Mitglieder, Gäste, Bekanntschaften) wird die Reihenfolge gelost (Seed), eine Zahl in „Reihenfolge" überstimmt das Los.</p>
+      <p class="hint" lang="en">Paste from your sheet. The first line is the header, columns in any order:
+        <code>Order</code> <code>Name</code> <code>Status</code> <code>+N</code> <code>Email</code> <code>Knows</code> <code>Group</code> <code>Out</code> <code>Note</code> (German headers work too); other columns are ignored.
+        Status: member, guest, acquaintance. Group = yes allows more than +N max. Out = yes frees every place that is not pinned.
+        Within each tier (members, guests, acquaintances) the order is drawn (seed), a number in "Order" overrides the draw.</p>
       <textarea id="roster" rows="12" spellcheck="false" placeholder="Reihenfolge	Name	Status	+N	E-Mail	Kennt	Gruppe	Notiz
-	alpha	Mitglied	1	alpha@example.org	bravo, charlie	nein	"></textarea>
+	alpha	Mitglied	1	alpha@example.org	bravo, charlie	nein	" data-en-placeholder="Order	Name	Status	+N	Email	Knows	Group	Note
+	alpha	member	1	alpha@example.org	bravo, charlie	no	"></textarea>
       <div class="row">
-        <button type="button" id="compute" class="primary">Plan berechnen</button>
+        <button type="button" id="compute" class="primary"><span lang="de">Plan berechnen</span><span lang="en">Compute plan</span></button>
         <span class="spacer"></span>
-        <label class="file">Event-Datei laden <input id="loadFile" type="file" accept=".json,application/json"></label>
-        <button type="button" id="saveFile">Event-Datei speichern</button>
+        <label class="file"><span lang="de">Event-Datei laden</span><span lang="en">Load event file</span> <input id="loadFile" type="file" accept=".json,application/json"></label>
+        <button type="button" id="saveFile"><span lang="de">Event-Datei speichern</span><span lang="en">Save event file</span></button>
       </div>
-      <p class="hint">Zum Ausprobieren: <a href="__DEMO__">Demo öffnen</a>, ein pseudonymes Tier-Roster in dieser Ansicht.</p>
+      <p class="hint"><span lang="de">Zum Ausprobieren: <a href="__DEMO__">Demo öffnen</a>, ein pseudonymes Tier-Roster in dieser Ansicht.</span><span lang="en">To try it out: <a href="__DEMO__">open the demo</a>, a pseudonymous animal roster in this view.</span></p>
       <details>
-        <summary>Zeilen aus Sammel-Mails hinzufügen</summary>
-        <p class="hint">Eine Zeile pro Person, so wie der Sammel-Link sie erzeugt: <code>Name; E-Mail; Status; +N; Kennt; Notiz</code>. Von Hand getippt darf nach dem Namen alles in beliebiger Reihenfolge kommen: E-Mail am @, Status am Wort, +N als Zahl, Kennt als Handles mit Komma, der Rest wird Notiz. Vorhandene Handles werden übersprungen; danach „Plan berechnen".</p>
+        <summary><span lang="de">Zeilen aus Sammel-Mails hinzufügen</span><span lang="en">Add lines from sign-up mails</span></summary>
+        <p class="hint" lang="de">Eine Zeile pro Person, so wie der Sammel-Link sie erzeugt: <code>Name; E-Mail; Status; +N; Kennt; Notiz</code>. Von Hand getippt darf nach dem Namen alles in beliebiger Reihenfolge kommen: E-Mail am @, Status am Wort, +N als Zahl, Kennt als Handles mit Komma, der Rest wird Notiz. Vorhandene Handles werden übersprungen; danach „Plan berechnen".</p>
+        <p class="hint" lang="en">One line per person, as the sign-up link writes it: <code>Name; E-Mail; Status; +N; Kennt; Notiz</code>. Typed by hand, anything may follow the name in any order: the e-mail by its @, the status by its word, +N as a number, knows as handles with commas, the rest becomes the note. Handles already in the roster are skipped; then "Compute plan".</p>
         <textarea id="inbox" rows="4" spellcheck="false"></textarea>
-        <div class="row"><button type="button" id="addInbox">Zum Roster hinzufügen</button></div>
+        <div class="row"><button type="button" id="addInbox"><span lang="de">Zum Roster hinzufügen</span><span lang="en">Add to roster</span></button></div>
       </details>
     </section>
   </section>
 
   <section id="collect" class="card" hidden>
-    <h2>Interesse an einem Voucher für <span id="c-event"></span></h2>
-    <p class="hint">Fülle das Formular aus, erzeuge die Zeile und schick sie an die Orga. Diese Seite speichert nichts. Reihenfolge: erst Mitglieder, dann häufige Gäste, dann Bekanntschaften; innerhalb jeder Gruppe entscheidet das Los, danach kommen die Begleitungen (+1, +2 …). Die Orga kann einzelne Plätze fest vergeben.</p>
+    <h2><span lang="de">Interesse an einem Voucher für</span><span lang="en">Interested in a voucher for</span> <span id="c-event"></span></h2>
+    <p class="hint" lang="de">Fülle das Formular aus, erzeuge die Zeile und schick sie an die Orga. Diese Seite speichert nichts. Reihenfolge: erst Mitglieder, dann häufige Gäste, dann Bekanntschaften; innerhalb jeder Gruppe entscheidet das Los, danach kommen die Begleitungen (+1, +2 …). Die Orga kann einzelne Plätze fest vergeben.</p>
+    <p class="hint" lang="en">Fill in the form, create the line and send it to the organisers. This page stores nothing. Order: members first, then frequent guests, then acquaintances; within each tier the draw decides, the companions (+1, +2 …) come after. The organisers may assign single places by hand.</p>
     <form id="collectForm" autocomplete="on">
       <div class="grid">
-        <label>Handle <input id="c-handle" required placeholder="wie man dich kennt"></label>
-        <label>E-Mail <input id="c-email" type="email" required></label>
+        <label>Handle <input id="c-handle" required placeholder="wie man dich kennt" data-en-placeholder="what people call you"></label>
+        <label><span lang="de">E-Mail</span><span lang="en">Email</span> <input id="c-email" type="email" required></label>
         <label>Status
-          <select id="c-tier"><option value="Mitglied">Mitglied</option><option value="Gast">häufiger Gast</option><option value="Bekanntschaft">Bekanntschaft</option></select>
+          <select id="c-tier"><option value="member" data-en-text="member">Mitglied</option><option value="guest" data-en-text="frequent guest">häufiger Gast</option><option value="acquaintance" data-en-text="acquaintance">Bekanntschaft</option></select>
         </label>
-        <label>+N (zusätzliche Personen) <input id="c-plus" type="number" min="0" max="20" value="0"></label>
-        <label>Kennt (Handles, mit Komma) <input id="c-knows" placeholder="alpha, bravo"></label>
-        <label>Notiz <input id="c-note"></label>
+        <label><span lang="de">+N (zusätzliche Personen)</span><span lang="en">+N (extra people)</span> <input id="c-plus" type="number" min="0" max="20" value="0"></label>
+        <label><span lang="de">Kennt (Handles, mit Komma)</span><span lang="en">Knows (handles, with commas)</span> <input id="c-knows" placeholder="alpha, bravo"></label>
+        <label><span lang="de">Notiz</span><span lang="en">Note</span> <input id="c-note"></label>
       </div>
       <div class="row">
-        <button type="submit" class="primary">Zeile erzeugen</button>
+        <button type="submit" class="primary"><span lang="de">Zeile erzeugen</span><span lang="en">Create line</span></button>
       </div>
     </form>
     <div id="collectOut" hidden>
       <textarea id="c-line" rows="2" readonly></textarea>
       <div class="row">
-        <a id="c-mail" class="button primary" href="#">An Orga senden</a>
-        <button type="button" id="c-copy">Zeile kopieren</button>
+        <a id="c-mail" class="button primary" href="#"><span lang="de">An Orga senden</span><span lang="en">Send to the organisers</span></a>
+        <button type="button" id="c-copy"><span lang="de">Zeile kopieren</span><span lang="en">Copy line</span></button>
       </div>
     </div>
   </section>
 
   <section id="board" class="card" hidden>
-    <div class="head"><h2 id="b-title"></h2><span id="b-day" class="stats"></span><span class="spacer"></span><a id="b-plan" class="button" href="#">Zum Plan</a></div>
+    <div class="head"><h2 id="b-title"></h2><span id="b-day" class="stats"></span><span class="spacer"></span><a id="b-plan" class="button" href="#"><span lang="de">Zum Plan</span><span lang="en">To the plan</span></a></div>
     <progress id="b-bar" max="1" value="0"></progress>
     <p id="b-progress" class="stats"></p>
     <div id="b-kpis" class="kpis"></div>
     <ul id="b-vouchers" class="tiles"></ul>
     <div class="cols">
-      <div><h3>Heute</h3><ul id="b-today"></ul></div>
-      <div><h3 id="b-nextLabel">Nächster Tag</h3><ul id="b-next"></ul></div>
+      <div><h3><span lang="de">Heute</span><span lang="en">Today</span></h3><ul id="b-today"></ul></div>
+      <div><h3 id="b-nextLabel"></h3><ul id="b-next"></ul></div>
     </div>
     <div id="b-public" class="warning" hidden></div>
     <p id="b-at" class="hint"></p>
@@ -138,7 +172,8 @@
   <section id="result" hidden>
     <div class="card">
       <h2>Live-Status</h2>
-      <p class="hint">Schritte je Slot: offen → Voucher da → Ticket gekauft → weitergegeben. Admins klicken den Status in der Tabelle „Wer, wann, von wem, an wen" weiter und teilen den Link neu; Teilnehmende melden ihren Status dort per Mail. Die heutige Spalte ist im Plan markiert.</p>
+      <p class="hint" lang="de">Schritte je Slot: offen → Voucher da → Ticket gekauft → weitergegeben. Admins klicken den Status in der Tabelle „Wer, wann, von wem, an wen" weiter und teilen den Link neu; Teilnehmende melden ihren Status dort per Mail. Die heutige Spalte ist im Plan markiert.</p>
+      <p class="hint" lang="en">Steps per slot: open → voucher received → ticket bought → passed on. Admins click the status further in the table "Who, when, from whom, to whom" and share the link again; participants report their status there by mail. Today's column is marked in the plan.</p>
       <ul id="liveList"></ul>
       <p id="liveAt" class="hint"></p>
     </div>
@@ -146,8 +181,8 @@
       <div class="row">
         <h2 id="r-title">Plan</h2>
         <span class="spacer"></span>
-        <a id="toBoard" class="button" href="#" title="Dashboard zum Mitfiebern" rel="noopener">Board</a>
-        <button type="button" id="copyMd">Markdown kopieren</button>
+        <a id="toBoard" class="button" href="#" title="Dashboard zum Mitfiebern" data-en-title="Dashboard to follow along" rel="noopener">Board</a>
+        <button type="button" id="copyMd"><span lang="de">Markdown kopieren</span><span lang="en">Copy Markdown</span></button>
         <button type="button" id="dlCsv">CSV</button>
         <button type="button" id="dlJson">JSON</button>
       </div>
@@ -155,40 +190,41 @@
       <p id="r-phase" class="stats"></p>
       <p id="r-order" class="hint"></p>
       <div id="r-public" class="warning" hidden></div>
-      <p id="r-pinhelp" class="hint" hidden>Zelle anklicken oder ziehen, dann Zielzelle: leer = festnageln, belegt = tauschen. Freie Zelle anklicken und Handle tippen: vorhandener Slot wandert dorthin, <code>handle+2</code> erhöht das +N, ein neuer Name kommt als Bekanntschaft ins Roster. Gepinnte Zellen sind fett, × löst den Pin.
-        <button type="button" id="undo" class="small" title="Strg+Z" disabled>↶ Rückgängig</button>
-        <button type="button" id="redo" class="small" title="Strg+Shift+Z" disabled>↷ Wiederholen</button>
-        <button type="button" id="freezeToday" class="small" title="Alle Slots bis heute pinnen, damit Änderungen nur die Zukunft treffen">Bis heute festnageln</button>
-        <button type="button" id="unpinAll" class="small">Alle Pins lösen</button></p>
+      <p id="r-pinhelp" class="hint" hidden><span lang="de">Zelle anklicken oder ziehen, dann Zielzelle: leer = festnageln, belegt = tauschen. Freie Zelle anklicken und Handle tippen: vorhandener Slot wandert dorthin, <code>handle+2</code> erhöht das +N, ein neuer Name kommt als Bekanntschaft ins Roster. Gepinnte Zellen sind fett, × löst den Pin.</span><span lang="en">Click or drag a cell, then the target cell: empty = pin, taken = swap. Click a free cell and type a handle: an existing slot moves there, <code>handle+2</code> raises the +N, a new name joins the roster as an acquaintance. Pinned cells are bold, × releases the pin.</span>
+        <button type="button" id="undo" class="small" title="Strg+Z" data-en-title="Ctrl+Z" disabled><span lang="de">↶ Rückgängig</span><span lang="en">↶ Undo</span></button>
+        <button type="button" id="redo" class="small" title="Strg+Shift+Z" data-en-title="Ctrl+Shift+Z" disabled><span lang="de">↷ Wiederholen</span><span lang="en">↷ Redo</span></button>
+        <button type="button" id="freezeToday" class="small" title="Alle Slots bis heute pinnen, damit Änderungen nur die Zukunft treffen" data-en-title="Pin every slot up to today so changes only affect the future"><span lang="de">Bis heute festnageln</span><span lang="en">Pin until today</span></button>
+        <button type="button" id="unpinAll" class="small"><span lang="de">Alle Pins lösen</span><span lang="en">Release all pins</span></button></p>
       <div class="scroll"><table id="matrix"></table></div>
-      <p class="legend"><span class="sw known"></span> Buddies, kennen sich schon <span class="sw stranger"></span> neue Verbindung <span class="sw forbidden"></span> direkt an eigene Begleitung <span class="sw free"></span> frei, Voucher verfügbar</p>
+      <p class="legend" lang="de"><span class="sw known"></span> Buddies, kennen sich schon <span class="sw stranger"></span> neue Verbindung <span class="sw forbidden"></span> direkt an eigene Begleitung <span class="sw free"></span> frei, Voucher verfügbar</p>
+      <p class="legend" lang="en"><span class="sw known"></span> buddies, already know each other <span class="sw stranger"></span> new connection <span class="sw forbidden"></span> straight to one's own companion <span class="sw free"></span> free, voucher available</p>
     </div>
     <div class="card">
       <div class="row">
-        <h2>Ablauf</h2>
+        <h2><span lang="de">Ablauf</span><span lang="en">Flow</span></h2>
         <span class="spacer"></span>
-        <button type="button" id="dlSvg">SVG herunterladen</button>
+        <button type="button" id="dlSvg"><span lang="de">SVG herunterladen</span><span lang="en">Download SVG</span></button>
       </div>
       <div class="scroll" id="diagram"></div>
     </div>
     <div class="card">
-      <h2>Übergaben je Abend</h2>
+      <h2><span lang="de">Übergaben je Abend</span><span lang="en">Handovers per evening</span></h2>
       <div id="handovers"></div>
     </div>
     <div class="card" id="sheets-card">
       <div class="row">
-        <h2>Wer, wann, von wem, an wen</h2>
+        <h2><span lang="de">Wer, wann, von wem, an wen</span><span lang="en">Who, when, from whom, to whom</span></h2>
         <span id="sheets-count" class="stats"></span>
         <span class="spacer"></span>
-        <label class="inline">Ich bin <input id="who" placeholder="Handle"></label>
+        <label class="inline"><span lang="de">Ich bin</span><span lang="en">I am</span> <input id="who" placeholder="Handle"></label>
       </div>
       <div id="bulk" class="row" hidden>
         <span id="pickCount" class="hint"></span>
-        <button type="button" class="small badge st-open" data-st="open">offen</button>
-        <button type="button" class="small badge st-received" data-st="received">Voucher da</button>
-        <button type="button" class="small badge st-bought" data-st="bought">Ticket gekauft</button>
-        <button type="button" class="small badge st-passed" data-st="passed">weitergegeben</button>
-        <button type="button" class="small" id="pickNone">Auswahl aufheben</button>
+        <button type="button" class="small badge st-open" data-st="open"><span lang="de">offen</span><span lang="en">open</span></button>
+        <button type="button" class="small badge st-received" data-st="received"><span lang="de">Voucher da</span><span lang="en">voucher received</span></button>
+        <button type="button" class="small badge st-bought" data-st="bought"><span lang="de">Ticket gekauft</span><span lang="en">ticket bought</span></button>
+        <button type="button" class="small badge st-passed" data-st="passed"><span lang="de">weitergegeben</span><span lang="en">passed on</span></button>
+        <button type="button" class="small" id="pickNone"><span lang="de">Auswahl aufheben</span><span lang="en">Clear selection</span></button>
       </div>
       <div class="scroll"><table id="sheets"></table></div>
     </div>
@@ -196,8 +232,8 @@
 </main>
 
 <footer>
-  <p>Nichts wird an einen Server gesendet. Der Link ist die Datenbank: wer ihn hat, hat das Roster, und der Browserverlauf merkt sich den Link.
-    <span id="version"></span> · <a href="https://github.com/bmmmm/vouch0rzii">Quelltext</a> · GPL-3.0-or-later · <a href="https://ko-fi.com/bmabma">Ko-fi</a></p>
+  <p><span lang="de">Nichts wird an einen Server gesendet. Der Link ist die Datenbank: wer ihn hat, hat das Roster, und der Browserverlauf merkt sich den Link.</span><span lang="en">Nothing is sent to a server. The link is the database: whoever has it has the roster, and the browser history keeps the link.</span>
+    <span id="version"></span> · <a href="https://github.com/bmmmm/vouch0rzii"><span lang="de">Quelltext</span><span lang="en">Source</span></a> · GPL-3.0-or-later · <a href="https://ko-fi.com/bmabma">Ko-fi</a></p>
 </footer>
 
 <div id="toast" hidden></div>
