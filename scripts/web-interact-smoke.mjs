@@ -49,7 +49,8 @@ proc.stdio[4].on('data', (chunk) => {
     msg.error ? p.reject(new Error(JSON.stringify(msg.error))) : p.resolve(msg.result);
   }
 });
-proc.on('exit', (code) => { for (const p of pending.values()) p.reject(new Error(`chrome exited (${code})`)); pending.clear(); });
+let exited = false;
+proc.on('exit', (code) => { exited = true; for (const p of pending.values()) p.reject(new Error(`chrome exited (${code})`)); pending.clear(); });
 const send = (method, params = {}, sessionId) => new Promise((resolve, reject) => {
   const id = ++nextId;
   const timer = setTimeout(() => { pending.delete(id); reject(new Error(`${method}: no answer within 15s`)); }, 15000);
@@ -505,8 +506,16 @@ try {
 } catch (e) {
   check(`no exception: ${e.message}`, false);
 } finally {
-  if (proc.exitCode === null) { proc.kill(); await new Promise((r) => proc.once('exit', r)); } // let Chrome close the profile first
-  rmSync(profile, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
+  // Browser.close lets Chrome end its helper processes and flush the profile
+  // (a plain kill left them writing into it: ENOTEMPTY in CI); kill is the
+  // fallback. Removing the temp profile is best effort, not a check.
+  const gone = () => new Promise((r) => (exited ? r() : proc.once('exit', r)));
+  if (!exited) {
+    await send('Browser.close').catch(() => {});
+    await Promise.race([gone(), sleep(5000)]);
+    if (!exited) { proc.kill(); await gone(); }
+  }
+  try { rmSync(profile, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 }); } catch (e) { console.log(`WARN  temp profile not removed (${e.code}): ${profile}`); }
 }
 console.log(failures ? `\n${failures} interaction check(s) failed` : '\nall interaction checks passed');
 process.exit(failures ? 1 : 0);
