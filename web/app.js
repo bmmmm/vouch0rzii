@@ -33,7 +33,7 @@
       title: 'vouch0rzii — Voucher-Kettenplaner',
       mode: { admin: 'Admin', view: 'Ansicht', board: 'Board', collect: 'Anmeldung' },
       status: { open: 'offen', received: 'Voucher da', bought: 'Ticket gekauft', passed: 'weitergegeben' },
-      tier: { member: 'Mitglied', guest: 'Gast', acquaintance: 'Bekanntschaft' },
+      orga: 'Orga',
       nothingToUndo: 'Nichts rückgängig zu machen', undone: 'Rückgängig', nothingToRedo: 'Nichts zu wiederholen', redone: 'Wiederholt',
       errorsHead: 'Das geht so nicht:', warningsHead: 'Hinweise:',
       copied: (what) => `${what} kopiert`, copyFailed: 'Kopieren fehlgeschlagen',
@@ -91,7 +91,7 @@
       title: 'vouch0rzii — voucher chain planner',
       mode: { admin: 'Admin', view: 'View', board: 'Board', collect: 'Sign-up' },
       status: { open: 'open', received: 'voucher received', bought: 'ticket bought', passed: 'passed on' },
-      tier: { member: 'member', guest: 'guest', acquaintance: 'acquaintance' },
+      orga: 'organisers',
       nothingToUndo: 'Nothing to undo', undone: 'Undone', nothingToRedo: 'Nothing to redo', redone: 'Redone',
       errorsHead: 'That does not work:', warningsHead: 'Notes:',
       copied: (what) => `${what} copied`, copyFailed: 'Copying failed',
@@ -148,12 +148,14 @@
   };
   let lang = 'de';
   const t = (key, ...args) => { const v = TEXT[lang][key]; return typeof v === 'function' ? v(...args) : v; };
-  // dayName labels a plan day ({date, label}); Go writes German labels.
+  // Go writes English labels ("Fri 30/10", ORGA); the German page relabels.
   const dayName = (d) => {
-    if (lang === 'de' || !d.date) return d.label;
-    const [y, m, day] = d.date.split('-').map(Number);
-    return new Date(y, m - 1, day).toLocaleDateString('en-GB', { weekday: 'short', day: '2-digit', month: '2-digit' });
+    if (lang === 'en' || !d.date) return d.label;
+    const [y, m, day] = d.date.split('-');
+    return `${['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'][new Date(y, m - 1, day).getDay()]} ${day}.${m}.`;
   };
+  const ORGA = 'organisers'; // OrgaLabel in internal/plan/render.go
+  const fromName = (from) => (from === ORGA ? t('orga') : from);
 
   const DEFAULT_EVENT = { name: '', vouchers: 7, start: '', weekends: false, plusMax: 2, seed: '', handover: '23:00', people: [] };
   const STATUS = ['open', 'received', 'bought', 'passed'];
@@ -709,7 +711,7 @@
         el('td', {}, s.person, s.email && el('small', {}, el('br'), s.email)),
         el('td', {}, dayName(plan.days[s.day - 1]), el('small', {}, el('br'), s.date)),
         el('td', {}, s.voucher),
-        el('td', {}, s.from, s.fromEmail && el('small', {}, el('br'), s.fromEmail)),
+        el('td', {}, fromName(s.from), s.fromEmail && el('small', {}, el('br'), s.fromEmail)),
         el('td', {}, s.to || t('chainEnds'), s.toEmail && el('small', {}, el('br'), s.toEmail)),
         el('td', {}, badge, report && [' ', el('a', { href: report, title: t('reportTitle') }, t('report'))]),
         el('td', {}, mail && el('a', { href: mail, title: t('mailTitle') }, 'Mail'),
@@ -852,7 +854,7 @@
       const clean = (s) => s.replace(/[;\n\r\t]/g, ' ').trim();
       const handle = clean($('#c-handle').value);
       const line = [
-        handle, clean($('#c-email').value), t('tier')[$('#c-tier').value], String(Number($('#c-plus').value) || 0),
+        handle, clean($('#c-email').value), $('#c-tier').value, String(Number($('#c-plus').value) || 0),
         clean($('#c-knows').value), clean($('#c-note').value),
       ].join('; ');
       $('#c-line').value = line;
@@ -888,7 +890,7 @@
       }
     }
     $('#lang').textContent = l === 'de' ? 'EN' : 'DE';
-    $('#modeLabel').textContent = t('mode')[state.mode] || state.mode;
+    if (bridge) $('#modeLabel').textContent = t('mode')[state.mode] || state.mode; // the mode is known once the link is read
     if (state.mode === 'collect') $('#c-event').textContent = state.event.name || t('theEvent');
     if (plan) renderResult();
   }
@@ -899,7 +901,7 @@
     try {
       bridge = await loadWasm();
     } catch (e) {
-      $('#loading').textContent = t('loadFailed', e);
+      $('#loading').replaceChildren(el('span', { lang: 'de' }, TEXT.de.loadFailed(e)), el('span', { lang: 'en' }, TEXT.en.loadFailed(e)));
       return;
     }
     $('#loading').hidden = true;

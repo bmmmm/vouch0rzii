@@ -8,6 +8,20 @@ what to check.
 
 ## [Unreleased]
 
+### Added
+
+- The page in German and English: it follows the browser's language, a
+  header button switches; the choice is not part of the link.
+
+### Changed
+
+- Everything the planner writes is English: day labels (`Fri 30/10`), the
+  roster text (`Order Name Status +N Email Knows Group Out Note`, `member`,
+  `yes`/`no`), the sign-up line (`Name; Email; Status; +N; Knows; Note`) and
+  `from` of a chain's first holder (`organisers` instead of `Orga`). German
+  headers and values are still read. Check: scripts that match day labels
+  or the old roster header.
+
 ## [0.1.0] - 2026-10-27
 
 ### Added
@@ -17,12 +31,12 @@ what to check.
   handovers between people who know each other, 2-opt around pins.
 - Pins: move or swap slots, type a handle into a free cell (existing slot,
   `handle+k`, or a new acquaintance); undo and redo (Ctrl+Z, Ctrl+Shift+Z,
-  buttons); viewer links are frozen; "Bis heute festnageln".
+  buttons); viewer links are frozen; "Pin until today".
 - Mid-run changes: extra vouchers that start later, people who leave keep
   only pinned slots.
 - End of the voucher phase (`end`): the plan stops there, tickets that do
   not fit are listed for the public sale (`public`), free voucher days are
-  marked *frei* and counted (`free`).
+  marked *free* and counted (`free`).
 - Live status per slot (offen → Voucher da → Ticket gekauft →
   weitergegeben), curated by admins, carried in the link, with per-voucher
   summary and overdue marks; status reports by mail. Rows in the sheet table

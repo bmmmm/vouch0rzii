@@ -178,7 +178,7 @@ func TestHandoversCrossIdleDays(t *testing.T) {
 	if ex := p.ToExport(); ex.Sheets[1].From != "a" || ex.Handovers[0].Date != "2026-10-30" {
 		t.Fatalf("export %+v", ex)
 	}
-	if md := p.Markdown(); !strings.Contains(md, "- Voucher 1: a → b, buys on Di 03.11.") {
+	if md := p.Markdown(); !strings.Contains(md, "- Voucher 1: a → b, buys on Tue 03/11") {
 		t.Fatalf("markdown:\n%s", md)
 	}
 	ps := ordered("a")
@@ -238,7 +238,7 @@ func TestMemberCountDoesNotReshuffleGuests(t *testing.T) {
 
 func TestExtraVouchersStartLater(t *testing.T) {
 	e := mkEvent(1, members(6)...)
-	e.Extra = []Extra{{Date: "2026-11-03", Count: 1}} // Fr 30.10. = day 1, Mo 02.11. = day 2, Di 03.11. = day 3
+	e.Extra = []Extra{{Date: "2026-11-03", Count: 1}} // Fri 30/10 = day 1, Mon 02/11 = day 2, Tue 03/11 = day 3
 	p := mustCompute(t, e, nil)
 	if p.Stats.Days != 4 || !reflect.DeepEqual(p.From, []int{1, 3}) {
 		t.Fatalf("days %d from %v", p.Stats.Days, p.From)
@@ -326,7 +326,7 @@ func TestOutPersonWithDroppedPinStaysOut(t *testing.T) {
 }
 
 func TestEndOfVoucherPhase(t *testing.T) {
-	// Fr 30.10. = day 1, Mo 02.11. = day 2, Di 03.11. = day 3: two vouchers
+	// Fri 30/10 = day 1, Mon 02/11 = day 2, Tue 03/11 = day 3: two vouchers
 	// hold six slots until the end; the seventh goes to the public sale.
 	e := mkEvent(2, ordered("a", "b", "c", "d", "e", "f", "g")...)
 	e.End = "2026-11-03"
@@ -335,11 +335,11 @@ func TestEndOfVoucherPhase(t *testing.T) {
 		t.Fatalf("phase %d stats %+v public %v", p.PhaseDays, p.Stats, p.Public())
 	}
 	ex := p.ToExport()
-	if ex.End != (DayExport{Day: 3, Date: "2026-11-03", Label: "Di 03.11."}) || !reflect.DeepEqual(ex.Public, []string{"g"}) || len(ex.Sheets) != 6 || len(ex.Pins) != 6 {
+	if ex.End != (DayExport{Day: 3, Date: "2026-11-03", Label: "Tue 03/11"}) || !reflect.DeepEqual(ex.Public, []string{"g"}) || len(ex.Sheets) != 6 || len(ex.Pins) != 6 {
 		t.Fatalf("export end %+v public %v sheets %d pins %d", ex.End, ex.Public, len(ex.Sheets), len(ex.Pins))
 	}
 	md := p.Markdown()
-	for _, want := range []string{"Voucher phase until Di 03.11. (3 days), 0 slots free.", "**Public sale:** 1 ticket(s) did not fit into the voucher phase: g"} {
+	for _, want := range []string{"Voucher phase until Tue 03/11 (3 days), 0 slots free.", "**Public sale:** 1 ticket(s) did not fit into the voucher phase: g"} {
 		if !strings.Contains(md, want) {
 			t.Errorf("markdown missing %q:\n%s", want, md)
 		}

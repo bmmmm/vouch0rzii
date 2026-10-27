@@ -39,7 +39,7 @@ func TestDatesWeekendStartMovesToMonday(t *testing.T) {
 
 func TestDayLabel(t *testing.T) {
 	d, _ := ParseDate("2026-10-30")
-	if got := DayLabel(d); got != "Fr 30.10." {
+	if got := DayLabel(d); got != "Fri 30/10" {
 		t.Fatalf("got %q", got)
 	}
 }

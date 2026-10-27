@@ -5,14 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta http-equiv="Content-Security-Policy"
         content="default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self'; img-src 'self' data:; connect-src 'self'; base-uri 'none'; form-action 'none'">
-  <meta name="description" content="Voucher-Kettenplaner für Event-Vorverkäufe. Läuft komplett im Browser, nichts wird gesendet; der Link ist der Speicher.">
+  <meta name="description" content="Voucher chain planner for event presales, in German and English. Runs entirely in the browser, nothing is sent; the link is the storage.">
   <title>vouch0rzii — Voucher-Kettenplaner</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ctext y='54' font-size='56'%3E%F0%9F%8E%9F%3C/text%3E%3C/svg%3E">
   <link rel="stylesheet" href="style.css">
 </head>
 <!-- Static text comes in both languages: <span lang="de">/<span lang="en">
      (style.css hides the other one), attributes as data-en-title,
-     data-en-placeholder, data-en-aria-label, data-en-text (app.js swaps them). -->
+     data-en-placeholder, data-en-text (app.js swaps them). -->
 <body>
 <header>
   <div class="brand">
@@ -41,7 +41,7 @@
         <label title="Wie viele Voucher gleichzeitig im Umlauf sind. Jeder Voucher ist eine eigene Kette von Personen." data-en-title="How many vouchers circulate at the same time. Each voucher is its own chain of people.">Vouchers <input id="f-vouchers" type="number" min="1" max="200" value="7" required></label>
         <label title="Datum des ersten Kauftags. Danach ein Kauftag pro Tag, Wochenenden nur mit Häkchen." data-en-title="Date of the first buying day. Then one buying day per day, weekends only when ticked."><span lang="de">Tag 1</span><span lang="en">Day 1</span> <input id="f-start" type="date" required></label>
         <label title="Letzter Kauftag der Voucher-Phase. Wer bis dahin nicht mehr in den Plan passt, kauft im freien Verkauf. Leer = ohne Ende." data-en-title="Last buying day of the voucher phase. Whoever no longer fits into the plan by then buys in the public sale. Empty = no end."><span lang="de">Ende</span><span lang="en">End</span> <input id="f-end" type="date"></label>
-        <label title="Wie viele zusätzliche Personen (+1, +2 …) jemand normal mitbringen darf. Mehr nur mit Gruppe = ja im Roster." data-en-title="How many extra people (+1, +2 …) someone may usually bring. More only with Group = yes in the roster.">+N max <input id="f-plusMax" type="number" min="1" max="20" value="2"></label>
+        <label title="Wie viele zusätzliche Personen (+1, +2 …) jemand normal mitbringen darf. Mehr nur mit Group = yes im Roster." data-en-title="How many extra people (+1, +2 …) someone may usually bring. More only with Group = yes in the roster.">+N max <input id="f-plusMax" type="number" min="1" max="20" value="2"></label>
         <label title="Startwert der Losung innerhalb einer Stufe. Gleicher Seed, gleiche Reihenfolge. Anderer Seed, neue Losung. Leer = Event-Name." data-en-title="Starting value of the draw within a tier. Same seed, same order. Another seed, a new draw. Empty = event name.">Seed <input id="f-seed" placeholder="leer = Name" data-en-placeholder="empty = name"></label>
         <label title="Uhrzeit, zu der der Voucher abends weitergegeben wird. Reine Anzeige in Listen und Mails." data-en-title="Time in the evening when the voucher is passed on. Shown in lists and mails only."><span lang="de">Übergabe um</span><span lang="en">Handover at</span> <input id="f-handover" value="23:00" placeholder="23:00"></label>
         <label title="E-Mail der Orga. Dorthin gehen Sammel-Zeilen und Statusmeldungen; steht im Sammel- und im Viewer-Link." data-en-title="E-mail of the organisers. Sign-up lines and status reports go there; it is part of the sign-up and the viewer link."><span lang="de">Orga-Adresse</span><span lang="en">Organiser address</span> <input id="f-collectTo" type="email" placeholder="für Sammel-Link und Statusmeldungen" data-en-placeholder="for the sign-up link and status reports"></label>
@@ -55,13 +55,13 @@
           <dt>Vouchers</dt><dd>Wie viele Voucher gleichzeitig im Umlauf sind. Jeder Voucher ist eine Kette: eine Person pro Tag, abends Übergabe an die nächste.</dd>
           <dt>Tag 1</dt><dd>Datum des ersten Kauftags. Es folgt ein Kauftag pro Tag; Samstag und Sonntag nur mit Häkchen.</dd>
           <dt>Ende</dt><dd>Letzter Kauftag der Voucher-Phase, das offizielle Ende. Der Plan füllt nur bis dahin; wer nicht mehr hineinpasst, steht unter „Freier Verkauf" und kauft dann regulär. Die Zusammenfassung zeigt, wie viele Slots bis zum Ende noch frei sind. Ohne Ende läuft der Plan, bis alle untergebracht sind.</dd>
-          <dt>+N max</dt><dd>Wie viele zusätzliche Personen (+1, +2 …) jemand normal mitbringen darf. Mehr geht nur mit <code>Gruppe = ja</code> im Roster, zum Beispiel für jemanden, der eine ganze Gruppe vertritt.</dd>
+          <dt>+N max</dt><dd>Wie viele zusätzliche Personen (+1, +2 …) jemand normal mitbringen darf. Mehr geht nur mit <code>Group = yes</code> im Roster, zum Beispiel für jemanden, der eine ganze Gruppe vertritt.</dd>
           <dt>Seed</dt><dd>Startwert der Losung. Innerhalb einer Stufe (Mitglieder, Gäste, Bekanntschaften) wird die Reihenfolge gelost; gleicher Seed heißt gleiche Reihenfolge, ein anderer Seed lost neu. Leer bedeutet Event-Name.</dd>
           <dt>Übergabe um</dt><dd>Uhrzeit der abendlichen Weitergabe. Nur Anzeige in Listen und Mails, rechnet nicht mit.</dd>
           <dt>Orga-Adresse</dt><dd>E-Mail der Orga. Dorthin schicken Interessierte ihre Sammel-Zeile und Teilnehmende ihre Statusmeldung. Steht im Sammel- und im Viewer-Link.</dd>
           <dt>Zusätzliche Vouchers</dt><dd>Vouchers, die erst später verfügbar werden, oft gegen Ende. Eintrag <code>Datum:Anzahl</code>, mehrere mit Komma. Jede dieser Ketten beginnt am ersten Plantag ab dem Datum frisch von der Orga; davor sind die Zellen gesperrt.</dd>
           <dt>auch Sa/So planen</dt><dd>Wochenenden als Kauftage nutzen statt zu überspringen.</dd>
-          <dt>Ausgestiegen</dt><dd>Roster-Spalte. <code>ja</code>, wenn jemand anderswo einen Voucher bekommen hat und seine Plätze abgibt. Die Person bleibt in der Losung, damit niemand anderes verrutscht; nur ihre festgenagelten Slots bleiben stehen, alle anderen fallen weg und die Nachfolgenden rücken auf.</dd>
+          <dt>Out</dt><dd>Roster-Spalte (Ausgestiegen). <code>yes</code>, wenn jemand anderswo einen Voucher bekommen hat und seine Plätze abgibt. Die Person bleibt in der Losung, damit niemand anderes verrutscht; nur ihre festgenagelten Slots bleiben stehen, alle anderen fallen weg und die Nachfolgenden rücken auf.</dd>
           <dt>Pins</dt><dd>Manuell festgenagelte Slots. Im Plan Zelle anklicken, dann Zielzelle: leer heißt festnageln, belegt heißt tauschen. Pins wandern mit dem Link.</dd>
           <dt>Freie Zelle</dt><dd>Eine Zelle mit „frei" anklicken und einen Handle tippen, Enter. Ein vorhandener Slot wandert dorthin, <code>handle+2</code> hebt das +N der Person auf mindestens 2 und pinnt diesen Slot, ein unbekannter Handle kommt als Bekanntschaft ins Roster und sitzt festgenagelt in der Zelle. Was im Roster noch nicht übernommen war, wird dabei zuerst übernommen. Status und E-Mail trägst du danach im Roster nach.</dd>
           <dt>Rückgängig</dt><dd><kbd>Strg</kbd>+<kbd>Z</kbd> und <kbd>Strg</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd> (am Mac mit Cmd) oder die Knöpfe über dem Plan nehmen Züge, Pins, Status und Roster-Änderungen zurück, solange der Tab offen ist. Noch nicht berechnete Eingaben im Formular werden dabei erst übernommen und dann als eigener Schritt zurückgenommen; im Roster-Textfeld selbst gilt das Rückgängig des Browsers. Der Link trägt immer den aktuellen Stand.</dd>
@@ -100,15 +100,14 @@
     <section class="card">
       <h2>Roster</h2>
       <p class="hint" lang="de">Aus der Tabelle einfügen. Erste Zeile ist die Kopfzeile, Spalten in beliebiger Reihenfolge:
-        <code>Reihenfolge</code> <code>Name</code> <code>Status</code> <code>+N</code> <code>E-Mail</code> <code>Kennt</code> <code>Gruppe</code> <code>Ausgestiegen</code> <code>Notiz</code>; andere Spalten werden ignoriert.
-        Status: Mitglied, Gast, Bekanntschaft. Gruppe = ja erlaubt mehr als +N max. Ausgestiegen = ja gibt alle nicht festgenagelten Plätze frei.
-        Innerhalb jeder Gruppe (Mitglieder, Gäste, Bekanntschaften) wird die Reihenfolge gelost (Seed), eine Zahl in „Reihenfolge" überstimmt das Los.</p>
+        <code>Order</code> <code>Name</code> <code>Status</code> <code>+N</code> <code>Email</code> <code>Knows</code> <code>Group</code> <code>Out</code> <code>Note</code> (deutsche Kopfzeilen wie Reihenfolge, Kennt, Gruppe, Ausgestiegen, Notiz gehen auch); andere Spalten werden ignoriert.
+        Status: member, guest, acquaintance (oder Mitglied, Gast, Bekanntschaft). Group = yes erlaubt mehr als +N max. Out = yes gibt alle nicht festgenagelten Plätze frei.
+        Innerhalb jeder Stufe (Mitglieder, Gäste, Bekanntschaften) wird die Reihenfolge gelost (Seed), eine Zahl in „Order" überstimmt das Los.</p>
       <p class="hint" lang="en">Paste from your sheet. The first line is the header, columns in any order:
-        <code>Order</code> <code>Name</code> <code>Status</code> <code>+N</code> <code>Email</code> <code>Knows</code> <code>Group</code> <code>Out</code> <code>Note</code> (German headers work too); other columns are ignored.
+        <code>Order</code> <code>Name</code> <code>Status</code> <code>+N</code> <code>Email</code> <code>Knows</code> <code>Group</code> <code>Out</code> <code>Note</code> (German headers work too, e.g. Reihenfolge, Kennt, Gruppe, Ausgestiegen, Notiz); other columns are ignored.
         Status: member, guest, acquaintance. Group = yes allows more than +N max. Out = yes frees every place that is not pinned.
         Within each tier (members, guests, acquaintances) the order is drawn (seed), a number in "Order" overrides the draw.</p>
-      <textarea id="roster" rows="12" spellcheck="false" placeholder="Reihenfolge	Name	Status	+N	E-Mail	Kennt	Gruppe	Notiz
-	alpha	Mitglied	1	alpha@example.org	bravo, charlie	nein	" data-en-placeholder="Order	Name	Status	+N	Email	Knows	Group	Note
+      <textarea id="roster" rows="12" spellcheck="false" placeholder="Order	Name	Status	+N	Email	Knows	Group	Note
 	alpha	member	1	alpha@example.org	bravo, charlie	no	"></textarea>
       <div class="row">
         <button type="button" id="compute" class="primary"><span lang="de">Plan berechnen</span><span lang="en">Compute plan</span></button>
@@ -119,8 +118,8 @@
       <p class="hint"><span lang="de">Zum Ausprobieren: <a href="__DEMO__">Demo öffnen</a>, ein pseudonymes Tier-Roster in dieser Ansicht.</span><span lang="en">To try it out: <a href="__DEMO__">open the demo</a>, a pseudonymous animal roster in this view.</span></p>
       <details>
         <summary><span lang="de">Zeilen aus Sammel-Mails hinzufügen</span><span lang="en">Add lines from sign-up mails</span></summary>
-        <p class="hint" lang="de">Eine Zeile pro Person, so wie der Sammel-Link sie erzeugt: <code>Name; E-Mail; Status; +N; Kennt; Notiz</code>. Von Hand getippt darf nach dem Namen alles in beliebiger Reihenfolge kommen: E-Mail am @, Status am Wort, +N als Zahl, Kennt als Handles mit Komma (ein einzelnes Wort nur, wenn es ein bekannter Name ist), der Rest wird Notiz. Vorhandene Handles werden übersprungen; danach „Plan berechnen".</p>
-        <p class="hint" lang="en">One line per person, as the sign-up link writes it: <code>Name; E-Mail; Status; +N; Kennt; Notiz</code>. Typed by hand, anything may follow the name in any order: the e-mail by its @, the status by its word, +N as a number, knows as handles with commas (a single word only if it is a known name), the rest becomes the note. Handles already in the roster are skipped; then "Compute plan".</p>
+        <p class="hint" lang="de">Eine Zeile pro Person, so wie der Sammel-Link sie erzeugt: <code>Name; Email; Status; +N; Knows; Note</code>. Von Hand getippt darf nach dem Namen alles in beliebiger Reihenfolge kommen: E-Mail am @, Status am Wort, +N als Zahl, Kennt als Handles mit Komma (ein einzelnes Wort nur, wenn es ein bekannter Name ist), der Rest wird Notiz. Vorhandene Handles werden übersprungen; danach „Plan berechnen".</p>
+        <p class="hint" lang="en">One line per person, as the sign-up link writes it: <code>Name; Email; Status; +N; Knows; Note</code>. Typed by hand, anything may follow the name in any order: the e-mail by its @, the status by its word, +N as a number, knows as handles with commas (a single word only if it is a known name), the rest becomes the note. Handles already in the roster are skipped; then "Compute plan".</p>
         <textarea id="inbox" rows="4" spellcheck="false"></textarea>
         <div class="row"><button type="button" id="addInbox"><span lang="de">Zum Roster hinzufügen</span><span lang="en">Add to roster</span></button></div>
       </details>
@@ -171,7 +170,7 @@
 
   <section id="result" hidden>
     <div class="card">
-      <h2>Live-Status</h2>
+      <h2><span lang="de">Live-Status</span><span lang="en">Live status</span></h2>
       <p class="hint" lang="de">Schritte je Slot: offen → Voucher da → Ticket gekauft → weitergegeben. Admins klicken den Status in der Tabelle „Wer, wann, von wem, an wen" weiter und teilen den Link neu; Teilnehmende melden ihren Status dort per Mail. Die heutige Spalte ist im Plan markiert.</p>
       <p class="hint" lang="en">Steps per slot: open → voucher received → ticket bought → passed on. Admins click the status further in the table "Who, when, from whom, to whom" and share the link again; participants report their status there by mail. Today's column is marked in the plan.</p>
       <ul id="liveList"></ul>

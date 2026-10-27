@@ -20,7 +20,7 @@ func TestSVGDrawsBoxesArrowsAndEscapes(t *testing.T) {
 		t.Fatalf("not a complete svg:\n%s", svg)
 	}
 	for _, want := range []string{
-		">c&lt;x<", ">a+1<", "Fr 30.10.", "Mo 02.11.", ">V2<",
+		">c&lt;x<", ">a+1<", "Fri 30/10", "Mon 02/11", ">V2<",
 		`stroke-width="3"`,
 		`marker-end="url(#known)"`,
 		`marker-end="url(#stranger)"`,

@@ -150,7 +150,7 @@ func ParseRoster(text string) (people []Person, warnings []string, err error) {
 			case colTier:
 				t, ok := ParseTier(f)
 				if !ok {
-					errs = append(errs, fmt.Errorf("row %d: unknown status %q (Mitglied, Gast, Bekanntschaft)", row, f))
+					errs = append(errs, fmt.Errorf("row %d: unknown status %q (member, guest, acquaintance)", row, f))
 				}
 				p.Tier = t
 			case colPlus:
@@ -189,19 +189,17 @@ func ParseRoster(text string) (people []Person, warnings []string, err error) {
 	return people, warnings, nil
 }
 
-var tierGerman = [...]string{"Mitglied", "Gast", "Bekanntschaft"}
-
 // RosterHeader is the header row FormatRoster writes; ParseRoster reads it back.
-const RosterHeader = "Reihenfolge\tName\tStatus\t+N\tE-Mail\tKennt\tGruppe\tAusgestiegen\tNotiz"
+const RosterHeader = "Order\tName\tStatus\t+N\tEmail\tKnows\tGroup\tOut\tNote"
 
-// FormatRoster renders people as TSV with German labels, the shape the page
+// FormatRoster renders people as TSV with English labels, the shape the page
 // shows for editing. ParseRoster(FormatRoster(p)) yields p again as long as no
 // field contains a tab or a line break.
 func FormatRoster(people []Person) string {
 	var b strings.Builder
 	b.WriteString(RosterHeader)
 	b.WriteByte('\n')
-	yn := map[bool]string{true: "ja", false: "nein"}
+	yn := map[bool]string{true: "yes", false: "no"}
 	num := func(v int) string {
 		if v > 0 {
 			return strconv.Itoa(v)
@@ -209,28 +207,24 @@ func FormatRoster(people []Person) string {
 		return ""
 	}
 	for _, p := range people {
-		tier := tierGerman[0]
-		if p.Tier >= 0 && int(p.Tier) < len(tierGerman) {
-			tier = tierGerman[p.Tier]
-		}
 		fmt.Fprintf(&b, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
-			num(p.Order), p.ID, tier, num(p.Plus), p.Email, strings.Join(p.Knows, ", "), yn[p.Group], yn[p.Out], p.Note)
+			num(p.Order), p.ID, p.Tier, num(p.Plus), p.Email, strings.Join(p.Knows, ", "), yn[p.Group], yn[p.Out], p.Note)
 	}
 	return b.String()
 }
 
 // SignupFields is the order in which the sign-up form writes a line.
-const SignupFields = "Name; E-Mail; Status; +N; Kennt; Notiz"
+const SignupFields = "Name; Email; Status; +N; Knows; Note"
 
 // ParseSignup reads sign-up lines, one person per line, fields separated by
 // ";". A line with the form's six fields is read by position (SignupFields);
 // if that fails and the line is in the form's order (an address or nothing
-// in position 2), its errors stand, except when only leftover ja/nein words
+// in position 2), its errors stand, except when only leftover yes/no words
 // of the former credit-card field are in the way. Any other line is read by
 // content: the first field is the handle, "@" marks the e-mail, a tier word
 // the status, a number the +N, the first list of handles separated by commas
 // and every single word that names another person's handle (known, or a name
-// in text) the connections, anything else the note; ja/nein words and single
+// in text) the connections, anything else the note; yes/no words and single
 // words kept as note are reported. Unknown handles in a list are reported by
 // Normalize.
 func ParseSignup(text string, known []string) (people []Person, warnings []string, err error) {
@@ -274,7 +268,7 @@ func ParseSignup(text string, known []string) (people []Person, warnings []strin
 				continue
 			}
 			// An address in position 2 means the form's order: its errors
-			// stand, unless the offending values are only leftover ja/nein
+			// stand, unless the offending values are only leftover yes/no
 			// words. Anything else in position 2 is a reordered line.
 			formOrder := fields[1] == "" || strings.Contains(fields[1], "@")
 			leftovers := true
@@ -299,7 +293,13 @@ func ParseSignup(text string, known []string) (people []Person, warnings []strin
 
 // isSignupHeader reports whether f is the header line from the hint.
 func isSignupHeader(f []string) bool {
-	return len(f) > 1 && strings.EqualFold(strings.TrimSpace(f[0]), "Name") && strings.EqualFold(strings.TrimSpace(f[1]), "E-Mail")
+	return len(f) > 1 && strings.EqualFold(strings.TrimSpace(f[0]), "Name") && isEmailHeader(f[1])
+}
+
+// isEmailHeader matches the e-mail column of the hint, English or German.
+func isEmailHeader(s string) bool {
+	s = strings.TrimSpace(s)
+	return strings.EqualFold(s, "Email") || strings.EqualFold(s, "E-Mail")
 }
 
 // ParseBoolOK reports whether ParseBool accepts s.
@@ -370,7 +370,7 @@ func signupByContent(row int, f []string, handles map[string]bool) (p Person, wa
 		case strings.Contains(v, "@") || isTier || nerr == nil:
 			warnings = append(warnings, fmt.Sprintf("line %d: %s: %q ignored, that field is already set", row, p.ID, v))
 		case berr == nil:
-			warnings = append(warnings, fmt.Sprintf("line %d: %s: %q ignored, no field takes ja/nein", row, p.ID, v))
+			warnings = append(warnings, fmt.Sprintf("line %d: %s: %q ignored, no field takes yes/no", row, p.ID, v))
 		case isHandles(v) && single && handles[strings.ToLower(v)] && !strings.EqualFold(v, p.ID):
 			p.Knows = append(p.Knows, v)
 		case isHandles(v) && !single && !list:
@@ -383,7 +383,7 @@ func signupByContent(row int, f []string, handles map[string]bool) (p Person, wa
 		}
 	}
 	if len(loose) > 0 {
-		warnings = append(warnings, fmt.Sprintf("line %d: %s: %s kept as note, not another person's handle; Kennt takes handles with a comma", row, p.ID, strings.Join(loose, ", ")))
+		warnings = append(warnings, fmt.Sprintf("line %d: %s: %s kept as note, not another person's handle; Knows takes handles with a comma", row, p.ID, strings.Join(loose, ", ")))
 	}
 	if !tier {
 		warnings = append(warnings, fmt.Sprintf("line %d: %s: no status given, counts as member", row, p.ID))

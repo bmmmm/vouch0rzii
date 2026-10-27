@@ -64,7 +64,7 @@ type Sheet struct {
 }
 
 // OrgaLabel marks the first holder of a chain: the voucher comes from the organisers.
-const OrgaLabel = "Orga"
+const OrgaLabel = "organisers"
 
 func (p *Plan) email(s *Slot) string {
 	if s == nil {

@@ -181,14 +181,14 @@ try {
   await js(`document.getElementById('lang').click(); 0`);
   check('lang: English re-renders plan, bulk bar and attributes', await js(`document.documentElement.lang === 'en' && document.getElementById('r-stats').textContent.startsWith('7 vouchers · 7 days · 47 slots') && document.getElementById('pickCount').textContent.startsWith('Tick rows') && document.getElementById('copyAdmin').title === 'This link holds the roster, settings and pins' && getComputedStyle(document.querySelector('#compute [lang="de"]')).display === 'none' && document.getElementById('lang').textContent === 'DE'`));
   await js(`document.getElementById('lang').click(); 0`);
-  check('lang: German again, pending input untouched', (await roster()) === typed && await js(`document.documentElement.lang === 'de' && document.getElementById('r-stats').textContent.includes('47 Slots') && document.getElementById('copyAdmin').title === 'Dieser Link enthält Roster, Einstellungen und Pins' && document.getElementById('roster').placeholder.startsWith('Reihenfolge') && getComputedStyle(document.querySelector('#compute [lang="en"]')).display === 'none'`));
+  check('lang: German again, pending input untouched', (await roster()) === typed && await js(`document.documentElement.lang === 'de' && document.getElementById('r-stats').textContent.includes('47 Slots') && document.getElementById('copyAdmin').title === 'Dieser Link enthält Roster, Einstellungen und Pins' && document.getElementById('f-seed').placeholder === 'leer = Name' && getComputedStyle(document.querySelector('#compute [lang="en"]')).display === 'none'`));
   await js(`(() => { const r = document.getElementById('roster'); r.value = r.value.replace(/pending$/, ''); })(); 0`);
 
   // Sign-up lines: a hand-typed line in its own order lands in the roster;
   // messages appear under the button that was clicked, not at the top.
   const msgAfter = (id) => js(`document.getElementById('messages').previousElementSibling === document.getElementById('${id}').parentElement`);
   await js(`document.getElementById('inbox').value = 'bananaaa ; hallo@babna.com ; mitglied ; no ; panda ; nein'; document.getElementById('addInbox').click(); 0`);
-  check('inbox: hand-typed line added with e-mail, status and connection', /\tbananaaa\tMitglied\t\thallo@babna\.com\tpanda\t/.test(await roster()) && (await msgAfter('addInbox')) && await js(`document.querySelector('#messages .warning')?.textContent.includes('"no" ignored')`));
+  check('inbox: hand-typed line added with e-mail, status and connection', /\tbananaaa\tmember\t\thallo@babna\.com\tpanda\t/.test(await roster()) && (await msgAfter('addInbox')) && await js(`document.querySelector('#messages .warning')?.textContent.includes('"no" ignored')`));
   await js(`document.getElementById('compute').click(); 0`);
   check('inbox: "Plan berechnen" places the new person', (await stats()).includes('48 Slots'));
   await js(`document.getElementById('inbox').value = '; nomail@example.org'; document.getElementById('addInbox').click(); 0`);
@@ -199,6 +199,18 @@ try {
   check('inbox: a bad roster row is reported under the clicked button', (await msgAfter('addInbox')) && await js(`/not a number/.test(document.querySelector('#messages .error')?.textContent || '')`));
   await js(`(() => { const r = document.getElementById('roster'); r.value = r.value.replace('\\tbroken\\tMitglied\\tx\\t', '\\tbroken\\tMitglied\\t3\\t'); document.getElementById('compute').click(); })(); 0`);
   check('roster: a rule violation (+3 without group) is reported under "Plan berechnen" too', (await msgAfter('compute')) && await js(`/exceeds the limit/.test(document.querySelector('#messages .error')?.textContent || '')`));
+
+  // The sign-up form writes the canonical English line whatever the page language.
+  const collect = execFileSync(cli, ['-event', join(root, 'events', 'congress2026.json'), '-share', 'collect', '-to', 'orga@example.org', '-base', page]).toString().trim();
+  await js(`location.hash = ${JSON.stringify(collect.slice(collect.indexOf('#')))}; 0`);
+  for (let i = 0; i < 100 && (await js(`document.getElementById('collect').hidden`)); i++) await sleep(50);
+  const line = await js(`(() => {
+    const set = (id, v) => { document.getElementById(id).value = v; };
+    set('c-handle', 'yak'); set('c-email', 'yak@example.org'); set('c-tier', 'guest'); set('c-plus', '1'); set('c-knows', 'panda'); set('c-note', 'late');
+    document.getElementById('collectForm').requestSubmit();
+    return document.getElementById('c-line').value;
+  })()`);
+  check('collect: the German page writes the canonical line', line === 'yak; yak@example.org; guest; 1; panda; late', line);
 } catch (e) {
   check(`no exception: ${e.message}`, false);
 } finally {

@@ -22,10 +22,10 @@ func TestMarkdownAndCSV(t *testing.T) {
 	md := p.Markdown()
 	for _, want := range []string{
 		"# t\n\n2 vouchers, 2 days, 4 slots, handover at 23:00.",
-		"| Voucher | Fr 30.10. | Mo 02.11. |",
+		"| Voucher | Fri 30/10 | Mon 02/11 |",
 		"| 1 | a | c |",
 		"| 2 | b | a+1 |",
-		"**Fr 30.10., 23:00**",
+		"**Fri 30/10, 23:00**",
 		"- Voucher 1: a → c (c@example.org)\n",
 		"- Voucher 2: b → a+1 (a@example.org)\n",
 		"2 handovers, 0 between buddies, 2 new connections.",
@@ -35,7 +35,7 @@ func TestMarkdownAndCSV(t *testing.T) {
 			t.Errorf("markdown missing %q:\n%s", want, md)
 		}
 	}
-	if csv := p.CSV(); csv != "Voucher;Fr 30.10. 2026-10-30;Mo 02.11. 2026-11-02\n1;a;c\n2;b;a+1\n" {
+	if csv := p.CSV(); csv != "Voucher;Fri 30/10 2026-10-30;Mon 02/11 2026-11-02\n1;a;c\n2;b;a+1\n" {
 		t.Errorf("csv:\n%s", csv)
 	}
 }

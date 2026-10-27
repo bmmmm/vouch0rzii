@@ -81,6 +81,7 @@ check('admin: the draw is explained with the seed', admin.includes('entscheidet 
 check('admin: share buttons visible', admin.includes('<nav id="sharebar">'));
 check('admin: board hidden, "Board" opens a board state in a new tab', admin.includes('<section id="board" class="card" hidden="">') && /id="toBoard" class="button" href="[^"]+"[^>]* rel="noopener"[^>]* target="_blank"/.test(admin) && decode(hrefOf(admin, 'toBoard')).mode === 'board');
 check('admin: no error box', noError(admin));
+check('admin: German page relabels the organisers and formats German day labels', (admin.match(/<td>Orga<\/td>/g) || []).length === 7 && !admin.includes('>organisers<') && admin.includes('>Fr 30.10.<small>2026-10-30<'));
 const fp = (html) => (html.match(/id="fingerprint"[^>]*>([^<]*)</) || [])[1] || '';
 check('admin: four-emoji fingerprint shown', [...fp(admin)].length === 4);
 
@@ -135,6 +136,7 @@ check('en: page language follows the browser', en.includes('<html lang="en">') &
 check('en: plan summary, phase and free cells in English', en.includes('7 vouchers · 7 days · 47 slots') && en.includes('Voucher phase until Fri 13/11 (11 days) · 30 slots free') && (en.match(/>free<\/td>/g) || []).length === 2 && en.includes('>+ day<'));
 check('en: draw, counter and status badges in English', en.includes('the draw with seed "congress2026" decides') && en.includes('0 of 47 tickets bought') && (en.match(/class="badge st-open"[^>]*>open</g) || []).length === 47);
 check('en: attributes swapped, German kept beside them', en.includes('title="This link holds the roster, settings and pins"') && en.includes('data-de-title="Dieser Link enthält Roster, Einstellungen und Pins"') && en.includes('>DE</button>'));
+check('en: first holders get it from the organisers', (en.match(/<td>organisers<\/td>/g) || []).length === 7 && !en.includes('>Orga<'));
 check('en: same plan as German', fp(en) === fp(admin) && noError(en));
 const enBoard = dom(link('board'), 'en-US');
 check('en: board in English', enBoard.includes('0 of 47 tickets bought') && enBoard.includes('<b>30</b><span>slots free</span>'));
