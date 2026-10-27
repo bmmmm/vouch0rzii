@@ -56,9 +56,9 @@ button.small { padding: .1rem .5rem; font-size: .8rem; }
 label.file { flex-direction: row; align-items: center; border: 1px solid var(--line); border-radius: 6px; padding: .4rem .8rem; color: var(--ink); cursor: pointer; }
 label.file input { display: none; }
 
-#messages .error, #messages .warning { border-radius: 8px; padding: .6rem .9rem; margin: .8rem 0; }
-#messages .error { background: var(--error-bg); border: 1px solid var(--forbidden); }
-#messages .warning { background: var(--warn-bg); border: 1px solid #c9a227; }
+.error, .warning { border-radius: 8px; padding: .6rem .9rem; margin: .8rem 0; }
+.error { background: var(--error-bg); border: 1px solid var(--forbidden); }
+.warning { background: var(--warn-bg); border: 1px solid #c9a227; }
 #messages ul { margin: .2rem 0 0; padding-left: 1.2rem; }
 
 .stats { color: var(--muted); margin: .2rem 0 .6rem; }
@@ -73,8 +73,8 @@ th small { display: block; color: var(--muted); font-weight: 400; }
 #matrix td.cell.forbidden { border-left-color: var(--forbidden); }
 #matrix td.cell.pinned { background: var(--pin); font-weight: 700; }
 #matrix td.cell.selected { outline: 3px solid var(--select); outline-offset: -3px; }
-#matrix td.cell.empty { color: var(--muted); }
-#matrix td.cell.extra { border-style: dashed; }
+#matrix td.cell.empty { color: var(--muted); font-style: italic; outline: 1px dashed var(--line); outline-offset: -4px; }
+#matrix td.cell.extra { border-style: dashed; color: var(--muted); }
 #matrix td.cell.na { background: repeating-linear-gradient(45deg, transparent 0 6px, var(--line) 6px 7px); cursor: default; }
 #matrix.editable td.cell { cursor: pointer; }
 #matrix.editable td.cell.dragover { background: var(--select); }
@@ -83,6 +83,7 @@ th small { display: block; color: var(--muted); font-weight: 400; }
 .legend { color: var(--muted); font-size: .85rem; margin: .5rem 0 0; }
 .sw { display: inline-block; width: .9rem; height: .9rem; vertical-align: -0.1rem; border-radius: 2px; margin: 0 .2rem 0 .6rem; }
 .sw.known { background: var(--known); } .sw.stranger { background: var(--stranger); } .sw.forbidden { background: var(--forbidden); }
+.sw.free { border: 1px dashed var(--muted); }
 
 #handovers h3 { font-size: .95rem; margin: .8rem 0 .3rem; }
 #handovers ul { margin: 0; padding-left: .2rem; list-style: none; }

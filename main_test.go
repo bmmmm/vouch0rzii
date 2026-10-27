@@ -26,7 +26,7 @@ func runOK(t *testing.T, args ...string) string {
 
 func TestExampleMarkdown(t *testing.T) {
 	out := runOK(t, "-event", example)
-	for _, want := range []string{"# congress2026", "7 vouchers, 7 days, 47 slots", "Fr 30.10.", "Mo 09.11.", "mammut+10"} {
+	for _, want := range []string{"# congress2026", "7 vouchers, 7 days, 47 slots", "Voucher phase until Fr 13.11. (11 days), 30 slots free.", "Fr 30.10.", "Mo 09.11.", "mammut+10"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("missing %q in\n%s", want, out)
 		}
@@ -151,7 +151,7 @@ func TestSVGFormat(t *testing.T) {
 
 func TestEventFormatPrintsNormalisedFile(t *testing.T) {
 	ev := runOK(t, "-event", example, "-format", "event")
-	if !strings.Contains(ev, `"name": "congress2026"`) || !strings.Contains(ev, `"id": "mammut"`) {
+	if !strings.Contains(ev, `"name": "congress2026"`) || !strings.Contains(ev, `"end": "2026-11-13"`) || !strings.Contains(ev, `"id": "mammut"`) {
 		t.Fatalf("event:\n%s", ev)
 	}
 }

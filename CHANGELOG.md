@@ -18,6 +18,9 @@ what to check.
 - Pins: move or swap slots; viewer links are frozen; "Bis heute festnageln".
 - Mid-run changes: extra vouchers that start later, people who leave keep
   only pinned slots.
+- End of the voucher phase (`end`): the plan stops there, tickets that do
+  not fit are listed for the public sale (`public`), free voucher days are
+  marked *frei* and counted (`free`).
 - Live status per slot (offen → Voucher da → Ticket gekauft →
   weitergegeben), curated by admins, carried in the link, with per-voucher
   summary and overdue marks; status reports by mail.

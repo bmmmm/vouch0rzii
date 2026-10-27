@@ -128,6 +128,8 @@
     ev.name = $('#f-name').value.trim();
     ev.vouchers = Number($('#f-vouchers').value) || 0;
     ev.start = $('#f-start').value;
+    ev.end = $('#f-end').value;
+    if (!ev.end) delete ev.end;
     ev.weekends = $('#f-weekends').checked;
     ev.plusMax = Number($('#f-plusMax').value) || 0;
     ev.seed = $('#f-seed').value.trim();
@@ -144,6 +146,7 @@
     $('#f-name').value = ev.name || '';
     $('#f-vouchers').value = ev.vouchers || 7;
     $('#f-start').value = ev.start || '';
+    $('#f-end').value = ev.end || '';
     $('#f-weekends').checked = !!ev.weekends;
     $('#f-plusMax').value = ev.plusMax || 2;
     $('#f-seed').value = ev.seed || '';
@@ -295,6 +298,12 @@
     $('#r-stats').textContent =
       `${plan.vouchers} Vouchers · ${s.days} Tage · ${s.slots} Slots · ${s.handovers} Übergaben, davon ${s.known} unter Buddies, ${s.unknown} neue Verbindungen` +
       (s.forbidden ? `, ${s.forbidden} direkt an eigene Begleitung` : '') + (s.pinned ? ` · ${s.pinned} gepinnt` : '') + ` · Übergabe ${plan.handover}`;
+    $('#r-phase').textContent = plan.end.day
+      ? `Voucher-Phase bis ${plan.end.label} (${plan.end.day} Tage) · ${s.free} Slots frei`
+      : `Kein Ende der Voucher-Phase gesetzt · ${s.free} Slots frei im Plan`;
+    const pub = $('#r-public');
+    pub.hidden = !plan.public.length;
+    pub.replaceChildren(el('strong', {}, 'Freier Verkauf: '), `${plan.public.length} Ticket(s) passen nicht mehr in die Voucher-Phase und müssen regulär gekauft werden: `, el('b', {}, plan.public.join(', ')));
     $('#r-pinhelp').hidden = state.mode !== 'admin';
     renderLive();
     renderMatrix();
@@ -313,7 +322,7 @@
     for (const h of plan.handovers) incoming.set(`${pos.get(h.to).day}-${h.voucher}`, h);
     const pinned = new Set(state.pins.map((p) => p.label));
     const days = plan.days.slice();
-    if (editable) days.push({ day: days.length + 1, date: '', label: '+ Tag', extra: true });
+    if (editable && !(plan.end.day && days.length >= plan.end.day)) days.push({ day: days.length + 1, date: '', label: '+ Tag', extra: true }); // no day after the end
 
     const head = el('tr', {}, el('th', {}, 'Voucher'), days.map((d) => el('th', { class: d.extra ? 'extra' : d.date === now ? 'today' : null }, d.label, d.date && el('small', {}, d.date))));
     const rows = [];
@@ -325,15 +334,15 @@
         const cell = { label, day: d.day, voucher: v };
         const h = incoming.get(`${d.day}-${v}`);
         const cls = ['cell'];
-        if (!label) cls.push('empty');
+        if (!label && !d.extra) cls.push('empty');
         if (d.extra) cls.push('extra');
         if (d.date === now) cls.push('today');
         if (h) cls.push(h.forbidden ? 'forbidden' : h.known ? 'known' : 'stranger');
         if (label && pinned.has(label)) cls.push('pinned');
         if (label && statusOf(label) !== 'open') cls.push('st-' + statusOf(label));
         if (selected && label && selected.label === label) cls.push('selected');
-        const title = label ? `${h ? `${h.from} → ${h.to}` : 'bekommt den Voucher von der Orga'} · ${STATUS_LABEL[statusOf(label)]}` : '';
-        const td = el('td', { class: cls.join(' '), draggable: editable && label ? 'true' : null, tabindex: editable ? '0' : null, title }, label || (editable ? '·' : ''));
+        const title = label ? `${h ? `${h.from} → ${h.to}` : 'bekommt den Voucher von der Orga'} · ${STATUS_LABEL[statusOf(label)]}` : d.extra ? '' : 'Voucher verfügbar, noch niemand eingeplant';
+        const td = el('td', { class: cls.join(' '), draggable: editable && label ? 'true' : null, tabindex: editable ? '0' : null, title }, label || (d.extra ? '·' : 'frei'));
         if (editable) {
           td.addEventListener('click', () => onCellPick(cell));
           td.addEventListener('keydown', (e) => {

@@ -70,7 +70,8 @@ func TestJSONExport(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{`"handovers": []`, `"warnings": []`} {
+	for _, want := range []string{`"handovers": []`, `"warnings": []`, `"public": []`, `"end": {
+    "day": 0,`} {
 		if !strings.Contains(string(one), want) {
 			t.Errorf("missing %s in\n%s", want, one)
 		}

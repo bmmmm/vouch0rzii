@@ -98,6 +98,7 @@ type Event struct {
 	Vouchers int      `json:"vouchers"`           // chains available from day 1
 	Extra    []Extra  `json:"extra,omitempty"`    // chains that start later
 	Start    string   `json:"start"`              // date of day 1, YYYY-MM-DD
+	End      string   `json:"end,omitempty"`      // last day of the voucher phase, YYYY-MM-DD; "" = until everyone is placed
 	Weekends bool     `json:"weekends,omitempty"` // plan on Saturdays and Sundays too
 	PlusMax  int      `json:"plusMax,omitempty"`  // 0 = DefaultPlusMax
 	Seed     string   `json:"seed,omitempty"`     // "" = Name; a different seed is a new draw
@@ -190,13 +191,16 @@ type Stats struct {
 	Unknown   int `json:"unknown"`
 	Forbidden int `json:"forbidden"`
 	Pinned    int `json:"pinned"`
+	Free      int `json:"free"` // voucher days nobody is placed on: until End, or within the grid
 }
 
 // Plan is the computed result. Grid[d-1][v-1] is the slot of voucher v on day
 // d, or nil when the voucher is not yet available, idles, or its chain has
-// ended. From[v-1] is the first day voucher v exists.
+// ended. From[v-1] is the first day voucher v exists. Slots with Day 0 did
+// not fit before the end of the voucher phase.
 type Plan struct {
 	Event     *Event
+	PhaseDays int      // plan days up to and including Event.End; 0 without an end
 	From      []int    // start day per voucher, 1-based; len(From) is the total voucher count
 	Dates     []string // YYYY-MM-DD per day
 	Slots     []*Slot  // in priority order

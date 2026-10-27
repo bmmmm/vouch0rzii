@@ -16,10 +16,12 @@ type Export struct {
 	Vouchers    int              `json:"vouchers"`    // total, including extras
 	VoucherFrom []int            `json:"voucherFrom"` // first day per voucher, 1-based
 	Handover    string           `json:"handover"`
+	End         DayExport        `json:"end"` // last day of the voucher phase; zero without an end
 	Days        []DayExport      `json:"days"`
 	Grid        [][]string       `json:"grid"`
 	Handovers   []HandoverExport `json:"handovers"`
 	Sheets      []Sheet          `json:"sheets"`
+	Public      []string         `json:"public"` // slots that did not fit before End, in priority order
 	Pins        []Pin            `json:"pins"`
 	Stats       Stats            `json:"stats"`
 	Warnings    []string         `json:"warnings"`
@@ -83,6 +85,15 @@ func (p *Plan) dayLabel(d int) string {
 	return DayLabel(t)
 }
 
+// end describes the last day of the voucher phase; zero without an end.
+func (p *Plan) end() DayExport {
+	if p.PhaseDays == 0 {
+		return DayExport{}
+	}
+	t, _ := ParseDate(p.Event.End)
+	return DayExport{Day: p.PhaseDays, Date: p.Event.End, Label: DayLabel(t)}
+}
+
 // ToExport flattens the plan.
 func (p *Plan) ToExport() *Export {
 	ex := &Export{
@@ -91,8 +102,10 @@ func (p *Plan) ToExport() *Export {
 		Vouchers:    len(p.From),
 		VoucherFrom: p.From,
 		Handover:    p.Event.HandoverOrDefault(),
+		End:         p.end(),
 		Handovers:   []HandoverExport{},
 		Sheets:      []Sheet{},
+		Public:      p.Public(),
 		Pins:        Freeze(p),
 		Stats:       p.Stats,
 		Warnings:    append([]string{}, p.Warnings...),
@@ -146,11 +159,20 @@ func (p *Plan) JSON() ([]byte, error) {
 }
 
 // Markdown renders the matrix (vouchers × days, pinned cells bold), the
-// evening handovers per day, the statistics and the warnings.
+// voucher phase with its free slots and the tickets left for the public
+// sale, the evening handovers per day, the statistics and the warnings.
 func (p *Plan) Markdown() string {
 	var b strings.Builder
 	s := p.Stats
 	fmt.Fprintf(&b, "# %s\n\n%d vouchers, %d days, %d slots, handover at %s. Version %s\n\n", p.Event.Name, len(p.From), s.Days, s.Slots, p.Event.HandoverOrDefault(), p.Fingerprint())
+	if p.PhaseDays > 0 {
+		fmt.Fprintf(&b, "Voucher phase until %s (%d days), %d slots free.\n\n", p.end().Label, p.PhaseDays, s.Free)
+	} else {
+		fmt.Fprintf(&b, "%d slots free.\n\n", s.Free)
+	}
+	if pub := p.Public(); len(pub) > 0 {
+		fmt.Fprintf(&b, "**Public sale:** %d ticket(s) did not fit into the voucher phase: %s\n\n", len(pub), strings.Join(pub, ", "))
+	}
 	b.WriteString("| Voucher |")
 	for d := range p.Grid {
 		fmt.Fprintf(&b, " %s |", p.dayLabel(d+1))

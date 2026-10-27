@@ -318,4 +318,91 @@ func TestOutPersonWithDroppedPinStaysOut(t *testing.T) {
 	if got := labels(p.Slots); !reflect.DeepEqual(got, []string{"a", "b", "d"}) {
 		t.Fatalf("a dropped pin must not bring back a person who left: %v", got)
 	}
+	e := mkEvent(1, ps...)
+	e.Extra = []Extra{{Date: "2026-11-03", Count: 1}} // voucher 2 exists from day 3 on
+	if got := labels(mustCompute(t, e, []Pin{{Label: "c", Day: 1, Voucher: 2}}).Slots); !reflect.DeepEqual(got, []string{"a", "b", "d"}) {
+		t.Fatalf("a pin on a voucher that is not yet available must not bring back a person who left: %v", got)
+	}
+}
+
+func TestEndOfVoucherPhase(t *testing.T) {
+	// Fr 30.10. = day 1, Mo 02.11. = day 2, Di 03.11. = day 3: two vouchers
+	// hold six slots until the end; the seventh goes to the public sale.
+	e := mkEvent(2, ordered("a", "b", "c", "d", "e", "f", "g")...)
+	e.End = "2026-11-03"
+	p := mustCompute(t, e, nil)
+	if p.PhaseDays != 3 || p.Stats.Days != 3 || p.Stats.Slots != 7 || p.Stats.Free != 0 || len(p.Public()) != 1 || !reflect.DeepEqual(p.Public(), []string{"g"}) {
+		t.Fatalf("phase %d stats %+v public %v", p.PhaseDays, p.Stats, p.Public())
+	}
+	ex := p.ToExport()
+	if ex.End != (DayExport{Day: 3, Date: "2026-11-03", Label: "Di 03.11."}) || !reflect.DeepEqual(ex.Public, []string{"g"}) || len(ex.Sheets) != 6 || len(ex.Pins) != 6 {
+		t.Fatalf("export end %+v public %v sheets %d pins %d", ex.End, ex.Public, len(ex.Sheets), len(ex.Pins))
+	}
+	md := p.Markdown()
+	for _, want := range []string{"Voucher phase until Di 03.11. (3 days), 0 slots free.", "**Public sale:** 1 ticket(s) did not fit into the voucher phase: g"} {
+		if !strings.Contains(md, want) {
+			t.Errorf("markdown missing %q:\n%s", want, md)
+		}
+	}
+	// A pin after the end is dropped and the slot stays in the public sale.
+	p = mustCompute(t, e, []Pin{{Label: "g", Day: 4, Voucher: 1}})
+	if !strings.Contains(strings.Join(p.Warnings, "\n"), "after the voucher phase (3 days)") || len(p.Public()) != 1 || p.Stats.Days != 3 {
+		t.Fatalf("pin after the end: warnings %v stats %+v", p.Warnings, p.Stats)
+	}
+	// A pin on the last day of the phase is honoured; someone else drops out.
+	p = mustCompute(t, e, []Pin{{Label: "g", Day: 3, Voucher: 1}})
+	if cell(p, 3, 1) != "g" || len(p.Public()) != 1 || !reflect.DeepEqual(p.Public(), []string{"f"}) || len(p.Warnings) != 0 {
+		t.Fatalf("pin on the last day: public %v warnings %v", p.Public(), p.Warnings)
+	}
+	// Free slots count until the end, not only within the grid.
+	e = mkEvent(2, ordered("a", "b", "c")...)
+	e.End = "2026-11-03"
+	if p = mustCompute(t, e, nil); p.Stats.Days != 2 || p.Stats.Free != 3 || len(p.Public()) != 0 {
+		t.Fatalf("slack until the end: %+v", p.Stats)
+	}
+	if md := p.Markdown(); !strings.Contains(md, "3 slots free.") || strings.Contains(md, "Public sale") {
+		t.Fatalf("markdown:\n%s", md)
+	}
+	// A one-day phase: end equals start.
+	e.End = e.Start
+	if p = mustCompute(t, e, nil); p.PhaseDays != 1 || len(p.Public()) != 1 || p.Stats.Free != 0 {
+		t.Fatalf("one-day phase: %d %+v", p.PhaseDays, p.Stats)
+	}
+	// An extra voucher that arrives on the last day still counts one slot.
+	e = mkEvent(1, ordered("a", "b", "c")...)
+	e.End, e.Extra = "2026-11-03", []Extra{{Date: "2026-11-03", Count: 1}}
+	if p = mustCompute(t, e, nil); p.Stats.Free != 1 || len(p.Public()) != 0 || len(p.Warnings) != 0 {
+		t.Fatalf("extra on the last day: %+v %v", p.Stats, p.Warnings)
+	}
+	// Without an end the free slots are the empty cells of the grid.
+	if p = mustCompute(t, mkEvent(2, ordered("a", "b", "c")...), nil); p.Stats.Free != 1 || p.ToExport().End != (DayExport{}) || len(p.ToExport().Public) != 0 {
+		t.Fatalf("open-ended: %+v end %+v", p.Stats, p.ToExport().End)
+	}
+	if md := p.Markdown(); !strings.Contains(md, "Version "+p.Fingerprint()+"\n\n1 slots free.\n") || strings.Contains(md, "Voucher phase") {
+		t.Fatalf("open-ended markdown:\n%s", md)
+	}
+	// An extra voucher that arrives two days after the end adds no capacity
+	// (and never a negative one) and is reported as unused.
+	e = mkEvent(1, ordered("a", "b", "c")...)
+	e.End, e.Extra = "2026-11-03", []Extra{{Date: "2026-11-05", Count: 1}}
+	if p = mustCompute(t, e, nil); p.Stats.Free != 0 || p.Stats.Days != 3 || len(p.Public()) != 0 || !strings.Contains(strings.Join(p.Warnings, "\n"), "voucher 2: available from day 5, after the voucher phase (3 days), unused") {
+		t.Fatalf("late extra: %+v %v", p.Stats, p.Warnings)
+	}
+	// A pin after the end does not bring back a person who left.
+	ps := ordered("a", "b", "c", "d")
+	ps[2].Out = true
+	e = mkEvent(2, ps...)
+	e.End = "2026-11-03"
+	if got := labels(mustCompute(t, e, []Pin{{Label: "c", Day: 9, Voucher: 1}}).Slots); !reflect.DeepEqual(got, []string{"a", "b", "d"}) {
+		t.Fatalf("leaver revived by a pin after the end: %v", got)
+	}
+	if got := labels(mustCompute(t, e, []Pin{{Label: "c", Day: 3, Voucher: 1}}).Slots); !reflect.DeepEqual(got, []string{"a", "b", "c", "d"}) {
+		t.Fatalf("leaver pinned on the last day must stay: %v", got)
+	}
+	// Start and end on one weekend without weekend days: no plan day at all.
+	e = mkEvent(1, ordered("a")...)
+	e.Start, e.End = "2026-10-31", "2026-11-01"
+	if _, err := Compute(e, nil); err == nil || !strings.Contains(err.Error(), "no plan day") {
+		t.Fatalf("want no-plan-day error, got %v", err)
+	}
 }

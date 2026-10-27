@@ -84,10 +84,17 @@ func Normalize(e *Event) (warnings []string, err error) {
 	if e.PlusMax < 0 || e.PlusMax > MaxPlus {
 		errs = append(errs, fmt.Errorf("plusMax must be between 0 and %d, got %d", MaxPlus, e.PlusMax))
 	}
-	if _, derr := ParseDate(strings.TrimSpace(e.Start)); derr != nil {
+	e.Start, e.End = strings.TrimSpace(e.Start), strings.TrimSpace(e.End)
+	_, startErr := ParseDate(e.Start)
+	if startErr != nil {
 		errs = append(errs, fmt.Errorf("start must be YYYY-MM-DD, got %q", e.Start))
-	} else {
-		e.Start = strings.TrimSpace(e.Start)
+	}
+	if e.End != "" {
+		if _, derr := ParseDate(e.End); derr != nil {
+			errs = append(errs, fmt.Errorf("end must be YYYY-MM-DD, got %q", e.End))
+		} else if startErr == nil && e.End < e.Start {
+			errs = append(errs, fmt.Errorf("end %s is before start %s", e.End, e.Start))
+		}
 	}
 	if len(e.People) == 0 {
 		errs = append(errs, errors.New("no people"))

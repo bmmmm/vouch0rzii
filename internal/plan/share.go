@@ -20,7 +20,7 @@ const StateVersion = 1
 // holds the data in it.
 const (
 	ModeAdmin   = "admin"   // edit roster and settings, pin slots, share links
-	ModeView    = "view"    // read the plan; carries a frozen plan (all slots pinned)
+	ModeView    = "view"    // read the plan; carries a frozen plan (every placed slot pinned)
 	ModeCollect = "collect" // sign-up form; carries settings and a contact address, no roster
 )
 

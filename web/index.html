@@ -35,6 +35,7 @@
         <label title="Erscheint in Links, Mails und Exporten. Ohne Seed ist der Name auch der Seed der Losung.">Name <input id="f-name" required placeholder="congress2026"></label>
         <label title="Wie viele Voucher gleichzeitig im Umlauf sind. Jeder Voucher ist eine eigene Kette von Personen.">Vouchers <input id="f-vouchers" type="number" min="1" max="200" value="7" required></label>
         <label title="Datum des ersten Kauftags. Danach ein Kauftag pro Tag, Wochenenden nur mit Häkchen.">Tag 1 <input id="f-start" type="date" required></label>
+        <label title="Letzter Kauftag der Voucher-Phase. Wer bis dahin nicht mehr in den Plan passt, kauft im freien Verkauf. Leer = ohne Ende.">Ende <input id="f-end" type="date"></label>
         <label title="Wie viele zusätzliche Personen (+1, +2 …) jemand normal mitbringen darf. Mehr nur mit Gruppe = ja im Roster.">+N max <input id="f-plusMax" type="number" min="1" max="20" value="2"></label>
         <label title="Startwert der Losung innerhalb einer Stufe. Gleicher Seed, gleiche Reihenfolge. Anderer Seed, neue Losung. Leer = Event-Name.">Seed <input id="f-seed" placeholder="leer = Name"></label>
         <label title="Uhrzeit, zu der der Voucher abends weitergegeben wird. Reine Anzeige in Listen und Mails.">Übergabe um <input id="f-handover" value="23:00" placeholder="23:00"></label>
@@ -48,6 +49,7 @@
           <dt>Name</dt><dd>Name des Events. Erscheint in Links, Mails und Exporten und ist ohne Seed auch der Seed der Losung.</dd>
           <dt>Vouchers</dt><dd>Wie viele Voucher gleichzeitig im Umlauf sind. Jeder Voucher ist eine Kette: eine Person pro Tag, abends Übergabe an die nächste.</dd>
           <dt>Tag 1</dt><dd>Datum des ersten Kauftags. Es folgt ein Kauftag pro Tag; Samstag und Sonntag nur mit Häkchen.</dd>
+          <dt>Ende</dt><dd>Letzter Kauftag der Voucher-Phase, das offizielle Ende. Der Plan füllt nur bis dahin; wer nicht mehr hineinpasst, steht unter „Freier Verkauf" und kauft dann regulär. Die Zusammenfassung zeigt, wie viele Slots bis zum Ende noch frei sind. Ohne Ende läuft der Plan, bis alle untergebracht sind.</dd>
           <dt>+N max</dt><dd>Wie viele zusätzliche Personen (+1, +2 …) jemand normal mitbringen darf. Mehr geht nur mit <code>Gruppe = ja</code> im Roster, zum Beispiel für jemanden, der eine ganze Gruppe vertritt.</dd>
           <dt>Seed</dt><dd>Startwert der Losung. Innerhalb einer Stufe (Mitglieder, Gäste, Bekanntschaften) wird die Reihenfolge gelost; gleicher Seed heißt gleiche Reihenfolge, ein anderer Seed lost neu. Leer bedeutet Event-Name.</dd>
           <dt>Übergabe um</dt><dd>Uhrzeit der abendlichen Weitergabe. Nur Anzeige in Listen und Mails, rechnet nicht mit.</dd>
@@ -131,11 +133,13 @@
         <button type="button" id="dlJson">JSON</button>
       </div>
       <p id="r-stats" class="stats"></p>
+      <p id="r-phase" class="stats"></p>
+      <div id="r-public" class="warning" hidden></div>
       <p id="r-pinhelp" class="hint" hidden>Zelle anklicken oder ziehen, dann Zielzelle: leer = festnageln, belegt = tauschen. Gepinnte Zellen sind fett, × löst den Pin.
         <button type="button" id="freezeToday" class="small" title="Alle Slots bis heute pinnen, damit Änderungen nur die Zukunft treffen">Bis heute festnageln</button>
         <button type="button" id="unpinAll" class="small">Alle Pins lösen</button></p>
       <div class="scroll"><table id="matrix"></table></div>
-      <p class="legend"><span class="sw known"></span> Buddies, kennen sich schon <span class="sw stranger"></span> neue Verbindung <span class="sw forbidden"></span> direkt an eigene Begleitung</p>
+      <p class="legend"><span class="sw known"></span> Buddies, kennen sich schon <span class="sw stranger"></span> neue Verbindung <span class="sw forbidden"></span> direkt an eigene Begleitung <span class="sw free"></span> frei, Voucher verfügbar</p>
     </div>
     <div class="card">
       <div class="row">

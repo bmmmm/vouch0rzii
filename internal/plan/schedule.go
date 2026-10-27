@@ -118,18 +118,37 @@ func voucherStarts(e *Event) ([]int, error) {
 	return from, nil
 }
 
+// phaseDays returns the number of plan days up to and including End, capped
+// at MaxDays; 0 when the event has no end.
+func phaseDays(e *Event) int {
+	if e.End == "" {
+		return 0
+	}
+	start, _ := ParseDate(e.Start)
+	n := 0
+	for _, d := range Dates(start, MaxDays, e.Weekends) {
+		if d.Format(DateLayout) > e.End {
+			break
+		}
+		n++
+	}
+	return n
+}
+
 // pinCellOK reports whether a pin names a cell that exists: a day within the
 // horizon and a voucher that is available on that day.
-func pinCellOK(pin Pin, from []int) bool {
-	return pin.Day >= 1 && pin.Day <= MaxDays && pin.Voucher >= 1 && pin.Voucher <= len(from) && from[pin.Voucher-1] <= pin.Day
+func pinCellOK(pin Pin, from []int, horizon int) bool {
+	return pin.Day >= 1 && pin.Day <= horizon && pin.Voucher >= 1 && pin.Voucher <= len(from) && from[pin.Voucher-1] <= pin.Day
 }
 
 // placeSlots fixes pinned slots to their cells and fills the remaining cells
 // day by day with the unpinned slots in priority order, using every voucher
-// from its start day on. Vouchers of unpinned slots stay 0 until assignChains
-// runs. Returns the grid and warnings about pins that could not be applied;
-// conflicting pins are an error.
-func placeSlots(slots []*Slot, pins []Pin, from []int) (grid [][]*Slot, warnings []string, err error) {
+// from its start day on, up to the horizon (the end of the voucher phase, or
+// MaxDays). Slots that do not fit keep Day 0: they go to the public sale;
+// without an end they are an error. Vouchers of unpinned slots stay 0 until
+// assignChains runs. Returns the grid and warnings about pins that could not
+// be applied; conflicting pins are an error.
+func placeSlots(slots []*Slot, pins []Pin, from []int, horizon int) (grid [][]*Slot, warnings []string, err error) {
 	total := len(from)
 	byLabel := make(map[string]*Slot, len(slots))
 	for _, s := range slots {
@@ -146,6 +165,9 @@ func placeSlots(slots []*Slot, pins []Pin, from []int) (grid [][]*Slot, warnings
 			continue
 		case pin.Day < 1 || pin.Day > MaxDays || pin.Voucher < 1 || pin.Voucher > total:
 			warnings = append(warnings, fmt.Sprintf("pin %s: cell day %d / voucher %d outside the plan, dropped", pin.Label, pin.Day, pin.Voucher))
+			continue
+		case pin.Day > horizon:
+			warnings = append(warnings, fmt.Sprintf("pin %s: day %d is after the voucher phase (%d days), dropped", pin.Label, pin.Day, horizon))
 			continue
 		case from[pin.Voucher-1] > pin.Day:
 			warnings = append(warnings, fmt.Sprintf("pin %s: voucher %d is not yet available on day %d, dropped", pin.Label, pin.Voucher, pin.Day))
@@ -183,7 +205,10 @@ func placeSlots(slots []*Slot, pins []Pin, from []int) (grid [][]*Slot, warnings
 	skipPinned()
 	lastFill := 0
 	for d := 1; next < len(slots); d++ {
-		if d > MaxDays {
+		if d > horizon {
+			if horizon < MaxDays {
+				break // the rest goes to the public sale
+			}
 			return nil, nil, fmt.Errorf("plan would need more than %d days", MaxDays)
 		}
 		r := row(d)

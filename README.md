@@ -15,9 +15,9 @@ data, and your browser history keeps it like any other link.
 ## Rules the planner follows
 
 1. **As few days as possible.** With `V` vouchers from day 1 and `N` ticket
-   slots the plan has `ceil(N / V)` days; extra vouchers, pins and people who
-   leave change that, the grid shows the result. Weekends are skipped unless
-   the event says otherwise.
+   slots the plan has `ceil(N / V)` days; extra vouchers, pins, people who
+   leave and the end of the voucher phase (rule 8) change that, the grid
+   shows the result. Weekends are skipped unless the event says otherwise.
 2. **Tiers.** Named people first — members, then frequent guests, then
    acquaintances. After all named people come everybody's +1, then everybody's
    +2, each round ordered by the sponsor's position. Within a tier the order is
@@ -47,6 +47,14 @@ data, and your browser history keeps it like any other link.
    else moves), their pinned slots remain, their other slots vanish and the
    people behind move up. Vouchers that arrive later go into `extra`
    (`date:count`); those chains start fresh from the organisers on that day.
+8. **End of the voucher phase.** `end` (`Ende`) is the last day vouchers
+   work. The plan fills only up to it; slots that do not fit are listed as
+   *Freier Verkauf* / `public` in priority order and are bought in the public
+   sale. Pins after the end are dropped with a warning. Free voucher days
+   are marked *frei* in the grid and counted (`free`): until the end, or
+   within the grid when no end is set, so organisers see how many more
+   slots they can still hand out. Extra vouchers dated after the end are
+   reported as unused.
 
 ## Roster columns
 
@@ -78,7 +86,7 @@ so two people can tell at a glance whether they look at the same plan.
 - **Admin**: settings, roster, pins and the organiser's address. Edit, compute,
   pin cells, copy links.
 - **Viewer**: settings, roster without notes, the organisers' address, the
-  live status and the frozen plan (every slot pinned), so it renders
+  live status and the frozen plan (every placed slot pinned), so it renders
   identically on any later version. Filter "Ich bin …" to find your row; the
   Mail link prepares the handover mail to the next person, "melden" a status
   report to the organisers. Admins can copy a personal viewer link per
@@ -104,7 +112,8 @@ fingerprint and status timestamp to see who holds the newer link.
 ## Demo and example
 
 `events/congress2026.json` is a pseudonymised real roster (25 animals, 22
-extra slots, 7 vouchers → 7 days). Status, credit card, e-mail and
+extra slots, 7 vouchers → 7 days, voucher phase of 11 days with 30 slots
+free). Status, credit card, e-mail and
 connections are **placeholders**; the real values live only in your own links
 and files. The page's "Demo öffnen" link is an admin link of this roster,
 generated at build time; the file itself is not part of the site.

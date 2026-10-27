@@ -8,7 +8,7 @@
 // Usage: node scripts/web-browser-smoke.mjs [path/to/vouch0rzii-binary]
 // Requires a prior `go build -o vouch0rzii .` and `scripts/build-web.sh`.
 import { execFileSync, spawnSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -25,8 +25,9 @@ if (!chrome) {
   process.exit(0);
 }
 
-const link = (mode, extra = []) =>
-  execFileSync(cli, ['-event', join(root, 'events', 'congress2026.json'), '-share', mode, '-base', page, ...extra]).toString().trim();
+const demoEvent = join(root, 'events', 'congress2026.json');
+const link = (mode, extra = [], event = demoEvent) =>
+  execFileSync(cli, ['-event', event, '-share', mode, '-base', page, ...extra]).toString().trim();
 
 function dom(url) {
   const r = spawnSync(chrome, [
@@ -66,6 +67,8 @@ check('admin: status buttons on every sheet row', (admin.match(/<button type="bu
 check('admin: freeze and extra-voucher controls present', admin.includes('id="freezeToday"') && admin.includes('id="f-extra"'));
 check('admin: matrix cells keyboard-focusable', (admin.match(/tabindex="0"/g) || []).length >= 47);
 check('admin: intro hidden once a plan exists', admin.includes('<p id="intro" class="intro" hidden=""'));
+check('admin: voucher phase summary, free cells marked, nothing for the public sale', admin.includes('Voucher-Phase bis Fr 13.11. (11 Tage) · 30 Slots frei') && (admin.match(/>frei<\/td>/g) || []).length === 2 && admin.includes('<div id="r-public" class="warning" hidden="">'));
+check('admin: "+ Tag" column offered while the phase has room', admin.includes('>+ Tag<'));
 check('admin: share buttons visible', admin.includes('<nav id="sharebar">'));
 check('admin: no error box', noError(admin));
 const fp = (html) => (html.match(/id="fingerprint"[^>]*>([^<]*)</) || [])[1] || '';
@@ -78,6 +81,24 @@ check('view: status badges, not buttons', (view.match(/<span class="badge st-ope
 check('view: editor and share buttons hidden', view.includes('<section id="editor" hidden=""') && view.includes('<nav id="sharebar" hidden=""'));
 check('view: no error box', noError(view));
 check('view: same fingerprint as admin', fp(view) === fp(admin));
+
+// The same roster with the voucher phase ending after five days: 35 slots
+// fit, twelve go to the public sale, no "+ Tag" column past the end. And
+// without any end: the open-ended path every older link takes.
+const scratch = mkdtempSync(join(tmpdir(), 'vouch0rzii-'));
+const variant = (name, patch) => {
+  const { end, ...ev } = JSON.parse(readFileSync(demoEvent, 'utf8'));
+  const file = join(scratch, name);
+  writeFileSync(file, JSON.stringify({ ...ev, ...patch }));
+  return dom(link('admin', [], file));
+};
+const early = variant('early.json', { end: '2026-11-05' });
+check('early end: plan stops at the end of the voucher phase', early.includes('7 Vouchers · 5 Tage · 47 Slots') && early.includes('Voucher-Phase bis Do 05.11. (5 Tage) · 0 Slots frei'));
+check('early end: public sale box lists the tickets that did not fit', early.includes('<div id="r-public" class="warning">') && early.includes('12 Ticket(s) passen nicht mehr') && (early.match(/data-who=/g) || []).length === 35);
+check('early end: no day after the end offered', !early.includes('>+ Tag<') && noError(early));
+const open = variant('open.json', {});
+check('no end: open-ended summary, free cells, "+ Tag" offered', open.includes('Kein Ende der Voucher-Phase gesetzt · 2 Slots frei im Plan') && (open.match(/>frei<\/td>/g) || []).length === 2 && open.includes('>+ Tag<') && open.includes('<div id="r-public" class="warning" hidden="">'));
+rmSync(scratch, { recursive: true });
 
 const collect = dom(link('collect', ['-to', 'orga@example.org']));
 check('collect: form shown with the event name', collect.includes('<section id="collect" class="card">') && collect.includes('<span id="c-event">congress2026</span>'));

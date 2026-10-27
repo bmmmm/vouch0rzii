@@ -8,7 +8,7 @@ Voucher chain planner for event presales: a Go core, a CLI, and a static page
 - `internal/plan` — everything that computes:
   `model.go` types and limits · `event.go` JSON format and `Normalize` ·
   `tsv.go` roster paste codec · `schedule.go` draw per tier, voucher start
-  days, placement with pins · `hungarian.go` + `assign.go` per-day
+  days, phase horizon (`end`), placement with pins · `hungarian.go` + `assign.go` per-day
   assignment and the 2-opt pass · `plan.go` `Compute`, handovers across idle
   days, `Freeze` · `render.go` `Export`/JSON/Markdown/CSV · `svg.go` flow
   diagram · `fingerprint.go` four-emoji data version · `share.go` link state
@@ -41,8 +41,8 @@ and watch a test go red before trusting it.
 - Standard library only. A dependency needs a one-line reason in the PR.
 - The link is the database. No storage APIs, no fetch besides the wasm, no
   external resources, the CSP stays exactly as pinned in the smoke. Modes are
-  views, not access control; viewer links are frozen (every slot pinned) and
-  never carry notes; collect links carry no roster.
+  views, not access control; viewer links are frozen (every placed slot
+  pinned) and never carry notes; collect links carry no roster.
 - CLI and wasm share `internal/plan` and must stay byte-equal on JSON. The
   `Export` field names are the page's API.
 - Deterministic: the draw depends only on seed and tier membership; the same

@@ -21,23 +21,35 @@ func Compute(e *Event, pins []Pin) (*Plan, error) {
 	if err != nil {
 		return nil, err
 	}
+	phase, horizon := phaseDays(e), MaxDays
+	if e.End != "" {
+		if phase == 0 {
+			return nil, fmt.Errorf("end %s: no plan day between start and end", e.End)
+		}
+		horizon = phase
+	}
 	// Slots of people who left survive only under a pin that will actually
 	// be applied, so a pin on a vanished cell does not resurrect them.
 	keep := make(map[string]bool, len(pins))
 	for _, pin := range pins {
-		if pinCellOK(pin, starts) {
+		if pinCellOK(pin, starts, horizon) {
 			keep[pin.Label] = true
 		}
 	}
 	slots := buildSlots(e, keep)
-	grid, pinWarnings, err := placeSlots(slots, pins, starts)
+	grid, pinWarnings, err := placeSlots(slots, pins, starts, horizon)
 	if err != nil {
 		return nil, err
 	}
 	warnings = append(warnings, pinWarnings...)
+	for v, f := range starts {
+		if phase > 0 && f > phase {
+			warnings = append(warnings, fmt.Sprintf("voucher %d: available from day %d, after the voucher phase (%d days), unused", v+1, f, phase))
+		}
+	}
 	assignChains(e, slots, grid, starts)
 
-	p := &Plan{Event: e, From: starts, Slots: slots, Grid: grid, Warnings: warnings}
+	p := &Plan{Event: e, PhaseDays: phase, From: starts, Slots: slots, Grid: grid, Warnings: warnings}
 	for _, t := range Dates(start, len(grid), e.Weekends) {
 		p.Dates = append(p.Dates, t.Format(DateLayout))
 	}
@@ -76,12 +88,39 @@ func Compute(e *Event, pins []Pin) (*Plan, error) {
 			p.Stats.Unknown++
 		}
 	}
+	// Free voucher days: capacity of the phase (or of the grid, without an
+	// end) minus the placed slots. Vouchers that arrive after the end add none.
+	span, placed := phase, 0
+	if span == 0 {
+		span = len(grid)
+	}
+	for _, f := range starts {
+		if f <= span {
+			p.Stats.Free += span - f + 1
+		}
+	}
 	for _, s := range slots {
 		if s.Pinned {
 			p.Stats.Pinned++
 		}
+		if s.Day > 0 {
+			placed++
+		}
 	}
+	p.Stats.Free -= placed
 	return p, nil
+}
+
+// Public lists the slots that did not fit before the end of the voucher
+// phase, in priority order: those tickets are bought in the public sale.
+func (p *Plan) Public() []string {
+	out := []string{}
+	for _, s := range p.Slots {
+		if s.Day == 0 {
+			out = append(out, s.Label)
+		}
+	}
+	return out
 }
 
 // Freeze returns a pin for every placed slot, so that the same plan renders

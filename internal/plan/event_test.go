@@ -29,6 +29,8 @@ func TestNormalizeErrors(t *testing.T) {
 		{"tab in id", mkEvent(1, Person{ID: "a\tb"}), "must not contain"},
 		{"too many people", mkEvent(1, members(MaxPeople+1)...), "more than 2000"},
 		{"bad date", &Event{Name: "t", Vouchers: 1, Start: "30.10.2026", People: []Person{{ID: "a"}}}, "YYYY-MM-DD"},
+		{"bad end", &Event{Name: "t", Vouchers: 1, Start: "2026-10-30", End: "13.11.", People: []Person{{ID: "a"}}}, "end must be YYYY-MM-DD"},
+		{"end before start", &Event{Name: "t", Vouchers: 1, Start: "2026-10-30", End: "2026-10-29", People: []Person{{ID: "a"}}}, "end 2026-10-29 is before start"},
 		{"no people", mkEvent(1), "no people"},
 		{"no name", &Event{Vouchers: 1, Start: "2026-10-30", People: []Person{{ID: "a"}}}, "name missing"},
 	}
@@ -49,6 +51,11 @@ func TestNormalizeCollectsAllErrors(t *testing.T) {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("missing %q in %q", want, err)
 		}
+	}
+	// A bad start is reported once; the end is not compared against it.
+	_, err = Normalize(&Event{Name: "t", Vouchers: 1, Start: "30.10.2026", End: "2026-11-13", People: []Person{{ID: "a"}}})
+	if err == nil || !strings.Contains(err.Error(), "start must be") || strings.Contains(err.Error(), "before start") {
+		t.Fatalf("got %v", err)
 	}
 }
 
