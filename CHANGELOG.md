@@ -21,6 +21,16 @@ what to check.
   `from` of a chain's first holder (`organisers` instead of `Orga`). German
   headers and values are still read. Check: scripts that match day labels,
   the old roster header or `from` = `Orga`.
+- The wasm call `parseSignup` takes the roster's handles as a second
+  argument, a JSON string (`'["bob"]'`); an array is rejected.
+
+### Fixed
+
+- Sign-up lines typed by hand: a single word that names nobody known stays
+  the note instead of being dropped as an unknown handle; known names count
+  anywhere on the line, alone or as a further list, each handle once. Words
+  kept as note are reported in one warning per line.
+- Someone who knows their own handle gets a warning, as the docs said.
 
 ## [0.1.0] - 2026-10-27
 

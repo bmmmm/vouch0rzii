@@ -108,8 +108,10 @@ so two people can tell at a glance whether they look at the same plan.
   guest or acquaintance) that is mailed or copied to the organiser, who
   pastes it into "Add lines from sign-up mails". Lines typed by hand may put the fields after the
   name in any order: the e-mail is the field with `@`, the status a tier
-  word, +N a number, connections comma-separated handles,
-  the rest becomes the note. Problems with the roster or with sign-up lines
+  word, +N a number, connections the first comma-separated list of handles
+  plus every known name, alone or in a further list of known names only;
+  a second e-mail, status or number and yes/no words are ignored with a
+  warning, the rest becomes the note. Problems with the roster or with sign-up lines
   are reported under "Compute plan" or under the sign-up button; a cell
   name the planner rejects is reported above the matrix.
 

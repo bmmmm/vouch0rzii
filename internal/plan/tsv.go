@@ -194,8 +194,10 @@ func ParseRoster(text string) (people []Person, warnings []string, err error) {
 const RosterHeader = "Order\tName\tStatus\t+N\tEmail\tKnows\tGroup\tOut\tNote"
 
 // FormatRoster renders people as TSV with English labels, the shape the page
-// shows for editing. ParseRoster(FormatRoster(p)) yields p again as long as no
-// field contains a tab or a line break and Knows names each handle once.
+// shows for editing. ParseRoster reads it back with values trimmed, each
+// Knows handle once in any case, an empty Knows as nil and Plus or Order
+// below 1 as 0; a tab or line break inside a field does not survive, and no
+// people at all do not parse back.
 func FormatRoster(people []Person) string {
 	var b strings.Builder
 	b.WriteString(RosterHeader)
@@ -223,12 +225,13 @@ const SignupFields = "Name; Email; Status; +N; Knows; Note"
 // in position 2), its errors stand, except when only leftover yes/no words
 // of the former credit-card field are in the way. Any other line is read by
 // content: the first field is the handle, "@" marks the e-mail, a tier word
-// the status, a number the +N, the first list of handles separated by commas
-// and every word or list, before or after it, that names only other people's
-// handles (known, or a name in text) the connections, anything else the
-// note. Reported are yes/no words and, kept as note, single words and lists
-// without spaces, "+" or "|"; prose stays the note silently. Unknown handles
-// in the first list are reported by Normalize.
+// the status, a number the +N; a second one of these and yes/no words are
+// ignored with a warning. The first list of handles separated by commas and
+// every word or list, before or after it, that names only other people's
+// handles (known, or a name in text) are the connections; anything else but
+// bare commas is the note. A word or list kept as note is reported unless an entry has a
+// space, "+" or "|" (prose). Unknown and own handles in the first list are
+// reported by Normalize.
 func ParseSignup(text string, known []string) (people []Person, warnings []string, err error) {
 	lines := strings.Split(strings.ReplaceAll(text, "\r\n", "\n"), "\n")
 	handles := map[string]bool{}
