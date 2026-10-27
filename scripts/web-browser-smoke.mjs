@@ -2,8 +2,10 @@
 // Gate: the page works in a real browser. Launches headless Chrome on
 // web/dist via file:// (fetch allowed by flag), dumps the DOM once the wasm
 // has loaded, and checks the markers of every mode: empty page, demo link,
-// admin link, viewer link, collect link (links come from the CLI). Prints
-// SKIP and exits 0 when no Chrome is found; set CHROME=/path/to/chrome.
+// admin link, viewer link, board link (also with statuses), collect link
+// (links come from the CLI; the state codec is base64url(deflate(json)), so
+// node can read and rewrite them). Prints SKIP and exits 0 when no Chrome is
+// found; set CHROME=/path/to/chrome.
 //
 // Usage: node scripts/web-browser-smoke.mjs [path/to/vouch0rzii-binary]
 // Requires a prior `go build -o vouch0rzii .` and `scripts/build-web.sh`.
@@ -12,6 +14,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'no
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { deflateRawSync, inflateRawSync } from 'node:zlib';
 
 const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const page = pathToFileURL(join(root, 'web', 'dist', 'index.html')).href;
@@ -28,6 +31,10 @@ if (!chrome) {
 const demoEvent = join(root, 'events', 'congress2026.json');
 const link = (mode, extra = [], event = demoEvent) =>
   execFileSync(cli, ['-event', event, '-share', mode, '-base', page, ...extra]).toString().trim();
+const decode = (href) => JSON.parse(inflateRawSync(Buffer.from(href.split('#s=')[1], 'base64url')).toString());
+const withStatus = (href, status) =>
+  page + '#s=' + deflateRawSync(JSON.stringify({ ...decode(href), status, statusAt: '2026-10-27T12:00:00Z' })).toString('base64url');
+const hrefOf = (html, id) => (html.match(new RegExp(`id="${id}" class="button" href="([^"]+)"`)) || [])[1] || '';
 
 function dom(url) {
   const r = spawnSync(chrome, [
@@ -70,6 +77,7 @@ check('admin: intro hidden once a plan exists', admin.includes('<p id="intro" cl
 check('admin: voucher phase summary, free cells marked, nothing for the public sale', admin.includes('Voucher-Phase bis Fr 13.11. (11 Tage) · 30 Slots frei') && (admin.match(/>frei<\/td>/g) || []).length === 2 && admin.includes('<div id="r-public" class="warning" hidden="">'));
 check('admin: "+ Tag" column offered while the phase has room', admin.includes('>+ Tag<'));
 check('admin: share buttons visible', admin.includes('<nav id="sharebar">'));
+check('admin: board hidden, board switch hidden (admins copy the link)', admin.includes('<section id="board" class="card" hidden="">') && /id="toBoard" class="button" href="#" title="[^"]*" hidden=""/.test(admin));
 check('admin: no error box', noError(admin));
 const fp = (html) => (html.match(/id="fingerprint"[^>]*>([^<]*)</) || [])[1] || '';
 check('admin: four-emoji fingerprint shown', [...fp(admin)].length === 4);
@@ -81,6 +89,17 @@ check('view: status badges, not buttons', (view.match(/<span class="badge st-ope
 check('view: editor and share buttons hidden', view.includes('<section id="editor" hidden=""') && view.includes('<nav id="sharebar" hidden=""'));
 check('view: no error box', noError(view));
 check('view: same fingerprint as admin', fp(view) === fp(admin));
+check('view: board hidden, switch leads to a board state of the same plan', view.includes('<section id="board" class="card" hidden="">') && (() => { const st = decode(hrefOf(view, 'toBoard')); return st.mode === 'board' && st.pins.length === 47; })());
+
+const board = dom(link('board'));
+check('board: dashboard shown, plan and editor hidden', board.includes('<section id="board" class="card">') && board.includes('<section id="result" hidden="">') && board.includes('<section id="editor" hidden=""'));
+check('board: progress over all placed slots, one tile per voucher', board.includes('0 von 47 Tickets gekauft') && (board.match(/<li class="tile orga">/g) || []).length === 7 && board.includes('<progress id="b-bar" max="47" value="0">'));
+check('board: free slots, same fingerprint, "Zum Plan" is a view state', board.includes('<b>30</b><span>Slots frei</span>') && decode(hrefOf(board, 'b-plan')).mode === 'view' && fp(board) === fp(admin) && noError(board));
+// Statuses: fennek passed voucher 1 on, quokka holds it; nacktmull bought on
+// voucher 2 (holding); the rest is still with the organisers. Tickets bought
+// counts bought and passed; overdue depends on the date and is not asserted.
+const live = dom(withStatus(link('board'), { fennek: 'passed', quokka: 'received', nacktmull: 'bought' }));
+check('board with statuses: progress, holding tiles, status stand', live.includes('2 von 47 Tickets gekauft') && live.includes('<progress id="b-bar" max="47" value="2">') && (live.match(/<li class="tile holding/g) || []).length === 2 && (live.match(/<li class="tile orga/g) || []).length === 5 && live.includes('3 Slot(s) mit Status, Stand'));
 
 // The same roster with the voucher phase ending after five days: 35 slots
 // fit, twelve go to the public sale, no "+ Tag" column past the end. And

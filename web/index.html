@@ -19,6 +19,7 @@
   <nav id="sharebar" hidden>
     <button type="button" id="copyAdmin" title="Dieser Link enthält Roster, Einstellungen und Pins">Admin-Link kopieren</button>
     <button type="button" id="copyView" title="Eingefrorener Plan zum Weitergeben">Viewer-Link kopieren</button>
+    <button type="button" id="copyBoard" title="Dashboard zum Mitfiebern, gleiche Daten wie der Viewer-Link">Board-Link kopieren</button>
     <button type="button" id="copyCollect" title="Formular für Interessierte, ohne Roster">Sammel-Link kopieren</button>
   </nav>
 </header>
@@ -117,6 +118,20 @@
     </div>
   </section>
 
+  <section id="board" class="card" hidden>
+    <div class="head"><h2 id="b-title"></h2><span id="b-day" class="stats"></span><span class="spacer"></span><a id="b-plan" class="button" href="#">Zum Plan</a></div>
+    <progress id="b-bar" max="1" value="0"></progress>
+    <p id="b-progress" class="stats"></p>
+    <div id="b-kpis" class="kpis"></div>
+    <ul id="b-vouchers" class="tiles"></ul>
+    <div class="cols">
+      <div><h3>Heute</h3><ul id="b-today"></ul></div>
+      <div><h3 id="b-nextLabel">Nächster Tag</h3><ul id="b-next"></ul></div>
+    </div>
+    <div id="b-public" class="warning" hidden></div>
+    <p id="b-at" class="hint"></p>
+  </section>
+
   <section id="result" hidden>
     <div class="card">
       <h2>Live-Status</h2>
@@ -128,6 +143,7 @@
       <div class="row">
         <h2 id="r-title">Plan</h2>
         <span class="spacer"></span>
+        <a id="toBoard" class="button" href="#" title="Dashboard zum Mitfiebern">Board</a>
         <button type="button" id="copyMd">Markdown kopieren</button>
         <button type="button" id="dlCsv">CSV</button>
         <button type="button" id="dlJson">JSON</button>

@@ -3,9 +3,9 @@
 // Page logic for vouch0rzii. All planning happens in the Go wasm build
 // (globalThis.vouch0rzii); this file only moves data between the form, the
 // URL fragment and the DOM. The fragment "#s=…" is the whole state (see
-// internal/plan/share.go); modes admin/view/collect are views on it, not
-// access control. The live status per slot is curated by admins and travels
-// in the same state.
+// internal/plan/share.go); modes admin/view/board/collect are views on it,
+// not access control. The live status per slot is curated by admins and
+// travels in the same state.
 'use strict';
 (() => {
   const $ = (sel) => document.querySelector(sel);
@@ -26,7 +26,7 @@
   };
 
   const DEFAULT_EVENT = { name: '', vouchers: 7, start: '', weekends: false, plusMax: 2, seed: '', handover: '23:00', people: [] };
-  const MODE_LABEL = { admin: 'Admin', view: 'Ansicht', collect: 'Anmeldung' };
+  const MODE_LABEL = { admin: 'Admin', view: 'Ansicht', board: 'Board', collect: 'Anmeldung' };
   const COLLECT_HEADER = 'Name;E-Mail;Status;+N;Kreditkarte;Kennt;Notiz';
   const STATUS = ['open', 'received', 'bought', 'passed'];
   const STATUS_LABEL = { open: 'offen', received: 'Voucher da', bought: 'Ticket gekauft', passed: 'weitergegeben' };
@@ -85,11 +85,11 @@
   function mailto(to, subject, body) {
     return `mailto:${to}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
   }
-  function today() {
-    const d = new Date();
+  function fmtDate(d) {
     const p = (n) => String(n).padStart(2, '0');
     return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
   }
+  const today = () => fmtDate(new Date());
   function fmtAt(iso) {
     const d = new Date(iso);
     return isNaN(d) ? iso : d.toLocaleString('de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
@@ -251,48 +251,110 @@
     const body = `Slot: ${sheet.label}\nVoucher: ${sheet.voucher}\nNeuer Status: ${STATUS_LABEL[next]}\nPlan: ${plan.fingerprint}\n`;
     return mailto(to, `vouch0rzii ${plan.event}: ${sheet.label} ${STATUS_LABEL[next]}`, body);
   }
+  // voucherState reads the curated status of one chain: where the voucher is
+  // (kind: done, moving, holding, orga, none) and whether it is overdue.
+  // Overdue marks only once the sale is being tracked (track).
+  function voucherState(v, now, track) {
+    const chain = plan.sheets.filter((s) => s.voucher === v); // in day order
+    const st = chain.map((s) => statusOf(s.label));
+    const holder = Math.max(st.lastIndexOf('received'), st.lastIndexOf('bought'));
+    const passed = st.lastIndexOf('passed');
+    const day = (s) => plan.days[s.day - 1].label;
+    if (passed > holder) {
+      const next = chain[passed + 1];
+      if (!next) return { v, kind: 'done', text: 'Kette abgeschlossen' };
+      return { v, kind: 'moving', text: `unterwegs zu ${next.label}, ${chain[passed].label} hat weitergegeben, Kauf am ${day(next)}`, late: track && next.date < now };
+    }
+    if (holder >= 0) {
+      const h = chain[holder];
+      const next = chain.slice(holder + 1).find((s) => statusOf(s.label) === 'open');
+      return {
+        v, kind: 'holding',
+        text: `bei ${h.label} (${STATUS_LABEL[st[holder]]})` + (next ? `, als Nächstes ${next.label} am ${day(next)}` : ', letzte Station'),
+        late: track && h.date < now && !(st[holder] === 'bought' && !next), // a bought last station is done, not late
+      };
+    }
+    if (chain.length) return { v, kind: 'orga', text: `noch bei der Orga, Start ${chain[0].label} am ${day(chain[0])}`, late: track && chain[0].date < now };
+    return { v, kind: 'none', text: 'ohne Slots' };
+  }
+  // trackedCount is the number of statuses that belong to a slot of this plan;
+  // statuses of renamed or vanished slots neither count nor start tracking.
+  function trackedCount() {
+    const labels = new Set(plan.sheets.map((s) => s.label));
+    return Object.keys(state.status).filter((l) => labels.has(l)).length;
+  }
+  const tracking = () => trackedCount() > 0;
+  function statusStand() {
+    const n = trackedCount();
+    return n ? `${n} Slot(s) mit Status, Stand ${fmtAt(state.statusAt)}.` : 'Noch kein Status gesetzt. Überfällig wird erst markiert, sobald der erste Status gesetzt ist.';
+  }
+  const publicBox = (box) => {
+    box.hidden = !plan.public.length;
+    box.replaceChildren(el('strong', {}, 'Freier Verkauf: '), `${plan.public.length} Ticket(s) passen nicht mehr in die Voucher-Phase und müssen regulär gekauft werden: `, el('b', {}, plan.public.join(', ')));
+  };
   function renderLive() {
-    const now = today();
-    const tracking = Object.keys(state.status).length > 0; // overdue marks only once the sale is being tracked
+    const now = today(), track = tracking();
     const items = [];
     for (let v = 1; v <= plan.vouchers; v++) {
-      const chain = plan.sheets.filter((s) => s.voucher === v); // in day order
-      const st = chain.map((s) => statusOf(s.label));
-      const holder = st.lastIndexOf('received') > st.lastIndexOf('bought') ? st.lastIndexOf('received') : st.lastIndexOf('bought');
-      const passed = st.lastIndexOf('passed');
-      const day = (s) => plan.days[s.day - 1].label;
-      let text, late = false;
-      if (passed > holder) {
-        const next = chain[passed + 1];
-        if (!next) text = `Voucher ${v}: Kette abgeschlossen`;
-        else { text = `Voucher ${v}: unterwegs zu ${next.label}, ${chain[passed].label} hat weitergegeben, Kauf am ${day(next)}`; late = tracking && next.date < now; }
-      } else if (holder >= 0) {
-        const h = chain[holder];
-        const next = chain.slice(holder + 1).find((s) => statusOf(s.label) === 'open');
-        text = `Voucher ${v}: bei ${h.label} (${STATUS_LABEL[st[holder]]})` + (next ? `, als Nächstes ${next.label} am ${day(next)}` : ', letzte Station');
-        late = tracking && h.date < now && !(st[holder] === 'bought' && !next); // a bought last station is done, not late
-      } else if (chain.length) {
-        text = `Voucher ${v}: noch bei der Orga, Start ${chain[0].label} am ${day(chain[0])}`;
-        late = tracking && chain[0].date < now;
-      } else {
-        text = `Voucher ${v}: ohne Slots`;
-      }
-      items.push(el('li', { class: late ? 'live overdue' : 'live' }, text, late ? ' — überfällig' : ''));
+      const s = voucherState(v, now, track);
+      items.push(el('li', { class: s.late ? 'live overdue' : 'live' }, `Voucher ${v}: ${s.text}`, s.late ? ' — überfällig' : ''));
     }
     $('#liveList').replaceChildren(...items);
-    const labels = new Set(plan.sheets.map((s) => s.label));
-    const n = Object.keys(state.status).filter((l) => labels.has(l)).length;
-    $('#liveAt').textContent = n
-      ? `${n} Slot(s) mit Status, Stand ${fmtAt(state.statusAt)}.`
-      : 'Noch kein Status gesetzt. Überfällig wird erst markiert, sobald der erste Status gesetzt ist.';
+    $('#liveAt').textContent = statusStand();
+  }
+
+  // ---------- board: the viewer's data as a dashboard for everyone
+  function renderBoard() {
+    const now = today(), track = tracking();
+    const sheets = plan.sheets;
+    const first = plan.days[0];
+    // Plan day number of a date, counting past the grid up to the end.
+    const planDay = (date) => {
+      const [y, m, d] = first.date.split('-').map(Number);
+      let n = 0;
+      for (const t = new Date(y, m - 1, d); fmtDate(t) <= date; t.setDate(t.getDate() + 1)) if (state.event.weekends || t.getDay() % 6) n++; // % 6: Sunday 0 and Saturday 6 are skipped
+      return n;
+    };
+    const total = plan.end.day || plan.days.length;
+    const last = plan.days[plan.days.length - 1];
+    const ended = plan.end.day ? now > plan.end.date : now > last.date;
+    $('#b-title').textContent = plan.event;
+    $('#b-day').textContent = now < first.date ? `Start am ${first.label}`
+      : ended ? (plan.end.day ? 'Voucher-Phase beendet' : `Letzter Plantag war ${last.label}`)
+        : `Tag ${planDay(now)} von ${total}` + (plan.end.day ? ` · Ende ${plan.end.label}` : '');
+    const states = [];
+    for (let v = 1; v <= plan.vouchers; v++) states.push(voucherState(v, now, track));
+    const bought = sheets.filter((s) => ['bought', 'passed'].includes(statusOf(s.label))).length;
+    const bar = $('#b-bar');
+    bar.max = sheets.length || 1;
+    bar.value = bought;
+    $('#b-progress').textContent = `${bought} von ${sheets.length} Tickets gekauft`;
+    $('#b-kpis').replaceChildren(...[
+      ['Voucher unterwegs', states.filter((s) => s.kind === 'moving').length],
+      ['Ketten abgeschlossen', states.filter((s) => s.kind === 'done').length],
+      ['überfällig', states.filter((s) => s.late).length],
+      ['Slots frei', plan.stats.free],
+    ].map(([k, n]) => el('div', { class: 'kpi' }, el('b', {}, n), el('span', {}, k))));
+    $('#b-vouchers').replaceChildren(...states.map((s) => el('li', { class: `tile ${s.kind}${s.late ? ' late' : ''}` }, el('b', {}, `Voucher ${s.v}`), s.text, s.late && el('small', { class: 'late' }, 'überfällig'))));
+    const nextDay = plan.days.find((d) => d.date > now);
+    const who = (list) => list.length ? list.map((s) => el('li', {}, el('span', { class: `badge st-${statusOf(s.label)}` }, STATUS_LABEL[statusOf(s.label)]), ` ${s.label} · Voucher ${s.voucher}`)) : [el('li', { class: 'hint' }, 'niemand')];
+    $('#b-today').replaceChildren(...who(sheets.filter((s) => s.date === now)));
+    $('#b-nextLabel').textContent = nextDay ? `Als Nächstes, ${nextDay.label}` : 'Als Nächstes';
+    $('#b-next').replaceChildren(...who(nextDay ? sheets.filter((s) => s.day === nextDay.day) : []));
+    publicBox($('#b-public'));
+    $('#b-at').textContent = `${statusStand()} Kennung ${plan.fingerprint}.`;
+    $('#b-plan').href = linkFor('view', {});
   }
 
   // ---------- rendering
   function renderResult() {
-    $('#result').hidden = !plan;
+    const board = state.mode === 'board';
+    $('#result').hidden = !plan || board;
+    $('#board').hidden = !plan || !board;
     $('#intro').hidden = !!plan;
     $('#fingerprint').textContent = plan ? plan.fingerprint : '';
     if (!plan) return;
+    if (board) { renderBoard(); return; }
     const s = plan.stats;
     $('#r-title').textContent = `Plan ${plan.event}`;
     $('#r-stats').textContent =
@@ -301,9 +363,10 @@
     $('#r-phase').textContent = plan.end.day
       ? `Voucher-Phase bis ${plan.end.label} (${plan.end.day} Tage) · ${s.free} Slots frei`
       : `Kein Ende der Voucher-Phase gesetzt · ${s.free} Slots frei im Plan`;
-    const pub = $('#r-public');
-    pub.hidden = !plan.public.length;
-    pub.replaceChildren(el('strong', {}, 'Freier Verkauf: '), `${plan.public.length} Ticket(s) passen nicht mehr in die Voucher-Phase und müssen regulär gekauft werden: `, el('b', {}, plan.public.join(', ')));
+    publicBox($('#r-public'));
+    const toBoard = $('#toBoard'); // admins copy the board link instead; switching would drop unsaved edits
+    toBoard.hidden = state.mode === 'admin';
+    if (!toBoard.hidden) toBoard.href = linkFor('board', { pins: plan.pins });
     $('#r-pinhelp').hidden = state.mode !== 'admin';
     renderLive();
     renderMatrix();
@@ -451,6 +514,7 @@
     $('#sharebar').hidden = m !== 'admin';
     $('#collect').hidden = m !== 'collect';
     $('#result').hidden = true;
+    $('#board').hidden = true;
     if (m === 'collect') {
       $('#c-event').textContent = state.event.name || 'das Event';
       $('#c-plus').max = String(state.event.plusMax || 2);
@@ -518,6 +582,7 @@
 
     $('#copyAdmin').addEventListener('click', () => { if (computePlan()) copy(linkFor('admin', {}), `Admin-Link, Stand ${plan.fingerprint},`); });
     $('#copyView').addEventListener('click', () => { if (computePlan()) copy(linkFor('view', { pins: plan.pins }), `Viewer-Link, Stand ${plan.fingerprint},`); });
+    $('#copyBoard').addEventListener('click', () => { if (computePlan()) copy(linkFor('board', { pins: plan.pins }), `Board-Link, Stand ${plan.fingerprint},`); });
     $('#copyCollect').addEventListener('click', () => {
       const f = readForm();
       if (!f.to) { showMessages(['Für den Sammel-Link braucht es die Orga-Adresse (Feld oben).']); return; }

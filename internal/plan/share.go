@@ -21,6 +21,7 @@ const StateVersion = 1
 const (
 	ModeAdmin   = "admin"   // edit roster and settings, pin slots, share links
 	ModeView    = "view"    // read the plan; carries a frozen plan (every placed slot pinned)
+	ModeBoard   = "board"   // the same data as view, rendered as a dashboard for everyone
 	ModeCollect = "collect" // sign-up form; carries settings and a contact address, no roster
 )
 
@@ -47,8 +48,9 @@ type Collect struct {
 const maxStateBytes = 4 << 20
 
 // EncodeState serialises a state as base64url(deflate(json)) for a URL
-// fragment. Collect states carry no roster, pins or status; view states
-// carry no notes (they keep the organisers' address for status reports).
+// fragment. Collect states carry no roster, pins or status; view and board
+// states carry no notes (they keep the organisers' address for status
+// reports).
 func EncodeState(st *State) (string, error) {
 	out := *st
 	out.V = StateVersion
@@ -61,7 +63,10 @@ func EncodeState(st *State) (string, error) {
 			out.Event = &ev
 		}
 		out.Pins, out.Status, out.StatusAt, out.Me = nil, nil, "", ""
-	case ModeView:
+	case ModeView, ModeBoard:
+		if out.Mode == ModeBoard {
+			out.Me = "" // the board highlights nobody
+		}
 		if out.Event != nil {
 			ev := *out.Event
 			ev.index = nil
@@ -115,7 +120,7 @@ func DecodeState(s string) (*State, error) {
 		return nil, fmt.Errorf("state: version %d, this page reads %d", st.V, StateVersion)
 	}
 	switch st.Mode {
-	case ModeAdmin, ModeView, ModeCollect:
+	case ModeAdmin, ModeView, ModeBoard, ModeCollect:
 	default:
 		return nil, fmt.Errorf("state: unknown mode %q", st.Mode)
 	}

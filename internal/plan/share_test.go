@@ -76,6 +76,14 @@ func TestViewStateCarriesNoNotesButStatusAndOrgaAddress(t *testing.T) {
 	if got, _ = DecodeState(enc); got.Me != "" {
 		t.Fatal("collect links must not carry me")
 	}
+	// A board link is a view link in another dress: no notes, status kept.
+	enc, err = EncodeState(&State{Mode: ModeBoard, Event: e, Pins: []Pin{{Label: "a", Day: 1, Voucher: 1}}, Status: map[string]string{"a": "bought"}, Me: "a"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, err = DecodeState(enc); err != nil || got.Mode != ModeBoard || got.Event.People[0].Note != "" || len(got.Pins) != 1 || got.Status["a"] != "bought" || got.Me != "" {
+		t.Fatalf("board state: %+v %v", got, err)
+	}
 	if e.People[0].Note != "private" {
 		t.Fatal("EncodeState must not mutate the caller's event")
 	}

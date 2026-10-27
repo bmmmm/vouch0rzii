@@ -24,8 +24,10 @@ what to check.
 - Live status per slot (offen → Voucher da → Ticket gekauft →
   weitergegeben), curated by admins, carried in the link, with per-voucher
   summary and overdue marks; status reports by mail.
-- Share links: admin, viewer, collect (sign-up form), personal viewer links;
-  four-emoji fingerprint of the data version.
+- Share links: admin, viewer, board (dashboard for everyone: progress, a
+  tile per voucher, today and next, free slots, public sale), collect
+  (sign-up form), personal viewer links; four-emoji fingerprint of the data
+  version.
 - Outputs: Markdown, CSV, JSON, SVG flow diagram; handover mails.
 - CLI (`-format md|csv|json|svg|event`, `-share`), wasm page, demo link.
 - Gates: Go tests, CLI == wasm smoke with privacy contract, headless-Chrome

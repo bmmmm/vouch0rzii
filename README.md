@@ -77,7 +77,7 @@ English, in any order:
 ## Links and modes
 
 The page keeps its whole state in the URL fragment (`#s=…`,
-base64url-encoded deflated JSON). Three modes, all views on the same data —
+base64url-encoded deflated JSON). Four modes, all views on the same data —
 **not** access control: whoever has a link has what is in it. The header
 shows a four-emoji fingerprint of the current data (settings, roster,
 placement); admin and viewer links of the same state show the same emoji,
@@ -92,6 +92,11 @@ so two people can tell at a glance whether they look at the same plan.
   report to the organisers. Admins can copy a personal viewer link per
   person ("Link" in the sheet table) that highlights that person's rows.
   The viewer prints as a clean sheet: matrix, handovers, who-when-whom.
+- **Board**: the viewer's data as a dashboard for everyone who wants to
+  follow along: progress bar of tickets bought, a tile per voucher (where it
+  is, who is next, overdue), today's and the next day's buyers, free slots,
+  the public-sale list, and a link to the full plan. Admins copy it with
+  "Board-Link kopieren"; a viewer link switches with "Board".
 - **Sammeln / collect**: a sign-up form for people interested in a voucher.
   It carries only the event settings and the organiser's address; the result
   is one line (`Name; E-Mail; Status; +N; Kreditkarte; Kennt; Notiz`) that is
@@ -127,7 +132,7 @@ vouch0rzii -event events/congress2026.json              # Markdown: matrix + han
 vouch0rzii -event events/congress2026.json -format csv   # csv | json | svg | event
 vouch0rzii -event e.json -roster paste.tsv -format event # spreadsheet paste → event file
 vouch0rzii -event e.json -pins pins.json -seed other     # manual pins, new draw
-vouch0rzii -event e.json -share view                     # frozen viewer link
+vouch0rzii -event e.json -share view                     # frozen viewer link (board: dashboard)
 vouch0rzii -event e.json -share collect -to orga@example.org
 ```
 
@@ -138,15 +143,15 @@ Exit status 2 means the input was rejected; the reasons are on stderr.
 ```
 go test ./... && go vet ./... && GOOS=js GOARCH=wasm go vet ./cmd/vouch0rzii-wasm
 go build -o vouch0rzii . && scripts/build-web.sh && node scripts/web-smoke.mjs
-node scripts/web-browser-smoke.mjs             # headless Chrome over web/dist, all three modes
+node scripts/web-browser-smoke.mjs             # headless Chrome over web/dist, all modes
 cd web/dist && python3 -m http.server 8077     # then open http://localhost:8077/ (file:// cannot fetch)
 ```
 
 `scripts/web-smoke.mjs` proves the wasm build plans byte-equal to the CLI and
 pins the privacy contract (CSP, no storage, no external resources);
 `scripts/web-browser-smoke.mjs` loads the page in headless Chrome and checks
-the DOM of the empty page and of a demo, an admin, a viewer and a collect
-link. Agent instructions live in `AGENTS.md`, the security policy in
+the DOM of the empty page and of a demo, an admin, a viewer, a board and a
+collect link. Agent instructions live in `AGENTS.md`, the security policy in
 `SECURITY.md`, notable changes in `CHANGELOG.md`.
 Layout: `internal/plan` (model, codecs, scheduling, assignment, rendering,
 share state), `main.go` (CLI), `cmd/vouch0rzii-wasm` (browser bridge),

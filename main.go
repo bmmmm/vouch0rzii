@@ -33,7 +33,7 @@ Flags:
   -pins FILE      JSON array of pins, e.g. [{"label":"alpha","day":1,"voucher":2}]
   -format F       md (default), csv, json, svg, event (the normalised event file)
   -seed S         override the seed (a new draw)
-  -share MODE     print a share link instead of the plan: admin, view, collect
+  -share MODE     print a share link instead of the plan: admin, view, board, collect
   -base URL       page URL for -share (default ` + DefaultBase + `)
   -to EMAIL       contact address for -share collect
   -version        print the version
@@ -127,7 +127,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 	if *share != "" {
 		st := &plan.State{Mode: *share, Event: e, Pins: pins}
 		switch *share {
-		case plan.ModeView:
+		case plan.ModeView, plan.ModeBoard:
 			st.Pins = plan.Freeze(p)
 		case plan.ModeCollect:
 			if *to == "" {

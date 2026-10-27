@@ -12,7 +12,7 @@ Voucher chain planner for event presales: a Go core, a CLI, and a static page
   assignment and the 2-opt pass · `plan.go` `Compute`, handovers across idle
   days, `Freeze` · `render.go` `Export`/JSON/Markdown/CSV · `svg.go` flow
   diagram · `fingerprint.go` four-emoji data version · `share.go` link state
-  codec and modes (admin, view, collect).
+  codec and modes (admin, view, board, collect).
 - `main.go` — CLI over `run()`, tested in `main_test.go`.
 - `cmd/vouch0rzii-wasm` — browser bridge; every call returns
   `{ok, errors, warnings, …}` and never throws (panics are caught).

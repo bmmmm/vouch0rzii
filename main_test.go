@@ -119,6 +119,10 @@ func TestShareLinks(t *testing.T) {
 	if st.Mode != plan.ModeView || len(st.Pins) != 47 || len(st.Event.People) != 25 {
 		t.Fatalf("view state: mode %s pins %d people %d", st.Mode, len(st.Pins), len(st.Event.People))
 	}
+	out = strings.TrimSpace(runOK(t, "-event", example, "-share", "board"))
+	if st, err = plan.DecodeState(strings.TrimPrefix(out, DefaultBase+"#s=")); err != nil || st.Mode != plan.ModeBoard || len(st.Pins) != 47 {
+		t.Fatalf("board state: %+v %v", st, err)
+	}
 	out = strings.TrimSpace(runOK(t, "-event", example, "-share", "collect", "-to", "orga@example.org", "-base", "http://localhost/"))
 	st, err = plan.DecodeState(strings.TrimPrefix(out, "http://localhost/#s="))
 	if err != nil {
