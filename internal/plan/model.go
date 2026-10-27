@@ -75,7 +75,6 @@ type Person struct {
 	ID    string   `json:"id"`
 	Email string   `json:"email,omitempty"`
 	Tier  Tier     `json:"tier"`
-	Card  bool     `json:"card,omitempty"`  // credit card available: shown only, never scheduled on
 	Plus  int      `json:"plus,omitempty"`  // additional people brought along (+N)
 	Group bool     `json:"group,omitempty"` // represents a larger group: Plus may exceed PlusMax, own +k may follow each other
 	Order int      `json:"order,omitempty"` // manual position within the tier; 0 = drawn by lot

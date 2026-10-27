@@ -450,6 +450,7 @@
     $('#r-stats').textContent =
       `${plan.vouchers} Vouchers · ${s.days} Tage · ${s.slots} Slots · ${s.handovers} Übergaben, davon ${s.known} unter Buddies, ${s.unknown} neue Verbindungen` +
       (s.forbidden ? `, ${s.forbidden} direkt an eigene Begleitung` : '') + (s.pinned ? ` · ${s.pinned} gepinnt` : '') + ` · Übergabe ${plan.handover}`;
+    $('#r-order').textContent = `Reihenfolge: erst Mitglieder, dann häufige Gäste, dann Bekanntschaften; innerhalb jeder Gruppe entscheidet das Los mit Seed „${state.event.seed || state.event.name}" (gleicher Seed, gleiche Losung). Danach die Begleitungen rundenweise: alle +1, dann alle +2 und so weiter. Eine Zahl in „Reihenfolge" überstimmt das Los.`;
     $('#r-phase').textContent = plan.end.day
       ? `Voucher-Phase bis ${plan.end.label} (${plan.end.day} Tage) · ${s.free} Slots frei`
       : `Kein Ende der Voucher-Phase gesetzt · ${s.free} Slots frei im Plan`;
@@ -587,7 +588,7 @@
       return el('tr', { class: `st-${st}`, dataset: { label: s.label, who: `${s.label} ${s.person} ${s.email || ''}`.toLowerCase(), person: s.person.toLowerCase() } },
         admin && el('td', {}, el('input', { type: 'checkbox', class: 'pick', 'aria-label': `${s.label} auswählen`, checked: picked.has(s.label), onchange: (e) => { if (e.target.checked) picked.add(s.label); else picked.delete(s.label); renderBulk(); } })),
         el('td', {}, s.label, s.pinned ? ' 📌' : ''),
-        el('td', {}, s.person, s.email && el('small', {}, el('br'), s.email), s.card ? el('small', { title: 'Kreditkarte für den Notfall' }, ' 💳') : ''),
+        el('td', {}, s.person, s.email && el('small', {}, el('br'), s.email)),
         el('td', {}, plan.days[s.day - 1].label, el('small', {}, el('br'), s.date)),
         el('td', {}, s.voucher),
         el('td', {}, s.from, s.fromEmail && el('small', {}, el('br'), s.fromEmail)),
@@ -734,7 +735,7 @@
       const handle = clean($('#c-handle').value);
       const line = [
         handle, clean($('#c-email').value), $('#c-tier').value, String(Number($('#c-plus').value) || 0),
-        $('#c-card').checked ? 'ja' : 'nein', clean($('#c-knows').value), clean($('#c-note').value),
+        clean($('#c-knows').value), clean($('#c-note').value),
       ].join('; ');
       $('#c-line').value = line;
       $('#collectOut').hidden = false;

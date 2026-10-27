@@ -16,7 +16,7 @@ data, and your browser history keeps it like any other link.
 
 1. **As few days as possible.** With `V` vouchers from day 1 and `N` ticket
    slots the plan has `ceil(N / V)` days; extra vouchers, pins, people who
-   leave and the end of the voucher phase (rule 8) change that, the grid
+   leave and the end of the voucher phase (rule 7) change that, the grid
    shows the result. Weekends are skipped unless the event says otherwise.
 2. **Tiers.** Named people first — members, then frequent guests, then
    acquaintances. After all named people come everybody's +1, then everybody's
@@ -35,9 +35,7 @@ data, and your browser history keeps it like any other link.
    pins this day-by-day optimum is already the global optimum; with pins a
    2-opt pass cleans up around them. The page calls these handovers
    *Buddies*, all others *neue Verbindung*.
-5. **Credit card** is shown as an emergency fallback only and never affects
-   the plan (instant SEPA transfers are the default).
-6. **Pins.** In the admin view a slot can be moved to another cell or swapped
+5. **Pins.** In the admin view a slot can be moved to another cell or swapped
    with another slot. Pins are kept in the link and respected before the
    automatic placement fills the rest. A voucher may idle for a day; the
    handover then goes to the next holder and says on which day they buy.
@@ -47,13 +45,13 @@ data, and your browser history keeps it like any other link.
    or the buttons above the matrix undo and redo moves, pins, status and
    roster changes while the tab is open; the link always carries the
    current state.
-7. **Mid-run changes.** "Bis heute festnageln" pins every slot up to today,
+6. **Mid-run changes.** "Bis heute festnageln" pins every slot up to today,
    so roster edits only change the future. Someone who got a voucher
    elsewhere is marked `Ausgestiegen`/`out`: they stay in the draw (nobody
    else moves), their pinned slots remain, their other slots vanish and the
    people behind move up. Vouchers that arrive later go into `extra`
    (`date:count`); those chains start fresh from the organisers on that day.
-8. **End of the voucher phase.** `end` (`Ende`) is the last day vouchers
+7. **End of the voucher phase.** `end` (`Ende`) is the last day vouchers
    work. The plan fills only up to it; slots that do not fit are listed as
    *Freier Verkauf* / `public` in priority order and are bought in the public
    sale. Pins after the end are dropped with a warning. Free voucher days
@@ -71,13 +69,12 @@ English, in any order:
 |---|---|---|
 | `Reihenfolge` | order | manual position within the tier, empty = lot |
 | `Name` | handle | unique; must not contain `+ ; , \|` |
-| `Kreditkarte` | card | ja/nein, x, 1/0 |
 | `Status` | tier, "Mitglied / (Häufiger) Gast / Bekanntschaft" | Mitglied, Gast, Bekanntschaft |
 | `+N` | plus | number of extra people |
 | `E-Mail` | email, mail | contact for the handover |
 | `Kennt` | knows | handles, comma separated |
-| `Gruppe` | group | ja = may exceed +N max, block allowed |
-| `Ausgestiegen` | out, raus, left | ja = gives up all slots that are not pinned |
+| `Gruppe` | group | ja = may exceed +N max, block allowed (ja/nein, x, 1/0) |
+| `Ausgestiegen` | out, raus, left | ja = gives up all slots that are not pinned (ja/nein, x, 1/0) |
 | `Notiz` | note | free text, never part of viewer links |
 
 ## Links and modes
@@ -106,11 +103,11 @@ so two people can tell at a glance whether they look at the same plan.
   gives admins the link to share.
 - **Sammeln / collect**: a sign-up form for people interested in a voucher.
   It carries only the event settings and the organiser's address; the result
-  is one line (`Name; E-Mail; Status; +N; Kreditkarte; Kennt; Notiz`) that is
+  is one line (`Name; E-Mail; Status; +N; Kennt; Notiz`) that is
   mailed or copied to the organiser, who pastes it into "Zeilen aus
   Sammel-Mails hinzufügen". Lines typed by hand may put the fields after the
   name in any order: the e-mail is the field with `@`, the status a tier
-  word, +N a number, the card ja/nein, connections comma-separated handles,
+  word, +N a number, connections comma-separated handles,
   the rest becomes the note. Problems with the roster or with sign-up lines
   are reported under "Plan berechnen" or under the sign-up button; a cell
   name the planner rejects is reported above the matrix.
@@ -133,7 +130,7 @@ fingerprint and status timestamp to see who holds the newer link.
 
 `events/congress2026.json` is a pseudonymised real roster (25 animals, 22
 extra slots, 7 vouchers → 7 days, voucher phase of 11 days with 30 slots
-free). Status, credit card, e-mail and
+free). Status, e-mail and
 connections are **placeholders**; the real values live only in your own links
 and files. The page's "Demo öffnen" link is an admin link of this roster,
 generated at build time; the file itself is not part of the site.

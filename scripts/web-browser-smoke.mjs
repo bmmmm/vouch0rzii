@@ -77,6 +77,7 @@ check('admin: matrix cells keyboard-focusable', (admin.match(/tabindex="0"/g) ||
 check('admin: intro hidden once a plan exists', admin.includes('<p id="intro" class="intro" hidden=""'));
 check('admin: voucher phase summary, free cells marked, nothing for the public sale', admin.includes('Voucher-Phase bis Fr 13.11. (11 Tage) · 30 Slots frei') && (admin.match(/>frei<\/td>/g) || []).length === 2 && admin.includes('<div id="r-public" class="warning" hidden="">'));
 check('admin: "+ Tag" column offered while the phase has room', admin.includes('>+ Tag<'));
+check('admin: the draw is explained with the seed', admin.includes('entscheidet das Los mit Seed „congress2026"'));
 check('admin: share buttons visible', admin.includes('<nav id="sharebar">'));
 check('admin: board hidden, "Board" opens a board state in a new tab', admin.includes('<section id="board" class="card" hidden="">') && /id="toBoard" class="button" href="[^"]+" title="[^"]*" rel="noopener" target="_blank"/.test(admin) && decode(hrefOf(admin, 'toBoard')).mode === 'board');
 check('admin: no error box', noError(admin));
@@ -88,6 +89,7 @@ check('view: plan rendered, matrix not editable', planned(view) && !view.include
 check('view: frozen (47 pinned)', view.includes('47 gepinnt'));
 check('view: status badges, not buttons', (view.match(/<span class="badge st-open"/g) || []).length === 47 && !view.includes('class="badge st-open" title'));
 check('view: no pick boxes, bulk bar hidden, counter shown', !view.includes('class="pick"') && view.includes('<div id="bulk" class="row" hidden="">') && view.includes('0 von 47 Tickets gekauft'));
+check('view: the draw is explained with the seed', view.includes('entscheidet das Los mit Seed „congress2026"'));
 check('view: editor and share buttons hidden', view.includes('<section id="editor" hidden=""') && view.includes('<nav id="sharebar" hidden=""'));
 check('view: no error box', noError(view));
 check('view: same fingerprint as admin', fp(view) === fp(admin));
@@ -117,8 +119,9 @@ const early = variant('early.json', { end: '2026-11-05' });
 check('early end: plan stops at the end of the voucher phase', early.includes('7 Vouchers · 5 Tage · 47 Slots') && early.includes('Voucher-Phase bis Do 05.11. (5 Tage) · 0 Slots frei'));
 check('early end: public sale box lists the tickets that did not fit', early.includes('<div id="r-public" class="warning">') && early.includes('12 Ticket(s) passen nicht mehr') && (early.match(/data-who=/g) || []).length === 35);
 check('early end: no day after the end offered', !early.includes('>+ Tag<') && noError(early));
-const open = variant('open.json', {});
+const open = variant('open.json', { seed: 'würfel' }); // a seed that differs from the name
 check('no end: open-ended summary, free cells, "+ Tag" offered', open.includes('Kein Ende der Voucher-Phase gesetzt · 2 Slots frei im Plan') && (open.match(/>frei<\/td>/g) || []).length === 2 && open.includes('>+ Tag<') && open.includes('<div id="r-public" class="warning" hidden="">'));
+check('no end: the explanation names the seed, not the event name', open.includes('entscheidet das Los mit Seed „würfel"'));
 rmSync(scratch, { recursive: true });
 
 const collect = dom(link('collect', ['-to', 'orga@example.org']));

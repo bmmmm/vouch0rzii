@@ -114,7 +114,7 @@ try {
   await key('z');
 
   // Pending roster edits become an undo step of their own.
-  await js(`document.getElementById('roster').value += '\\tdodo2\\tnein\\tBekanntschaft\\t\\t\\t\\t\\t\\t\\n'; 0`);
+  await js(`document.getElementById('roster').value += '\\tdodo2\\tBekanntschaft\\t\\t\\t\\t\\t\\t\\n'; 0`);
   await key('z');
   check('undo with pending roster edits: edits applied, then taken back', !(await roster()).includes('dodo2') && (await stats()).includes('47 Slots'));
   await key('z', true);
@@ -134,10 +134,10 @@ try {
   await key('z');
   check('undo: the new person is gone from plan and roster', (await stats()).includes('47 Slots') && !(await roster()).includes('dodo'));
   check('free cell: an existing slot label moves there', (await nameFreeCell('mammut+10')) === 'ok' && (await stats()).includes('47 Slots') && (await stats()).includes('1 gepinnt') && (await pinnedLabels()).includes('mammut+10'));
-  check('free cell: "handle+k" raises the +N', (await nameFreeCell('kiwi+1')) === 'ok' && (await stats()).includes('48 Slots') && /\tkiwi\t[^\t]*\t[^\t]*\t1\t/.test(await roster()));
+  check('free cell: "handle+k" raises the +N', (await nameFreeCell('kiwi+1')) === 'ok' && (await stats()).includes('48 Slots') && /\tkiwi\t[^\t]*\t1\t/.test(await roster()));
   check('rejected name: plan and undo buttons stay, the reason is shown above the matrix', (await nameFreeCell('kiwi+3')) === 'ok' && (await stats()).includes('48 Slots')
     && await js(`!document.getElementById('result').hidden && !document.getElementById('undo').disabled && /exceeds the limit/.test(document.querySelector('#messages .error')?.textContent || '') && document.getElementById('messages').previousElementSibling === document.getElementById('r-pinhelp')`));
-  check('free cell: handles match case-insensitively (fills the last free cell)', (await nameFreeCell('KIWI+2')) === 'ok' && (await stats()).includes('49 Slots') && /\tkiwi\t[^\t]*\t[^\t]*\t2\t/.test(await roster()) && !/\tKIWI\t/.test(await roster()));
+  check('free cell: handles match case-insensitively (fills the last free cell)', (await nameFreeCell('KIWI+2')) === 'ok' && (await stats()).includes('49 Slots') && /\tkiwi\t[^\t]*\t2\t/.test(await roster()) && !/\tKIWI\t/.test(await roster()));
   await key('z', false, "document.getElementById('roster')");
   check('Ctrl+Z inside the roster textarea is left to the browser', (await stats()).includes('49 Slots'));
 
@@ -178,14 +178,14 @@ try {
   // messages appear under the button that was clicked, not at the top.
   const msgAfter = (id) => js(`document.getElementById('messages').previousElementSibling === document.getElementById('${id}').parentElement`);
   await js(`document.getElementById('inbox').value = 'bananaaa ; hallo@babna.com ; mitglied ; no ; panda ; nein'; document.getElementById('addInbox').click(); 0`);
-  check('inbox: hand-typed line added with e-mail, status and connection', /\tbananaaa\tnein\tMitglied\t\thallo@babna\.com\tpanda\t/.test(await roster()) && (await msgAfter('addInbox')) && await js(`document.querySelector('#messages .warning')?.textContent.includes('"nein" ignored')`));
+  check('inbox: hand-typed line added with e-mail, status and connection', /\tbananaaa\tMitglied\t\thallo@babna\.com\tpanda\t/.test(await roster()) && (await msgAfter('addInbox')) && await js(`document.querySelector('#messages .warning')?.textContent.includes('"no" ignored')`));
   await js(`document.getElementById('compute').click(); 0`);
   check('inbox: "Plan berechnen" places the new person', (await stats()).includes('48 Slots'));
   await js(`document.getElementById('inbox').value = '; nomail@example.org'; document.getElementById('addInbox').click(); 0`);
   check('inbox: a bad line is reported right under the button', (await msgAfter('addInbox')) && await js(`/line 1: name missing/.test(document.querySelector('#messages .error')?.textContent || '')`));
-  await js(`document.getElementById('roster').value += '\\tbroken\\tnein\\tMitglied\\tx\\t\\t\\t\\t\\t\\n'; document.getElementById('compute').click(); 0`);
+  await js(`document.getElementById('roster').value += '\\tbroken\\tMitglied\\tx\\t\\t\\t\\t\\t\\n'; document.getElementById('compute').click(); 0`);
   check('roster: a bad row is reported under "Plan berechnen"', (await msgAfter('compute')) && await js(`/not a number/.test(document.querySelector('#messages .error')?.textContent || '')`));
-  await js(`(() => { const r = document.getElementById('roster'); r.value = r.value.replace('\\tbroken\\tnein\\tMitglied\\tx\\t', '\\tbroken\\tnein\\tMitglied\\t3\\t'); document.getElementById('compute').click(); })(); 0`);
+  await js(`(() => { const r = document.getElementById('roster'); r.value = r.value.replace('\\tbroken\\tMitglied\\tx\\t', '\\tbroken\\tMitglied\\t3\\t'); document.getElementById('compute').click(); })(); 0`);
   check('roster: a rule violation (+3 without group) is reported under "Plan berechnen" too', (await msgAfter('compute')) && await js(`/exceeds the limit/.test(document.querySelector('#messages .error')?.textContent || '')`));
 } catch (e) {
   check(`no exception: ${e.message}`, false);

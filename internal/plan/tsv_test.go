@@ -20,14 +20,15 @@ func TestParseRosterSpreadsheetPaste(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := []Person{
-		{ID: "alpha", Order: 1, Card: true, Tier: TierMember, Plus: 1, Email: "alpha@example.org", Knows: []string{"bravo", "charlie"}},
+		{ID: "alpha", Order: 1, Tier: TierMember, Plus: 1, Email: "alpha@example.org", Knows: []string{"bravo", "charlie"}},
 		{ID: "bravo", Tier: TierGuest, Email: "bravo@example.org"},
-		{ID: "charlie", Card: true, Tier: TierAcquaintance, Plus: 2, Knows: []string{"alpha", "bravo"}, Group: true},
+		{ID: "charlie", Tier: TierAcquaintance, Plus: 2, Knows: []string{"alpha", "bravo"}, Group: true},
 	}
 	if !reflect.DeepEqual(people, want) {
 		t.Fatalf("got %+v\nwant %+v", people, want)
 	}
-	if len(warnings) != 1 || !strings.Contains(warnings[0], `"Farbe" ignored`) {
+	// The old credit-card column and unknown columns are ignored, not errors.
+	if len(warnings) != 2 || !strings.Contains(warnings[0], `"Kreditkarte Verfügbar" ignored`) || !strings.Contains(warnings[1], `"Farbe" ignored`) {
 		t.Fatalf("warnings %v", warnings)
 	}
 }
@@ -59,7 +60,7 @@ func TestParseRosterErrors(t *testing.T) {
 	cases := []struct{ in, want string }{
 		{"", "empty"},
 		{"Foo\tBar\nx\ty\n", "needs a Name column"},
-		{"Name\tKreditkarte\nalpha\tvielleicht\n", "row 2: card"},
+		{"Name\tGruppe\nalpha\tvielleicht\n", "row 2: group"},
 		{"Name\tStatus\nalpha\tKönig\n", "row 2: unknown status"},
 		{"Name\t+N\nalpha\tzwei\n", "row 2: +N"},
 		{"Name\tHandle\nalpha\talpha\n", "mean the same"},
@@ -75,7 +76,7 @@ func TestParseRosterErrors(t *testing.T) {
 
 func TestRosterRoundTrip(t *testing.T) {
 	in := []Person{
-		{ID: "alpha", Order: 1, Card: true, Tier: TierMember, Plus: 1, Email: "alpha@example.org", Knows: []string{"bravo"}, Note: "bringt Kuchen"},
+		{ID: "alpha", Order: 1, Tier: TierMember, Plus: 1, Email: "alpha@example.org", Knows: []string{"bravo"}, Note: "bringt Kuchen"},
 		{ID: "bravo", Tier: TierGuest, Out: true},
 		{ID: "mammut", Tier: TierAcquaintance, Plus: 10, Group: true},
 	}
@@ -117,7 +118,8 @@ func TestRosterQuotesAreLiteralAndEmptyHeaderCellIgnored(t *testing.T) {
 }
 
 func TestParseSignupByContentAndPosition(t *testing.T) {
-	// A hand-typed line in its own order, as pasted by an organiser.
+	// A hand-typed line in its own order, as pasted by an organiser; the
+	// yes/no words of the former credit-card field are reported, not guessed.
 	people, warnings, err := ParseSignup("bananaaa ; hallo@babna.com ; mitglied ; no ; panda ; nein\n")
 	if err != nil {
 		t.Fatal(err)
@@ -126,33 +128,54 @@ func TestParseSignupByContentAndPosition(t *testing.T) {
 	if len(people) != 1 || !reflect.DeepEqual(people[0], want) {
 		t.Fatalf("got %+v, want %+v", people, want)
 	}
-	if len(warnings) != 1 || !strings.Contains(warnings[0], `bananaaa: "nein" ignored`) {
+	if len(warnings) != 3 || !strings.Contains(warnings[0], "bananaaa: fields are not in the form's order") || !strings.Contains(warnings[1], `bananaaa: "no" ignored, no field takes ja/nein`) || !strings.Contains(warnings[2], `"nein" ignored`) {
 		t.Fatalf("warnings %v", warnings)
 	}
-	// The form's seven fields are read by position, a note is a note.
-	people, warnings, err = ParseSignup("dodo; dodo@example.org; Gast; 1; ja; alpha, bravo; Veganerin\n\n")
+	// The form's six fields are read by position, a note is a note.
+	people, warnings, err = ParseSignup("dodo; dodo@example.org; Gast; 1; alpha, bravo; Veganerin\n\n")
 	if err != nil || len(warnings) != 0 {
 		t.Fatalf("form line: %v %v", err, warnings)
 	}
-	want = Person{ID: "dodo", Email: "dodo@example.org", Tier: TierGuest, Plus: 1, Card: true, Knows: []string{"alpha", "bravo"}, Note: "Veganerin"}
+	want = Person{ID: "dodo", Email: "dodo@example.org", Tier: TierGuest, Plus: 1, Knows: []string{"alpha", "bravo"}, Note: "Veganerin"}
 	if !reflect.DeepEqual(people[0], want) {
 		t.Fatalf("got %+v, want %+v", people[0], want)
 	}
-	// Seven fields in the wrong order fall back to content with a warning.
-	people, warnings, err = ParseSignup("emu; Bekanntschaft; emu@example.org; ja; +2; ; bringt Kuchen mit")
+	// Six fields in the wrong order fall back to content with a warning.
+	people, warnings, err = ParseSignup("emu; Bekanntschaft; emu@example.org; +2; ; bringt Kuchen mit")
 	if err != nil {
 		t.Fatal(err)
 	}
-	want = Person{ID: "emu", Email: "emu@example.org", Tier: TierAcquaintance, Plus: 2, Card: true, Note: "bringt Kuchen mit"}
+	want = Person{ID: "emu", Email: "emu@example.org", Tier: TierAcquaintance, Plus: 2, Note: "bringt Kuchen mit"}
 	if !reflect.DeepEqual(people[0], want) || len(warnings) != 1 || !strings.Contains(warnings[0], "emu: fields are not in the form's order") {
 		t.Fatalf("got %+v warnings %v", people[0], warnings)
 	}
-	// Seven fields in the form's order with a typo are errors, not guesses.
-	if _, _, err = ParseSignup("anna; anna@x.de; Bekantschaft; 1; ja; mammut; Veganerin"); err == nil || !strings.Contains(err.Error(), `line 1: unknown status "Bekantschaft"`) {
+	// Six fields in the form's order with a typo are errors, not guesses:
+	// a misspelled status, a +N that is no number, even with a tier word elsewhere.
+	for _, line := range []string{"anna; anna@x.de; Bekantschaft; 1; mammut; Veganerin", "anna; anna@x.de; Gast; zwei; mammut; Veganerin", "anna; anna@x.de; Mitgleid; 1; ; Gast", "anna; ; Gast; zwei; mammut; Veganerin"} {
+		if _, _, err = ParseSignup(line); err == nil || !strings.Contains(err.Error(), "line 1: ") || strings.Contains(err.Error(), "\n") {
+			t.Fatalf("%q: got %v", line, err)
+		}
+	}
+	if _, _, err = ParseSignup("anna; anna@x.de; Gast; zwei; mammut; Veganerin"); !strings.Contains(err.Error(), `+N "zwei" is not a number`) {
 		t.Fatalf("got %v", err)
 	}
+	// Six reordered fields without any status word are still read by content.
+	people, warnings, err = ParseSignup("emu; 2; emu@example.org; alpha; ; Kuchen")
+	if err != nil || !reflect.DeepEqual(people[0], Person{ID: "emu", Email: "emu@example.org", Plus: 2, Knows: []string{"alpha"}, Note: "Kuchen"}) || len(warnings) != 2 || !strings.Contains(warnings[1], "counts as member") {
+		t.Fatalf("got %+v %v %v", people, warnings, err)
+	}
+	// A seven-field line from the old form (card in position 5) is read by position without the card.
+	people, warnings, err = ParseSignup("dodo; dodo@example.org; Gast; 1; nein; ; Veganerin")
+	if err != nil || !reflect.DeepEqual(people[0], Person{ID: "dodo", Email: "dodo@example.org", Tier: TierGuest, Plus: 1, Note: "Veganerin"}) || len(warnings) != 1 || !strings.Contains(warnings[0], `credit-card field "nein" dropped`) {
+		t.Fatalf("got %+v %v %v", people, warnings, err)
+	}
+	// A second number is "already set", not a ja/nein word.
+	_, warnings, _ = ParseSignup("fox; Gast; 2; 0")
+	if len(warnings) != 1 || !strings.Contains(warnings[0], `"0" ignored, that field is already set`) {
+		t.Fatalf("warnings %v", warnings)
+	}
 	// Empty status and +N by position are fine; the pasted header line is skipped.
-	people, warnings, err = ParseSignup("Name; E-Mail; Status; +N; Kreditkarte; Kennt; Notiz\nxy; xy@example.org; ; ; nein; ; ")
+	people, warnings, err = ParseSignup("Name; E-Mail; Status; +N; Kennt; Notiz\nxy; xy@example.org; ; ; ; ")
 	if err != nil || len(warnings) != 0 || len(people) != 1 || !reflect.DeepEqual(people[0], Person{ID: "xy", Email: "xy@example.org"}) {
 		t.Fatalf("got %+v %v %v", people, warnings, err)
 	}
@@ -161,9 +184,9 @@ func TestParseSignupByContentAndPosition(t *testing.T) {
 	if !reflect.DeepEqual(people[0].Knows, []string{"panda", "koala"}) || people[0].Note != "Veganerin" {
 		t.Fatalf("got %+v", people[0])
 	}
-	// Content mode without a status warns; "1" is a +N, not a card.
+	// Content mode without a status warns; "1" is a +N.
 	people, warnings, _ = ParseSignup("fox; 1")
-	if people[0].Plus != 1 || people[0].Card || len(warnings) != 1 || !strings.Contains(warnings[0], "counts as member") {
+	if people[0].Plus != 1 || len(warnings) != 1 || !strings.Contains(warnings[0], "counts as member") {
 		t.Fatalf("got %+v warnings %v", people[0], warnings)
 	}
 	// A second e-mail is neither the address nor a connection.

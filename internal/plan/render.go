@@ -53,7 +53,6 @@ type Sheet struct {
 	Label     string `json:"label"`
 	Person    string `json:"person"`
 	Email     string `json:"email,omitempty"`
-	Card      bool   `json:"card,omitempty"`
 	Day       int    `json:"day"`
 	Date      string `json:"date"`
 	Voucher   int    `json:"voucher"`
@@ -135,7 +134,7 @@ func (p *Plan) ToExport() *Export {
 			}
 			sh := Sheet{Label: s.Label, Person: s.PersonID, Day: d + 1, Date: p.Dates[d], Voucher: v + 1, Pinned: s.Pinned, From: OrgaLabel}
 			if q := p.Event.Person(s.PersonID); q != nil {
-				sh.Email, sh.Card = q.Email, q.Card
+				sh.Email = q.Email
 			}
 			if prev := prevHolder(p.Grid, d+1, v+1); prev != nil {
 				sh.From, sh.FromEmail = prev.Label, p.email(prev)

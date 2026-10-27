@@ -73,10 +73,11 @@
     <section class="card">
       <h2>Roster</h2>
       <p class="hint">Aus der Tabelle einfügen. Erste Zeile ist die Kopfzeile, Spalten in beliebiger Reihenfolge:
-        <code>Reihenfolge</code> <code>Name</code> <code>Kreditkarte</code> <code>Status</code> <code>+N</code> <code>E-Mail</code> <code>Kennt</code> <code>Gruppe</code> <code>Ausgestiegen</code> <code>Notiz</code>.
-        Status: Mitglied, Gast, Bekanntschaft. Gruppe = ja erlaubt mehr als +N max. Ausgestiegen = ja gibt alle nicht festgenagelten Plätze frei.</p>
-      <textarea id="roster" rows="12" spellcheck="false" placeholder="Reihenfolge	Name	Kreditkarte	Status	+N	E-Mail	Kennt	Gruppe	Notiz
-	alpha	nein	Mitglied	1	alpha@example.org	bravo, charlie	nein	"></textarea>
+        <code>Reihenfolge</code> <code>Name</code> <code>Status</code> <code>+N</code> <code>E-Mail</code> <code>Kennt</code> <code>Gruppe</code> <code>Ausgestiegen</code> <code>Notiz</code>; andere Spalten werden ignoriert.
+        Status: Mitglied, Gast, Bekanntschaft. Gruppe = ja erlaubt mehr als +N max. Ausgestiegen = ja gibt alle nicht festgenagelten Plätze frei.
+        Innerhalb jeder Gruppe (Mitglieder, Gäste, Bekanntschaften) wird die Reihenfolge gelost (Seed), eine Zahl in „Reihenfolge" überstimmt das Los.</p>
+      <textarea id="roster" rows="12" spellcheck="false" placeholder="Reihenfolge	Name	Status	+N	E-Mail	Kennt	Gruppe	Notiz
+	alpha	Mitglied	1	alpha@example.org	bravo, charlie	nein	"></textarea>
       <div class="row">
         <button type="button" id="compute" class="primary">Plan berechnen</button>
         <span class="spacer"></span>
@@ -86,7 +87,7 @@
       <p class="hint">Zum Ausprobieren: <a href="__DEMO__">Demo öffnen</a>, ein pseudonymes Tier-Roster in dieser Ansicht.</p>
       <details>
         <summary>Zeilen aus Sammel-Mails hinzufügen</summary>
-        <p class="hint">Eine Zeile pro Person, so wie der Sammel-Link sie erzeugt: <code>Name; E-Mail; Status; +N; Kreditkarte; Kennt; Notiz</code>. Von Hand getippt darf nach dem Namen alles in beliebiger Reihenfolge kommen: E-Mail am @, Status am Wort, +N als Zahl, Kreditkarte ja/nein, Kennt als Handles mit Komma, der Rest wird Notiz. Vorhandene Handles werden übersprungen; danach „Plan berechnen".</p>
+        <p class="hint">Eine Zeile pro Person, so wie der Sammel-Link sie erzeugt: <code>Name; E-Mail; Status; +N; Kennt; Notiz</code>. Von Hand getippt darf nach dem Namen alles in beliebiger Reihenfolge kommen: E-Mail am @, Status am Wort, +N als Zahl, Kennt als Handles mit Komma, der Rest wird Notiz. Vorhandene Handles werden übersprungen; danach „Plan berechnen".</p>
         <textarea id="inbox" rows="4" spellcheck="false"></textarea>
         <div class="row"><button type="button" id="addInbox">Zum Roster hinzufügen</button></div>
       </details>
@@ -95,7 +96,7 @@
 
   <section id="collect" class="card" hidden>
     <h2>Interesse an einem Voucher für <span id="c-event"></span></h2>
-    <p class="hint">Fülle das Formular aus, erzeuge die Zeile und schick sie an die Orga. Diese Seite speichert nichts.</p>
+    <p class="hint">Fülle das Formular aus, erzeuge die Zeile und schick sie an die Orga. Diese Seite speichert nichts. Reihenfolge: erst Mitglieder, dann häufige Gäste, dann Bekanntschaften; innerhalb jeder Gruppe entscheidet das Los, danach kommen die Begleitungen (+1, +2 …). Die Orga kann einzelne Plätze fest vergeben.</p>
     <form id="collectForm" autocomplete="on">
       <div class="grid">
         <label>Handle <input id="c-handle" required placeholder="wie man dich kennt"></label>
@@ -106,7 +107,6 @@
         <label>+N (zusätzliche Personen) <input id="c-plus" type="number" min="0" max="20" value="0"></label>
         <label>Kennt (Handles, mit Komma) <input id="c-knows" placeholder="alpha, bravo"></label>
         <label>Notiz <input id="c-note"></label>
-        <label class="check"><input id="c-card" type="checkbox"> Kreditkarte für den Notfall vorhanden</label>
       </div>
       <div class="row">
         <button type="submit" class="primary">Zeile erzeugen</button>
@@ -138,7 +138,7 @@
   <section id="result" hidden>
     <div class="card">
       <h2>Live-Status</h2>
-      <p class="hint">Stufen je Slot: offen → Voucher da → Ticket gekauft → weitergegeben. Admins klicken den Status in der Tabelle „Wer, wann, von wem, an wen" weiter und teilen den Link neu; Teilnehmende melden ihren Status dort per Mail. Die heutige Spalte ist im Plan markiert.</p>
+      <p class="hint">Schritte je Slot: offen → Voucher da → Ticket gekauft → weitergegeben. Admins klicken den Status in der Tabelle „Wer, wann, von wem, an wen" weiter und teilen den Link neu; Teilnehmende melden ihren Status dort per Mail. Die heutige Spalte ist im Plan markiert.</p>
       <ul id="liveList"></ul>
       <p id="liveAt" class="hint"></p>
     </div>
@@ -153,6 +153,7 @@
       </div>
       <p id="r-stats" class="stats"></p>
       <p id="r-phase" class="stats"></p>
+      <p id="r-order" class="hint"></p>
       <div id="r-public" class="warning" hidden></div>
       <p id="r-pinhelp" class="hint" hidden>Zelle anklicken oder ziehen, dann Zielzelle: leer = festnageln, belegt = tauschen. Freie Zelle anklicken und Handle tippen: vorhandener Slot wandert dorthin, <code>handle+2</code> erhöht das +N, ein neuer Name kommt als Bekanntschaft ins Roster. Gepinnte Zellen sind fett, × löst den Pin.
         <button type="button" id="undo" class="small" title="Strg+Z" disabled>↶ Rückgängig</button>

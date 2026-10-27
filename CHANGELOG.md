@@ -28,8 +28,11 @@ what to check.
   summary and overdue marks; status reports by mail. Rows in the sheet table
   can be ticked (header box: all visible rows) and set to one status in a
   single step; rows are tinted by status and a counter shows tickets bought.
+- Credit card removed from roster, sign-up line, table and export; an old
+  `Kreditkarte` column is ignored, event files with `card` need the field
+  removed. The plan card, roster hint and sign-up form explain the draw.
 - Sign-up lines pasted by hand are read by content (e-mail at `@`, tier
-  word, number, ja/nein, handles, note) when they are not in the form's
+  word, number, handles, note) when they are not in the form's
   order; roster and sign-up problems are reported under "Plan berechnen" or
   the sign-up button, rejected cell names above the matrix.
 - Share links: admin, viewer, board (dashboard for everyone: progress, a
