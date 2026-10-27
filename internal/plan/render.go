@@ -24,6 +24,7 @@ type Export struct {
 	Public      []string         `json:"public"` // slots that did not fit before End, in priority order
 	Pins        []Pin            `json:"pins"`
 	Stats       Stats            `json:"stats"`
+	Draw        DrawExport       `json:"draw"`
 	Warnings    []string         `json:"warnings"`
 }
 
@@ -107,6 +108,7 @@ func (p *Plan) ToExport() *Export {
 		Public:      p.Public(),
 		Pins:        Freeze(p),
 		Stats:       p.Stats,
+		Draw:        p.Event.Draw(),
 		Warnings:    append([]string{}, p.Warnings...),
 	}
 	for d := range p.Grid {

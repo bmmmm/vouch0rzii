@@ -406,3 +406,27 @@ func TestEndOfVoucherPhase(t *testing.T) {
 		t.Fatalf("want no-plan-day error, got %v", err)
 	}
 }
+
+func TestDrawCountsTheLot(t *testing.T) {
+	e := mkEvent(2,
+		Person{ID: "a", Order: 1}, Person{ID: "b"}, Person{ID: "c", Out: true}, Person{ID: "d"},
+		Person{ID: "e", Tier: TierGuest}, Person{ID: "f", Tier: TierGuest, Plus: 1},
+	)
+	d := e.Draw()
+	want := DrawExport{Seed: "t", Lineups: "12", Tiers: []DrawTier{
+		{Tier: "member", Drawn: 3, Fixed: 1, Orders: "6"},
+		{Tier: "guest", Drawn: 2, Orders: "2"},
+		{Tier: "acquaintance", Orders: "1"},
+	}}
+	if !reflect.DeepEqual(d, want) {
+		t.Fatalf("got %+v, want %+v", d, want)
+	}
+	e.Seed = "dice"
+	for i := 0; i < 30; i++ {
+		e.People = append(e.People, Person{ID: fmt.Sprintf("q%02d", i), Tier: TierAcquaintance})
+	}
+	// 30! has 33 digits: no float on the way, the page shows it exactly.
+	if d = e.Draw(); d.Seed != "dice" || d.Tiers[2].Orders != "265252859812191058636308480000000" || d.Lineups != "3183034317746292703635701760000000" { // 30! · 3! · 2!
+		t.Fatalf("got %+v", d)
+	}
+}

@@ -56,8 +56,8 @@ const planned = (html) => html.includes('7 Vouchers · 7 Tage · 47 Slots');
 const home = dom(page);
 check('empty page: wasm loaded, loading note hidden', home.includes('<p id="loading" hidden=""'));
 check('empty page: version shown', /Version \S+/.test(home));
-const demo = (home.match(/href="(#s=[A-Za-z0-9_-]+)"/) || [])[1];
-check('empty page: demo link present', !!demo);
+const demo = (home.match(/href="(\?demo#s=[A-Za-z0-9_-]+)"/) || [])[1];
+check('empty page: demo link present, flagged as demo', !!demo);
 check('empty page: intro visible', home.includes('<p id="intro" class="intro">'));
 check('empty page: no error box', noError(home));
 

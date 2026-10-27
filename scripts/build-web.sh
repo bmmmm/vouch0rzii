@@ -14,7 +14,7 @@ mkdir -p "$OUT"
 cp web/index.html web/app.js web/style.css "$OUT"/
 cp "$(go env GOROOT)/lib/wasm/wasm_exec.js" "$OUT"/   # Go >= 1.24 ships it under lib/wasm
 
-DEMO="$(go run . -event events/congress2026.json -share admin -base '')"
+DEMO="?demo$(go run . -event events/congress2026.json -share admin -base '')"
 perl -pi -e "s|__DEMO__|$DEMO|g" "$OUT/index.html"
 
 VERSION="$(git describe --tags --always --dirty 2>/dev/null || echo dev)"

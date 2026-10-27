@@ -22,7 +22,14 @@ data, and your browser history keeps it like any other link.
    acquaintances. After all named people come everybody's +1, then everybody's
    +2, each round ordered by the sponsor's position. Within a tier the order is
    drawn by lot with a fixed seed (reproducible; change the seed for a new
-   draw). A manual `Order` number overrides the lot.
+   draw). A manual `Order` number overrides the lot. The page shows the draw:
+   the first plan and every new roll shuffle the matrix before it locks in
+   day by day. Before the start (no pins, no status) admins can roll a new
+   seed (🎲, the browser's crypto randomness) or collect one from mouse or
+   finger movement (🖱️ super random, hashed with crypto bytes through
+   SHA-256); "How random?" shows the seed's path to the generator and how
+   many orders each tier's lot allows. The JSON export carries the same numbers in
+   `draw`.
 3. **+N is capped at 2** unless the person carries the group flag (they
    represent a larger group). Their surplus (+3, +4, …) comes last. A person
    never hands the voucher directly to their own +N — unless they have the

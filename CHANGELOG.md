@@ -12,6 +12,14 @@ what to check.
 
 - The page in German and English: it follows the browser's language, a
   header button switches; the choice is not part of the link.
+- The draw made visible: the first plan, every roll and the demo shuffle the
+  matrix before the real plan locks in day by day (a click skips; off with
+  reduced motion). Before the start, without pins or status, admins can
+  roll a new seed (🎲) or collect one from pointer movement (🖱️ super
+  random); a roll is one undo step. "How random?" explains seed, hashes,
+  generator and the number of possible results of the draw.
+- JSON export: `draw` with the seed, per tier the people drawn and fixed and
+  the number of orders (`n!`), and all lineups together, as exact decimals.
 
 ### Changed
 

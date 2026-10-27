@@ -56,7 +56,7 @@
           <dt>Tag 1</dt><dd>Datum des ersten Kauftags. Es folgt ein Kauftag pro Tag; Samstag und Sonntag nur mit Häkchen.</dd>
           <dt>Ende</dt><dd>Letzter Kauftag der Voucher-Phase, das offizielle Ende. Der Plan füllt nur bis dahin; wer nicht mehr hineinpasst, steht unter „Freier Verkauf" und kauft dann regulär. Die Zusammenfassung zeigt, wie viele Slots bis zum Ende noch frei sind. Ohne Ende läuft der Plan, bis alle untergebracht sind.</dd>
           <dt>+N max</dt><dd>Wie viele zusätzliche Personen (+1, +2 …) jemand normal mitbringen darf. Mehr geht nur mit <code>Group = yes</code> im Roster, zum Beispiel für jemanden, der eine ganze Gruppe vertritt.</dd>
-          <dt>Seed</dt><dd>Startwert der Losung. Innerhalb einer Stufe (Mitglieder, Gäste, Bekanntschaften) wird die Reihenfolge gelost; gleicher Seed heißt gleiche Reihenfolge, ein anderer Seed lost neu. Leer bedeutet Event-Name.</dd>
+          <dt>Seed</dt><dd>Startwert der Losung. Innerhalb einer Stufe (Mitglieder, Gäste, Bekanntschaften) wird die Reihenfolge gelost; gleicher Seed heißt gleiche Reihenfolge, ein anderer Seed lost neu. Leer bedeutet Event-Name. Vor dem Start würfelt 🎲 im Plan einen neuen Seed, 🖱️ sammelt ihn aus deinen Mausbewegungen.</dd>
           <dt>Übergabe um</dt><dd>Uhrzeit der abendlichen Weitergabe. Nur Anzeige in Listen und Mails, rechnet nicht mit.</dd>
           <dt>Orga-Adresse</dt><dd>E-Mail der Orga. Dorthin schicken Interessierte ihre Sammel-Zeile und Teilnehmende ihre Statusmeldung. Steht im Sammel- und im Viewer-Link.</dd>
           <dt>Zusätzliche Vouchers</dt><dd>Vouchers, die erst später verfügbar werden, oft gegen Ende. Eintrag <code>Datum:Anzahl</code>, mehrere mit Komma. Jede dieser Ketten beginnt am ersten Plantag ab dem Datum frisch von der Orga; davor sind die Zellen gesperrt.</dd>
@@ -78,7 +78,7 @@
           <dt>Day 1</dt><dd>Date of the first buying day. One buying day per day follows; Saturday and Sunday only when ticked.</dd>
           <dt>End</dt><dd>Last buying day of the voucher phase, the official end. The plan fills up to that day only; whoever no longer fits is listed under "Public sale" and buys regularly. The summary shows how many slots are still free until the end. Without an end the plan runs until everybody is placed.</dd>
           <dt>+N max</dt><dd>How many extra people (+1, +2 …) someone may usually bring. More only with <code>Group = yes</code> in the roster, for example for someone who stands for a whole group.</dd>
-          <dt>Seed</dt><dd>Starting value of the draw. Within a tier (members, guests, acquaintances) the order is drawn; the same seed means the same order, another seed draws anew. Empty means the event name.</dd>
+          <dt>Seed</dt><dd>Starting value of the draw. Within a tier (members, guests, acquaintances) the order is drawn; the same seed means the same order, another seed draws anew. Empty means the event name. Before the start, 🎲 in the plan rolls a new seed, 🖱️ collects one from your mouse movements.</dd>
           <dt>Handover at</dt><dd>Time of the evening handover. Shown in lists and mails only, it does not enter the computation.</dd>
           <dt>Organiser address</dt><dd>E-mail of the organisers. People who want in send their sign-up line there, participants their status report. It is part of the sign-up and the viewer link.</dd>
           <dt>Extra vouchers</dt><dd>Vouchers that only become available later, often towards the end. Enter <code>date:count</code>, several separated by commas. Each of these chains starts fresh from the organisers on the first plan day from that date on; the cells before are locked.</dd>
@@ -188,6 +188,22 @@
       <p id="r-stats" class="stats"></p>
       <p id="r-phase" class="stats"></p>
       <p id="r-order" class="hint"></p>
+      <p id="r-demo" class="intro" hidden><span lang="de">Demo: Das Los hat die Reihenfolge gezogen, danach wurde jeder Tag nach Bekanntschaften optimiert. Probier <b>🎲</b> Neu würfeln oder <b>🖱️</b> Super-Zufall, und unter „Wie zufällig?" steht die Mathematik.</span><span lang="en">Demo: the lot drew the order, then every day was optimised for people who know each other. Try <b>🎲</b> roll again or <b>🖱️</b> super random; "How random?" has the maths.</span></p>
+      <div id="r-random" class="row">
+        <button type="button" id="roll" class="small"><span class="dice" aria-hidden="true">🎲</span> <span lang="de">Neu würfeln</span><span lang="en">Roll again</span></button>
+        <button type="button" id="superRandom" class="small" aria-controls="entropy" aria-expanded="false"><span aria-hidden="true">🖱️</span> <span lang="de">Super-Zufall</span><span lang="en">Super random</span></button>
+        <span class="hint">Seed <code id="r-seed"></code></span>
+        <span id="r-randomnote" class="hint" aria-live="polite"></span>
+      </div>
+      <div id="entropy" class="warning" hidden>
+        <p class="hint" lang="de">Bewege die Maus oder den Finger im Feld. Jede Bewegung landet mit Position und Zeitpunkt im Topf; mit dem Kryptozufall des Browsers per SHA-256 gemischt wird daraus der Seed. Esc bricht ab.</p>
+        <p class="hint" lang="en">Move the mouse or your finger inside the field. Every movement goes into the pot with its position and time; mixed with the browser's crypto randomness through SHA-256 it becomes the seed. Esc cancels.</p>
+        <div id="entropyPad" title="Zufallsfeld: Maus oder Finger bewegen" data-en-title="Randomness field: move the mouse or your finger"></div>
+        <progress id="entropyBar" value="0" title="Gesammelte Bewegungen" data-en-title="Movements collected"></progress>
+        <p class="stats"><span id="entropyInfo"></span> <code id="entropySeed"></code></p>
+        <button type="button" id="entropyCancel" class="small"><span lang="de">Abbrechen</span><span lang="en">Cancel</span></button>
+      </div>
+      <details id="r-nerd" class="help"><summary><span lang="de">🎲 Wie zufällig? Für Mathe-Nerds</span><span lang="en">🎲 How random? For maths nerds</span></summary><div id="r-nerdBody"></div></details>
       <div id="r-public" class="warning" hidden></div>
       <p id="r-pinhelp" class="hint" hidden><span lang="de">Zelle anklicken oder ziehen, dann Zielzelle: leer = festnageln, belegt = tauschen. Freie Zelle anklicken und Handle tippen: vorhandener Slot wandert dorthin, <code>handle+2</code> erhöht das +N, ein neuer Name kommt als Bekanntschaft ins Roster. Gepinnte Zellen sind fett, × löst den Pin.</span><span lang="en">Click or drag a cell, then the target cell: empty = pin, taken = swap. Click a free cell and type a handle: an existing slot moves there, <code>handle+2</code> raises the +N, a new name joins the roster as an acquaintance. Pinned cells are bold, × releases the pin.</span>
         <button type="button" id="undo" class="small" title="Strg+Z" data-en-title="Ctrl+Z" disabled><span lang="de">↶ Rückgängig</span><span lang="en">↶ Undo</span></button>

@@ -57,6 +57,18 @@
         (s.forbidden ? `, ${s.forbidden} direkt an eigene Begleitung` : '') + (s.pinned ? ` · ${s.pinned} gepinnt` : ''),
       handoverAt: (at) => ` · Übergabe ${at}`,
       order: (seed) => `Reihenfolge: erst Mitglieder, dann häufige Gäste, dann Bekanntschaften; innerhalb jeder Gruppe entscheidet das Los mit Seed „${seed}" (gleicher Seed, gleiche Losung). Danach die Begleitungen rundenweise: alle +1, dann alle +2 und so weiter. Eine Zahl in der Spalte „Order" überstimmt das Los.`,
+      blockPins: 'Gewürfelt wird nur vor dem Start: es gibt schon Pins.',
+      blockStatus: 'Gewürfelt wird nur vor dem Start: es gibt schon einen Status.',
+      blockNothing: 'Nichts zu losen: alle haben eine feste Reihenfolge.',
+      drawing: 'Lose werden gezogen …',
+      drawn: 'Gelost in jeder Stufe, dann jeder Tag nach Bekanntschaften optimiert.',
+      entropyInfo: (n, of, bits) => `${n} von ${of} Bewegungen · ≈ ${bits} Bit gesammelt`,
+      tierNames: { member: 'Mitglieder', guest: 'Häufige Gäste', acquaintance: 'Bekanntschaften' },
+      nerdChain: (seed) => `Seed „${seed}" → FNV-1a-64-Hash, ein zweiter setzt ihn mit Salz fort → PCG-Generator → Fisher–Yates-Mischen. Jede Stufe hat ihren eigenen Generator (Seed + Stufe), darum verschiebt eine neue Anmeldung bei den Gästen niemanden bei den Mitgliedern.`,
+      nerdTier: (name, x, orders) => [`${name}: ${x.drawn} gelost → ${x.drawn}! = `, orders, x.orders === '1' ? ' Reihenfolge' : ' Reihenfolgen', x.fixed ? ` (${x.fixed} mit fester Reihenfolge)` : ''],
+      nerdTotal: (lineups) => ['Zusammen ', lineups, ' mögliche Losergebnisse (Ausgestiegene werden mitgelost, damit niemand verrutscht).'],
+      nerdSeeds: '🎲 nimmt 65 Bit aus dem Kryptozufall des Browsers (32¹³ ≈ 3,7 × 10¹⁹ Seeds), 🖱️ mischt zusätzlich deine Bewegungen per SHA-256 hinein. Den Generator erreichen davon nur 64 Bit: höchstens 2⁶⁴ ≈ 1,8 × 10¹⁹ Startzustände, für alle Stufen zusammen. Gibt es mehr Losergebnisse, erreicht ein Wurf nur einen Teil von ihnen.',
+      nerdHonest: 'Gleicher Seed, gleiche Aufstellung, auf jedem Gerät; mit der CLI kann es jede Person nachrechnen. Gewürfelt wird nur vor dem Start, ohne Pins und Status, damit niemand laufende Ketten umwirft. Wer oft würfelt, könnte sich eine Aufstellung aussuchen; welche gilt, zeigt der Seed im Link.',
       phase: (day, days, free) => `Voucher-Phase bis ${day} (${days} Tage) · ${free} Slots frei`,
       noEnd: (free) => `Kein Ende der Voucher-Phase gesetzt · ${free} Slots frei im Plan`,
       addDay: '+ Tag', free: 'frei', notYet: 'Voucher noch nicht verfügbar', fromOrga: 'bekommt den Voucher von der Orga',
@@ -115,6 +127,18 @@
         (s.forbidden ? `, ${s.forbidden} straight to one's own companion` : '') + (s.pinned ? ` · ${s.pinned} pinned` : ''),
       handoverAt: (at) => ` · handover ${at}`,
       order: (seed) => `Order: members first, then frequent guests, then acquaintances; within each tier the draw with seed "${seed}" decides (same seed, same draw). Then the companions round by round: every +1, then every +2 and so on. A number in "Order" overrides the draw.`,
+      blockPins: 'Rolling is only for the start: there are pins already.',
+      blockStatus: 'Rolling is only for the start: there is a status already.',
+      blockNothing: 'Nothing to draw: everyone has a fixed order.',
+      drawing: 'Drawing lots …',
+      drawn: 'Drawn within each tier, then every day optimised for people who know each other.',
+      entropyInfo: (n, of, bits) => `${n} of ${of} movements · ≈ ${bits} bits collected`,
+      tierNames: { member: 'Members', guest: 'Frequent guests', acquaintance: 'Acquaintances' },
+      nerdChain: (seed) => `Seed "${seed}" → FNV-1a 64 hash, a second one continues it with a salt → PCG generator → Fisher–Yates shuffle. Every tier has its own generator (seed + tier), so a new guest never moves a member.`,
+      nerdTier: (name, x, orders) => [`${name}: ${x.drawn} drawn → ${x.drawn}! = `, orders, x.orders === '1' ? ' order' : ' orders', x.fixed ? ` (${x.fixed} with a fixed order)` : ''],
+      nerdTotal: (lineups) => ['Together ', lineups, ' possible results of the draw (people who left are drawn too, so nobody shifts).'],
+      nerdSeeds: '🎲 takes 65 bits from the browser\'s crypto randomness (32¹³ ≈ 3.7 × 10¹⁹ seeds), 🖱️ also mixes in your movements through SHA-256. Only 64 of those bits reach the generator: at most 2⁶⁴ ≈ 1.8 × 10¹⁹ starting states, for all tiers together. With more results than that, a roll reaches only part of them.',
+      nerdHonest: 'Same seed, same lineup, on every device; anyone can recompute it with the CLI. Rolling is only possible before the start, without pins or status, so nobody upsets running chains. Rolling many times could pick a lineup; the seed in the link shows which one counts.',
       phase: (day, days, free) => `Voucher phase until ${day} (${days} days) · ${free} slots free`,
       noEnd: (free) => `No end of the voucher phase set · ${free} slots free in the plan`,
       addDay: '+ day', free: 'free', notYet: 'Voucher not available yet', fromOrga: 'gets the voucher from the organisers',
@@ -164,6 +188,10 @@
   let state = emptyState();
   let plan = null;      // last export plus exportJson/markdown/csv/svg
   let selected = null;  // cell chosen as move source: {label, day, voucher}
+  // ?demo marks the demo link (scripts/build-web.sh): it shows the draw on
+  // open. A display flag only; links built here never carry it.
+  let demo = new URLSearchParams(location.search).has('demo'); // cleared by the first change
+  let drawShown = false; // the first plan computed or opened on this page
 
   // ---------- undo / redo: in memory, admin only; the link always holds the current state
   const past = [], future = [];
@@ -177,6 +205,7 @@
     const before = snapshot();
     fn();
     if (snapshot() === before) return;
+    demo = false; // from here on it is the admin's own plan
     past.push(before);
     if (past.length > 100) past.shift();
     future.length = 0;
@@ -290,10 +319,10 @@
   }
   function writeHash() {
     if (state.mode !== 'admin') return;
-    try { history.replaceState(null, '', '#s=' + encodeState(state)); } catch (e) { showMessages([String(e)]); }
+    try { history.replaceState(null, '', location.href.split(/[?#]/)[0] + '#s=' + encodeState(state)); } catch (e) { showMessages([String(e)]); } // drops ?demo
   }
   function linkFor(mode, extra) {
-    return location.href.split('#')[0] + '#s=' + encodeState({ ...state, mode, ...extra });
+    return location.href.split(/[?#]/)[0] + '#s=' + encodeState({ ...state, mode, ...extra }); // never the ?demo flag
   }
 
   // ---------- form <-> state.event
@@ -347,7 +376,7 @@
   }
 
   // ---------- planning
-  function computePlan({ fromForm } = { fromForm: true }) {
+  function computePlan({ fromForm = true, shuffle = false } = {}) {
     let warnings = [];
     const anchor = fromForm ? $('#compute').parentElement : null; // form problems show under "Compute plan"
     if (fromForm) {
@@ -367,6 +396,8 @@
     plan = { ...JSON.parse(r.exportJson), exportJson: r.exportJson, markdown: r.markdown, csv: r.csv, svg: r.svg };
     showMessages([], warnings.concat(plan.warnings), anchor);
     renderResult();
+    if (shuffle) shuffleMatrix();
+    drawShown = true;
     writeHash();
     return true;
   }
@@ -603,9 +634,195 @@
     $('#diagram').querySelectorAll('text[font-weight="600"]').forEach((n, i) => { n.textContent = dayName(plan.days[i]); });
     renderHandovers();
     renderSheets();
+    renderChance();
+  }
+
+  // ---------- chance: shuffle animation, dice, super random, nerd panel.
+  // Nothing here plans: a roll only writes a new seed and recomputes; the
+  // numbers come from Go (plan.draw); Math.random only moves the animation.
+  const SEED_ABC = 'abcdefghijkmnpqrstuvwxyz23456789'; // 32 signs, no l o 0 1
+  const SEED_LEN = 13; // 65 bits; 64 of them reach the generator (nerd panel)
+  const ENTROPY_SAMPLES = 128; // ≈ 0.5 bit per moved sample, a cautious guess
+  const reducedMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const toSeed = (bytes) => {
+    let acc = 0, bits = 0, out = '';
+    for (const b of bytes) {
+      acc = (acc << 8) | b; bits += 8;
+      while (bits >= 5 && out.length < SEED_LEN) { bits -= 5; out += SEED_ABC[(acc >> bits) & 31]; }
+      acc &= (1 << bits) - 1;
+    }
+    return out;
+  };
+  // Only before the start: no pins and no status on a slot of the plan.
+  const randomBlock = () => state.pins.length ? 'blockPins' : tracking() ? 'blockStatus' : plan && plan.draw && plan.draw.lineups === '1' ? 'blockNothing' : '';
+  // big shows a decimal string exactly up to 15 digits, beyond as m × 10^e
+  // with three significant digits, rounded.
+  const big = (s) => {
+    if (s.length <= 15) return Number(s).toLocaleString(lang);
+    let m = Math.round(Number(s.slice(0, 4)) / 10) / 100, e = s.length - 1;
+    if (m >= 10) { m /= 10; e++; }
+    return el('span', {}, `≈ ${m.toLocaleString(lang, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} × 10`, el('sup', {}, e));
+  };
+  // The note next to the dice says what the draw is doing or why the dice
+  // are locked; it keeps its key so a language switch can say it again.
+  let noteKey = '';
+  const note = (key) => { noteKey = key; $('#r-randomnote').textContent = key ? t(key) : ''; };
+  let entropyRefresh = () => {};
+
+  function renderChance() {
+    const admin = state.mode === 'admin';
+    $('#r-random').hidden = $('#r-nerd').hidden = !plan.draw; // a wasm from before the draw export
+    if (!plan.draw) return;
+    const block = randomBlock();
+    for (const b of [$('#roll'), $('#superRandom')]) {
+      b.hidden = !admin || (b.id === 'superRandom' && !(globalThis.crypto && crypto.subtle));
+      b.disabled = !!block;
+      b.title = block ? t(block) : '';
+    }
+    if (block || !admin) closeEntropy(); // a pin, a status or another link ends super random
+    note(admin && block ? block : noteKey.startsWith('block') ? '' : noteKey);
+    entropyRefresh();
+    $('#r-seed').textContent = plan.draw.seed;
+    $('#r-demo').hidden = !(demo && admin);
+    const d = plan.draw, names = t('tierNames');
+    $('#r-nerdBody').replaceChildren(
+      el('p', {}, t('nerdChain', d.seed)),
+      el('ul', {}, d.tiers.filter((x) => x.drawn || x.fixed).map((x) => el('li', {}, t('nerdTier', names[x.tier] || x.tier, x, big(x.orders))))),
+      el('p', {}, t('nerdTotal', big(d.lineups))),
+      el('p', {}, t('nerdSeeds')),
+      el('p', {}, t('nerdHonest')));
+  }
+
+  // shuffleMatrix lets every filled cell flicker through the plan's labels,
+  // then locks the real plan in day by day; a click or key skips it.
+  let shuffling = null;
+  const stopShuffle = () => { if (shuffling) shuffling(); };
+  function shuffleMatrix() {
+    stopShuffle();
+    if (randomBlock() === 'blockNothing') return; // nothing was drawn, nothing to show
+    if (reducedMotion()) { note('drawn'); return; }
+    const table = $('#matrix');
+    const cells = [...table.querySelectorAll('td.cell:not(.empty):not(.extra)')].filter((td) => td.firstChild && td.firstChild.nodeType === 3);
+    if (!cells.length) return;
+    const labels = cells.map((td) => td.firstChild.nodeValue);
+    const step = Math.min(150, 1100 / plan.days.length);
+    const start = performance.now();
+    let timer = 0;
+    const stop = () => {
+      clearInterval(timer);
+      cells.forEach((td, i) => { td.firstChild.nodeValue = labels[i]; td.classList.remove('flicker'); });
+      table.classList.remove('shuffling');
+      table.removeAttribute('aria-busy');
+      removeEventListener('pointerdown', stop, true);
+      removeEventListener('keydown', stop, true);
+      note('drawn');
+      shuffling = null;
+    };
+    const tick = () => {
+      const now = performance.now() - start;
+      let open = 0;
+      cells.forEach((td, i) => {
+        if (now >= 350 + (td.cellIndex - 1) * step) { // day columns start at cellIndex 1
+          if (td.classList.contains('flicker')) { td.firstChild.nodeValue = labels[i]; td.classList.replace('flicker', 'settle'); }
+          return;
+        }
+        open++;
+        td.classList.add('flicker');
+        td.firstChild.nodeValue = labels[Math.floor(Math.random() * labels.length)];
+      });
+      if (!open) stop();
+    };
+    table.classList.add('shuffling');
+    table.setAttribute('aria-busy', 'true');
+    note('drawing');
+    addEventListener('pointerdown', stop, true);
+    addEventListener('keydown', stop, true);
+    shuffling = stop;
+    tick();
+    timer = setInterval(tick, 70);
+  }
+
+  // useSeed writes the seed into the form and recomputes through it, so the
+  // roll is one undo step and pending form edits come along.
+  function useSeed(seed) {
+    const was = $('#f-seed').value;
+    $('#f-seed').value = seed;
+    selected = null;
+    if (!computePlan({ shuffle: true })) { $('#f-seed').value = was; return; } // the form has an error; keep the old seed
+
+    const dice = $('#roll .dice');
+    if (!reducedMotion()) { dice.classList.remove('spin'); void dice.offsetWidth; dice.classList.add('spin'); }
+  }
+  const roll = () => { closeEntropy(); useSeed(toSeed(crypto.getRandomValues(new Uint8Array(9)))); };
+
+  // Super random: the pointer's path, with time and pressure, is hashed
+  // together with 32 crypto bytes, so the seed is never weaker than a roll.
+  let closeEntropy = () => {};
+  function openEntropy() {
+    if (randomBlock()) return;
+    closeEntropy();
+    const pool = crypto.getRandomValues(new Uint8Array(32));
+    const samples = [];
+    const pad = $('#entropyPad');
+    let last = '', previewAt = 0, done = false, cancelled = false;
+    pad.replaceChildren();
+    $('#entropy').hidden = false;
+    $('#entropyBar').max = ENTROPY_SAMPLES;
+    $('#superRandom').setAttribute('aria-expanded', 'true');
+    const digest = async () => {
+      const moves = new Uint8Array(new Float64Array(samples.flat()).buffer);
+      const buf = new Uint8Array(pool.length + moves.length);
+      buf.set(pool);
+      buf.set(moves, pool.length);
+      return new Uint8Array(await crypto.subtle.digest('SHA-256', buf));
+    };
+    const info = () => {
+      $('#entropyBar').value = samples.length;
+      $('#entropyInfo').textContent = t('entropyInfo', samples.length, ENTROPY_SAMPLES, Math.floor(samples.length / 2));
+    };
+    const onMove = async (e) => {
+      if (done) return;
+      const r = pad.getBoundingClientRect();
+      const x = e.clientX - r.left, y = e.clientY - r.top;
+      if (`${x},${y}` === last) return;
+      last = `${x},${y}`;
+      samples.push([x, y, performance.now(), e.pressure || 0]);
+      const dot = el('span', { class: 'dot' });
+      dot.style.left = `${x}px`; // CSSOM, allowed by style-src 'self'
+      dot.style.top = `${y}px`;
+      pad.append(dot);
+      if (pad.childElementCount > 60) pad.firstElementChild.remove();
+      info();
+      if (samples.length >= ENTROPY_SAMPLES) {
+        done = true;
+        const seed = toSeed(await digest());
+        if (cancelled) return; // closed while hashing
+        closeEntropy();
+        useSeed(seed);
+      } else if (samples.length - previewAt >= 8) {
+        previewAt = samples.length;
+        const preview = toSeed(await digest());
+        if (!done) $('#entropySeed').textContent = preview;
+      }
+    };
+    const onKey = (e) => { if (e.key === 'Escape') closeEntropy(); };
+    pad.addEventListener('pointermove', onMove);
+    document.addEventListener('keydown', onKey);
+    closeEntropy = () => {
+      done = cancelled = true;
+      pad.removeEventListener('pointermove', onMove);
+      document.removeEventListener('keydown', onKey);
+      $('#entropy').hidden = true;
+      $('#entropySeed').textContent = '';
+      $('#superRandom').setAttribute('aria-expanded', 'false');
+      closeEntropy = entropyRefresh = () => {};
+    };
+    entropyRefresh = info;
+    info();
   }
 
   function renderMatrix() {
+    stopShuffle();
     const table = $('#matrix');
     const editable = state.mode === 'admin';
     table.classList.toggle('editable', editable);
@@ -775,8 +992,11 @@
   }
 
   function wireAdmin() {
-    $('#compute').addEventListener('click', () => { selected = null; computePlan(); });
-    $('#settings').addEventListener('submit', (e) => { e.preventDefault(); computePlan(); });
+    $('#compute').addEventListener('click', () => { selected = null; computePlan({ shuffle: !drawShown }); }); // the first plan shows its draw
+    $('#settings').addEventListener('submit', (e) => { e.preventDefault(); computePlan({ shuffle: !drawShown }); });
+    $('#roll').addEventListener('click', roll);
+    $('#superRandom').addEventListener('click', () => { if ($('#entropy').hidden) openEntropy(); else closeEntropy(); });
+    $('#entropyCancel').addEventListener('click', () => closeEntropy());
     $('#loadFile').addEventListener('change', async (e) => {
       const f = e.target.files[0];
       if (!f) return;
@@ -921,6 +1141,8 @@
     wireResult();
     wireCollect();
     const boot = () => {
+      closeEntropy(); // a new link starts without an open super random
+      noteKey = '';
       const st = readHash();
       if (st) {
         state = {
@@ -934,8 +1156,13 @@
       past.length = future.length = 0; // a new link is a new baseline
       applyMode();
     };
+    const opensDemo = demo;
     boot();
-    window.addEventListener('hashchange', boot);
+    if (opensDemo && plan && state.mode === 'admin') { // the demo opens on its plan, shuffling
+      $('#result').scrollIntoView({ block: 'start' });
+      shuffleMatrix();
+    }
+    window.addEventListener('hashchange', () => { demo = false; boot(); }); // another link is not the demo
   }
 
   main();

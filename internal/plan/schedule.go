@@ -5,6 +5,7 @@ package plan
 import (
 	"fmt"
 	"hash/fnv"
+	"math/big"
 	"math/rand/v2"
 	"sort"
 )
@@ -18,6 +19,53 @@ func newRand(seed string) *rand.Rand {
 	h2.Write([]byte(seed))
 	h2.Write([]byte{0, 's', 'a', 'l', 't'})
 	return rand.New(rand.NewPCG(h1.Sum64(), h2.Sum64()))
+}
+
+// DrawExport says how much chance is in the draw: per tier, how many people
+// are drawn by lot and how many orders that allows, and all tiers together.
+type DrawExport struct {
+	Seed    string     `json:"seed"`
+	Tiers   []DrawTier `json:"tiers"`
+	Lineups string     `json:"lineups"` // product of the tiers' orders, decimal
+}
+
+// DrawTier is one tier of the draw: Drawn people shuffled (Orders = Drawn!,
+// decimal), Fixed people placed by their manual Order.
+type DrawTier struct {
+	Tier   string `json:"tier"`
+	Drawn  int    `json:"drawn"`
+	Fixed  int    `json:"fixed"`
+	Orders string `json:"orders"`
+}
+
+// Draw counts the draw buildSlots performs (tierSplit): people who left are
+// drawn too, so Lineups counts possible results of the lot.
+func (e *Event) Draw() DrawExport {
+	d := DrawExport{Seed: e.SeedOrDefault(), Tiers: []DrawTier{}}
+	lineups := big.NewInt(1)
+	for tier := TierMember; tier <= TierAcquaintance; tier++ {
+		fixed, drawn := e.tierSplit(tier)
+		orders := new(big.Int).MulRange(1, int64(len(drawn))) // 0! = 1
+		lineups.Mul(lineups, orders)
+		d.Tiers = append(d.Tiers, DrawTier{Tier: tier.String(), Drawn: len(drawn), Fixed: len(fixed), Orders: orders.String()})
+	}
+	d.Lineups = lineups.String()
+	return d
+}
+
+// tierSplit returns a tier's people with a manual Order and those left to
+// the lot, both in event order.
+func (e *Event) tierSplit(tier Tier) (fixed, drawn []*Person) {
+	for i := range e.People {
+		switch p := &e.People[i]; {
+		case p.Tier != tier:
+		case p.Order > 0:
+			fixed = append(fixed, p)
+		default:
+			drawn = append(drawn, p)
+		}
+	}
+	return fixed, drawn
 }
 
 // buildSlots returns all slots in priority order:
@@ -37,18 +85,7 @@ func buildSlots(e *Event, keep map[string]bool) []*Slot {
 	var named []*Person
 	for tier := TierMember; tier <= TierAcquaintance; tier++ {
 		rng := newRand(e.SeedOrDefault() + "/" + tier.String())
-		var fixed, drawn []*Person
-		for i := range e.People {
-			p := &e.People[i]
-			if p.Tier != tier {
-				continue
-			}
-			if p.Order > 0 {
-				fixed = append(fixed, p)
-			} else {
-				drawn = append(drawn, p)
-			}
-		}
+		fixed, drawn := e.tierSplit(tier)
 		sort.SliceStable(fixed, func(i, j int) bool {
 			if fixed[i].Order != fixed[j].Order {
 				return fixed[i].Order < fixed[j].Order

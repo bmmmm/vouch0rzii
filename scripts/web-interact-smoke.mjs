@@ -10,7 +10,7 @@
 // Usage: node scripts/web-interact-smoke.mjs [path/to/vouch0rzii-binary]
 // Requires a prior `go build -o vouch0rzii .` and `scripts/build-web.sh`.
 import { execFileSync, spawn } from 'node:child_process';
-import { existsSync, mkdtempSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -292,6 +292,13 @@ try {
   await contrast('admin with an error');
   await send('Emulation.setEmulatedMedia', { media: 'print', features: [{ name: 'prefers-color-scheme', value: 'dark' }] }, sessionId);
   const printed = await js(probe);
+  check('print: no dice, super random or nerd panel on paper', await js(`(() => {
+    const ids = ['r-random', 'r-nerd', 'entropy', 'r-demo'];
+    ids.forEach((id) => { document.getElementById(id).hidden = false; }); // only the print rule may hide them now
+    const gone = ids.every((id) => getComputedStyle(document.getElementById(id)).display === 'none');
+    ['entropy', 'r-demo'].forEach((id) => { document.getElementById(id).hidden = true; });
+    return gone;
+  })()`));
   check('contrast: admin printed from a browser in dark mode', printed.length === 0, printed.slice(0, 8).join('\n      '));
   await send('Emulation.setEmulatedMedia', { media: '', features: [] }, sessionId);
   await go(share('board'), 'board');
@@ -306,6 +313,157 @@ try {
   for (let i = 0; i < 200 && !(await js('!!globalThis.vouch0rzii && !document.getElementById("intro").hidden').catch(() => false)); i++) await sleep(50);
   check('contrast: landing page with the intro shown', await js('!document.getElementById("intro").hidden'));
   await contrast('landing page');
+
+  // Chance: the draw is made visible. The first plan computed on the page
+  // shuffles, opening a link does not; dice and super random work only
+  // before the start; a roll is one undo step and the CLI draws the same.
+  const isShuffling = () => js(`document.getElementById('matrix').classList.contains('shuffling')`);
+  const calm = async () => { for (let i = 0; i < 100 && (await isShuffling()); i++) await sleep(50); };
+  const grid = () => js(`[...document.querySelectorAll('#matrix td.cell')].map((td) => td.firstChild ? td.firstChild.nodeValue : '').join('|')`);
+  const seedNow = () => js(`document.getElementById('f-seed').value`);
+  const demoEvent = JSON.parse(readFileSync(join(root, 'events', 'congress2026.json'), 'utf8'));
+  await js(`(() => {
+    const ev = ${JSON.stringify(demoEvent)};
+    document.getElementById('f-name').value = ev.name; document.getElementById('f-start').value = ev.start;
+    document.getElementById('f-vouchers').value = ev.vouchers;
+    document.getElementById('roster').value = vouch0rzii.formatRoster(JSON.stringify(ev.people)).tsv;
+    document.getElementById('compute').click();
+  })(); 0`);
+  check('chance: the first plan on the page shuffles its matrix', await isShuffling());
+  await calm();
+  await js(`document.getElementById('compute').click(); 0`);
+  check('chance: computing again does not', !(await isShuffling()));
+  await js(`document.getElementById('f-vouchers').value = '0'; document.getElementById('compute').click(); 0`); // the planner rejects it, no plan
+  const noPlan = await js(`document.getElementById('result').hidden`);
+  await js(`document.getElementById('f-vouchers').value = '7'; document.getElementById('compute').click(); 0`);
+  check('chance: nor after a failed compute', noPlan && !(await isShuffling()) && (await js(`!document.getElementById('result').hidden`)));
+
+  await go(link, 'result');
+  check('chance: opening a link shows the plan at once, no demo hint', !(await isShuffling()) && (await js(`document.getElementById('r-demo').hidden`)));
+  check('chance: dice and super random offered before the start', await js(`['roll', 'superRandom'].every((id) => { const b = document.getElementById(id); return !b.hidden && !b.disabled; })`));
+  const before = await grid(), seedBefore = await seedNow();
+  await js(`document.getElementById('roll').click(); 0`);
+  const during = await isShuffling(), flickers = await js(`document.querySelectorAll('#matrix td.cell.flicker').length`);
+  await calm();
+  const after = await grid(), seedAfter = await seedNow();
+  check('chance: a roll writes a new 13-sign seed and shuffles', during && flickers > 0 && /^[a-km-np-z2-9]{13}$/.test(seedAfter) && seedAfter !== seedBefore && (await js(`document.getElementById('r-seed').textContent`)) === seedAfter, `${during} ${flickers} ${seedAfter}`);
+  const noteDe = await js(`document.getElementById('r-randomnote').textContent`);
+  await js(`document.getElementById('lang').click(); 0`); // renders the matrix again from the plan
+  const noteEn = await js(`document.getElementById('r-randomnote').textContent`);
+  await js(`document.getElementById('lang').click(); 0`);
+  check('chance: after the animation the matrix is the new plan', after !== before && (await grid()) === after);
+  check('chance: the note says it is drawn, in the page language', noteDe.startsWith('Gelost in jeder Stufe') && noteEn.startsWith('Drawn within each tier'), `${noteDe} / ${noteEn}`);
+  const rolledEvent = join(profile, 'rolled.json');
+  writeFileSync(rolledEvent, JSON.stringify({ ...demoEvent, seed: seedAfter }));
+  const cliDay1 = JSON.parse(execFileSync(cli, ['-event', rolledEvent, '-format', 'json']).toString()).grid[0];
+  check('chance: the CLI draws the same day 1 from that seed', JSON.stringify(cliDay1) === JSON.stringify(await js(`[...document.querySelectorAll('#matrix tbody tr')].map((tr) => tr.cells[1].firstChild.nodeValue)`)), JSON.stringify(cliDay1));
+  await js(`document.getElementById('roll').click(); 0`);
+  const rolledAgain = await isShuffling();
+  for (const type of ['mousePressed', 'mouseReleased']) await send('Input.dispatchMouseEvent', { type, x: 5, y: 5, button: 'left', clickCount: 1 }, sessionId);
+  const skippedAt = { shuffling: await isShuffling(), flicker: await js(`!!document.querySelector('#matrix td.cell.flicker')`), grid: await grid() };
+  await js(`document.getElementById('lang').click(); document.getElementById('lang').click(); 0`);
+  check('chance: a click skips the animation and leaves the real plan', rolledAgain && !skippedAt.shuffling && !skippedAt.flicker && skippedAt.grid === (await grid()), JSON.stringify({ rolledAgain, ...skippedAt, grid: undefined }));
+  await key('z');
+  await key('z');
+  check('chance: Ctrl+Z brings seed and matrix back', (await seedNow()) === seedBefore && (await grid()) === before);
+  const lineups = JSON.parse(execFileSync(cli, ['-event', join(root, 'events', 'congress2026.json'), '-format', 'json']).toString()).draw.lineups;
+  check('chance: the nerd panel shows the Go numbers', await js(`(() => { const s = document.getElementById('r-nerdBody').textContent; return s.includes('25 gelost → 25! = ') && s.includes('× 10${lineups.length - 1}'); })()`), lineups);
+
+  const goodRoster = await roster(), seedKept = await seedNow();
+  await js(`document.getElementById('roster').value += 'broken\\tmember\\tx\\n'; document.getElementById('roll').click(); 0`);
+  check('chance: a roll the form rejects keeps the old seed', (await seedNow()) === seedKept);
+  await js(`document.getElementById('roster').value = ${JSON.stringify(goodRoster)}; 0`);
+
+  await send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'reduce' }] }, sessionId);
+  await send('Page.navigate', { url: link }, sessionId); // same document: only the hash changes
+  await send('Page.reload', {}, sessionId); // a fresh page: no note yet
+  await sleep(200);
+  for (let i = 0; i < 200 && !(await js('!!globalThis.vouch0rzii && !document.getElementById("result").hidden').catch(() => false)); i++) await sleep(50);
+  await js(`document.getElementById('roll').click(); 0`);
+  check('chance: with reduced motion a roll recomputes without animation and says so', !(await isShuffling()) && (await seedNow()) !== seedBefore && (await js(`document.getElementById('r-randomnote').textContent.startsWith('Gelost')`)));
+  await send('Emulation.setEmulatedMedia', { features: [] }, sessionId);
+
+  // Super random: real pointer moves over the field fill the pot.
+  await js(`document.getElementById('superRandom').click(); document.getElementById('entropyPad').scrollIntoView({ block: 'center' }); 0`);
+  check('chance: super random announces its panel', await js(`document.getElementById('superRandom').getAttribute('aria-expanded') === 'true'`));
+  const padRect = () => js(`(() => { const r = document.getElementById('entropyPad').getBoundingClientRect(); return { x: r.x, y: r.y, w: r.width, h: r.height }; })()`);
+  let pad = await padRect();
+  const seedPre = await seedNow();
+  const move = (i) => send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: pad.x + 8 + (i * 37) % (pad.w - 16), y: pad.y + 8 + (i * 53) % (pad.h - 16) }, sessionId);
+  for (let i = 0; i < 40; i++) await move(i);
+  await sleep(100);
+  const half = await js(`({ open: !document.getElementById('entropy').hidden, bar: document.getElementById('entropyBar').value, max: document.getElementById('entropyBar').max, dots: document.querySelectorAll('#entropyPad .dot').length, preview: document.getElementById('entropySeed').textContent })`);
+  check('chance: super random counts moves, draws dots and previews a seed', half.open && half.bar === 40 && half.max === 128 && half.dots === 40 && /^[a-km-np-z2-9]{13}$/.test(half.preview), JSON.stringify(half));
+  await contrast('super random open');
+  for (const force of [0.2, 0.5, 0.8]) await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: pad.x + 8 + (39 * 37) % (pad.w - 16), y: pad.y + 8 + (39 * 53) % (pad.h - 16), pointerType: 'pen', force }, sessionId);
+  await sleep(50);
+  check('chance: a pointer standing still adds nothing', (await js(`document.getElementById('entropyBar').value`)) === 40);
+  for (let i = 40; i < 140; i++) await move(i);
+  for (let i = 0; i < 40 && !(await js(`document.getElementById('entropy').hidden`)); i++) await sleep(50);
+  const superSeed = await seedNow();
+  check('chance: 128 moves become the seed and the plan follows', /^[a-km-np-z2-9]{13}$/.test(superSeed) && superSeed !== seedPre && (await js(`document.getElementById('r-seed').textContent`)) === superSeed, superSeed);
+  await calm();
+  await js(`document.getElementById('superRandom').click(); 0`);
+  for (let i = 0; i < 5; i++) await move(i);
+  await js(`document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' })); 0`);
+  await js(`document.getElementById('superRandom').click(); document.getElementById('superRandom').click(); 0`);
+  check('chance: 🖱️ toggles its panel', await js(`document.getElementById('entropy').hidden && document.getElementById('superRandom').getAttribute('aria-expanded') === 'false'`));
+  check('chance: Esc closes super random and keeps the seed', (await js(`document.getElementById('entropy').hidden && document.getElementById('superRandom').getAttribute('aria-expanded') === 'false'`)) && (await seedNow()) === superSeed);
+
+  // Only before the start: a pin or a status locks both, also an open super random.
+  await js(`document.getElementById('superRandom').click(); document.getElementById('entropyPad').scrollIntoView({ block: 'center' }); 0`);
+  pad = await padRect();
+  for (let i = 0; i < 20; i++) await move(i);
+  const moved20 = await js(`document.getElementById('entropyBar').value`);
+  await click(1, 1); await click(1, 2);
+  for (let i = 20; i < 140; i++) await move(i);
+  await sleep(100);
+  check('chance: a pin closes an open super random, the seed stays', moved20 === 20 && (await js(`document.getElementById('entropy').hidden`)) && (await seedNow()) === superSeed, `moves counted before the pin: ${moved20}`);
+  check('chance: a pin locks dice and super random, the reason is shown', await js(`['roll', 'superRandom'].every((id) => document.getElementById(id).disabled) && document.getElementById('roll').title.includes('Pins') && document.getElementById('r-randomnote').textContent === document.getElementById('roll').title`));
+  await js(`document.getElementById('unpinAll').click(); 0`);
+  await js(`document.querySelector('#sheets tbody tr input.pick').click(); document.querySelector('#bulk button[data-st="received"]').click(); 0`);
+  check('chance: a status locks them too', await js(`document.getElementById('roll').disabled && document.getElementById('roll').title.includes('Status')`));
+  await js(`(() => { // the person with the status leaves the roster: a status on no slot of the plan locks nothing
+    const who = document.querySelector('#sheets tbody tr').dataset.label.split('+')[0];
+    const r = document.getElementById('roster');
+    r.value = r.value.split('\\n').filter((l) => l.split('\\t')[1] !== who).join('\\n');
+    document.getElementById('compute').click();
+  })(); 0`);
+  check('chance: a status on a slot that left the plan locks nothing', await js(`!document.getElementById('roll').disabled`));
+
+  // The demo link opens with its draw and points at the random modes.
+  const demoHref = await js(`(() => { const a = [...document.querySelectorAll('a')].find((a) => a.getAttribute('href').startsWith('?demo#s=')); return a && a.getAttribute('href'); })()`);
+  await send('Page.navigate', { url: page + demoHref }, sessionId);
+  let demoShuffled = false;
+  for (let i = 0; i < 200 && !demoShuffled; i++) { demoShuffled = await js(`document.getElementById('matrix').classList.contains('shuffling')`).catch(() => false); if (!demoShuffled) await sleep(20); }
+  check('chance: the demo opens on its plan, shuffling, with the hint shown', demoShuffled && (await js(`!document.getElementById('r-demo').hidden && Math.abs(document.getElementById('result').getBoundingClientRect().top) < 5`)));
+  check('chance: the address bar drops the demo flag', await js(`location.search === '' && location.hash.startsWith('#s=')`));
+  await calm();
+  await js(`document.getElementById('r-nerd').open = true; 0`);
+  await contrast('demo with its hint and the nerd panel');
+  await js(`document.getElementById('roll').click(); 0`);
+  check('chance: after the first roll it is no longer the demo', await js(`document.getElementById('r-demo').hidden`));
+  await send('Page.navigate', { url: page + '?demo' + share('view').slice(share('view').indexOf('#')) }, sessionId); // view mode never rewrites the address
+  for (let i = 0; i < 200 && !(await js('!!globalThis.vouch0rzii && !document.getElementById("result").hidden').catch(() => false)); i++) await sleep(50);
+  check('chance: links built on a ?demo page carry no demo flag', await js(`location.search === '?demo' && !document.getElementById('toBoard').href.includes('?demo')`));
+  await send('Page.navigate', { url: page + demoHref.replace('?demo', '?demo&again') }, sessionId); // a new document, so the demo starts for real
+  await sleep(200);
+  for (let i = 0; i < 200 && !(await js('!!globalThis.vouch0rzii && !document.getElementById("result").hidden').catch(() => false)); i++) await sleep(50);
+  await calm();
+  await js(`document.getElementById('superRandom').click(); 0`);
+  const demoBefore = await js(`({ hint: !document.getElementById('r-demo').hidden, open: !document.getElementById('entropy').hidden, note: document.getElementById('r-randomnote').textContent })`);
+  await js(`location.hash = ${JSON.stringify(link.slice(link.indexOf('#')))}; 0`);
+  for (let i = 0; i < 100 && !(await js(`document.getElementById('r-demo').hidden`)); i++) await sleep(50);
+  check('chance: another link in the same tab is not the demo, starts without note or open super random', demoBefore.hint && demoBefore.open && demoBefore.note.startsWith('Gelost') && (await js(`document.getElementById('r-demo').hidden && document.getElementById('entropy').hidden && document.getElementById('r-randomnote').textContent === ''`)), JSON.stringify(demoBefore));
+  await send('Page.navigate', { url: page + '?fresh' }, sessionId); // a new document: nothing computed yet
+  await sleep(200);
+  for (let i = 0; i < 200 && !(await js('!!globalThis.vouch0rzii && !document.getElementById("intro").hidden').catch(() => false)); i++) await sleep(50);
+  await js(`(() => {
+    document.getElementById('f-name').value = 'solo'; document.getElementById('f-start').value = '2026-10-30';
+    document.getElementById('roster').value = 'Name\\tStatus\\nsolo\\tmember\\n';
+    document.getElementById('compute').click();
+  })(); 0`);
+  check('chance: with nothing to draw the first plan does not shuffle and says why', !(await isShuffling()) && (await js(`document.getElementById('roll').disabled && document.getElementById('r-randomnote').textContent.startsWith('Nichts zu losen')`)));
 } catch (e) {
   check(`no exception: ${e.message}`, false);
 } finally {

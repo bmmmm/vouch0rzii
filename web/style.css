@@ -149,10 +149,24 @@ button.badge { cursor: pointer; font: inherit; font-size: .8rem; border-color: v
 .intro { background: var(--pin); border-radius: 8px; padding: .6rem .9rem; margin: 1rem 0 0; }
 .intro b { display: inline-block; min-width: 1.3em; text-align: center; border-radius: 50%; background: var(--accent); color: var(--accent-ink); font-size: .8em; }
 #matrix td.cell:focus { outline: 3px solid var(--select); outline-offset: -3px; }
+/* The draw made visible: cells flicker, then lock in day by day (app.js shuffleMatrix). */
+#matrix td.cell.flicker { color: var(--muted); font-style: italic; }
+#matrix td.cell.settle { animation: settle .25s ease-out; }
+@keyframes settle { from { transform: scale(1.12); } to { transform: none; } }
+.dice { display: inline-block; }
+.dice.spin { animation: spin .6s ease-out; }
+@keyframes spin { from { transform: rotate(0) scale(1.3); } to { transform: rotate(720deg) scale(1); } }
+#entropyPad { position: relative; height: 9rem; margin: .4rem 0; border: 1px dashed var(--field); border-radius: 8px; background: var(--card); overflow: hidden; touch-action: none; cursor: crosshair; }
+#entropyPad .dot { position: absolute; width: 6px; height: 6px; margin: -3px 0 0 -3px; border-radius: 50%; background: var(--accent); animation: fade 1.2s forwards; pointer-events: none; }
+@keyframes fade { to { opacity: .15; } }
+#entropyBar { width: 100%; accent-color: var(--accent); }
+@media (prefers-reduced-motion: reduce) {
+  #matrix td.cell.settle, .dice.spin, #entropyPad .dot { animation: none; }
+}
 @media print {
   :root { color-scheme: light; }
   html { font-size: 10.5px; background: #fff; color: #000; }
-  header nav, #editor, #collect, #r-pinhelp, button, .button, #toast, p.hint, label.inline, #matrix .extra, #bulk, #sheets td:has(> input.pick), #sheets th:has(> #pickAll), footer { display: none !important; }
+  header nav, #editor, #collect, #r-pinhelp, #r-random, #r-demo, #r-nerd, #entropy, button, .button, #toast, p.hint, label.inline, #matrix .extra, #bulk, #sheets td:has(> input.pick), #sheets th:has(> #pickAll), footer { display: none !important; }
   .card { border: none; padding: 0; margin: 0 0 1rem; break-inside: avoid; }
   #sheets-card { break-before: page; }
   a { color: inherit; text-decoration: none; }
