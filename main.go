@@ -31,7 +31,7 @@ Flags:
   -event FILE     event file (JSON: settings + people)
   -roster FILE    roster paste (TSV/CSV) replacing the event's people
   -pins FILE      JSON array of pins, e.g. [{"label":"alpha","day":1,"voucher":2}]
-  -format F       md (default), csv, json, event (the normalised event file)
+  -format F       md (default), csv, json, svg, event (the normalised event file)
   -seed S         override the seed (a new draw)
   -share MODE     print a share link instead of the plan: admin, view, collect
   -base URL       page URL for -share (default ` + DefaultBase + `)
@@ -151,6 +151,8 @@ func run(args []string, stdout, stderr io.Writer) int {
 		out = []byte(p.CSV())
 	case "json":
 		out, err = p.JSON()
+	case "svg":
+		out = []byte(p.SVG())
 	case "event":
 		out, err = plan.MarshalEvent(e)
 	default:

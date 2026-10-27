@@ -43,7 +43,7 @@ const eventJSON = readFileSync(eventPath, 'utf8');
 const planned = bridge.plan(eventJSON, '[]');
 check('plan() ok', planned.ok, JSON.stringify(planned.errors));
 check('plan JSON equals CLI -format json byte for byte', planned.exportJson === refJSON);
-check('plan returns markdown/csv', planned.markdown.includes('47 slots') && planned.markdown.startsWith('# congress2026') && planned.csv.startsWith('Voucher;'));
+check('plan returns markdown/csv/svg', planned.markdown.includes('47 slots') && planned.markdown.startsWith('# congress2026') && planned.csv.startsWith('Voucher;') && planned.svg.startsWith('<svg '));
 
 const broken = bridge.plan('{"name":"x","vouchers":0,"start":"nope","people":[]}', '');
 check('broken event → ok:false with errors, no exception', broken.ok === false && broken.errors.length >= 3, JSON.stringify(broken.errors));

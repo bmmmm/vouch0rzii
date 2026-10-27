@@ -73,12 +73,13 @@ base64url-encoded deflated JSON). Three modes, all views on the same data —
   mailed or copied to the organiser, who pastes it into "Zeilen aus
   Sammel-Mails hinzufügen".
 
-## Example
+## Demo and example
 
 `events/congress2026.json` is a pseudonymised real roster (25 animals, 22
 extra slots, 7 vouchers → 7 days). Status, credit card, e-mail and
 connections are **placeholders**; the real values live only in your own links
-and files.
+and files. The page's "Demo öffnen" link is an admin link of this roster,
+generated at build time; the file itself is not part of the site.
 
 ## Command line
 
@@ -86,7 +87,7 @@ and files.
 go install github.com/bmmmm/vouch0rzii@latest
 
 vouch0rzii -event events/congress2026.json              # Markdown: matrix + handovers
-vouch0rzii -event events/congress2026.json -format csv   # csv | json | event
+vouch0rzii -event events/congress2026.json -format csv   # csv | json | svg | event
 vouch0rzii -event e.json -roster paste.tsv -format event # spreadsheet paste → event file
 vouch0rzii -event e.json -pins pins.json -seed other     # manual pins, new draw
 vouch0rzii -event e.json -share view                     # frozen viewer link

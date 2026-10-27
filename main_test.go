@@ -142,6 +142,13 @@ func TestRejectsBadInput(t *testing.T) {
 	}
 }
 
+func TestSVGFormat(t *testing.T) {
+	svg := runOK(t, "-event", example, "-format", "svg")
+	if !strings.HasPrefix(svg, "<svg ") || !strings.Contains(svg, ">mammut+10<") || strings.Count(svg, "<rect ") != 47 {
+		t.Fatalf("svg:\n%.300s", svg)
+	}
+}
+
 func TestEventFormatPrintsNormalisedFile(t *testing.T) {
 	ev := runOK(t, "-event", example, "-format", "event")
 	if !strings.Contains(ev, `"name": "congress2026"`) || !strings.Contains(ev, `"id": "mammut"`) {

@@ -51,11 +51,10 @@
       <div class="row">
         <button type="button" id="compute" class="primary">Plan berechnen</button>
         <span class="spacer"></span>
-        <select id="examples" title="Beispiel-Events aus dem Repo"></select>
-        <button type="button" id="loadExample">Beispiel laden</button>
         <label class="file">Event-Datei laden <input id="loadFile" type="file" accept=".json,application/json"></label>
         <button type="button" id="saveFile">Event-Datei speichern</button>
       </div>
+      <p class="hint">Zum Ausprobieren: <a href="__DEMO__">Demo öffnen</a>, ein pseudonymes Tier-Roster in dieser Ansicht.</p>
       <details>
         <summary>Zeilen aus Sammel-Mails hinzufügen</summary>
         <p class="hint">Eine Zeile pro Person, so wie der Sammel-Link sie erzeugt: <code>Name; E-Mail; Status; +N; Kreditkarte; Kennt; Notiz</code>. Vorhandene Handles werden übersprungen.</p>
@@ -107,6 +106,14 @@
         <button type="button" id="unpinAll" class="small">Alle Pins lösen</button></p>
       <div class="scroll"><table id="matrix"></table></div>
       <p class="legend"><span class="sw known"></span> Übergabe unter Bekannten <span class="sw stranger"></span> unter Fremden <span class="sw forbidden"></span> direkt an eigene +N</p>
+    </div>
+    <div class="card">
+      <div class="row">
+        <h2>Ablauf</h2>
+        <span class="spacer"></span>
+        <button type="button" id="dlSvg">SVG herunterladen</button>
+      </div>
+      <div class="scroll" id="diagram"></div>
     </div>
     <div class="card">
       <h2>Übergaben je Abend</h2>

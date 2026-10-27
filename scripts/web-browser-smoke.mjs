@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 // Gate: the page works in a real browser. Launches headless Chrome on
 // web/dist via file:// (fetch allowed by flag), dumps the DOM once the wasm
-// has loaded, and checks the markers of every mode: empty page, admin link,
-// viewer link, collect link (links come from the CLI). Prints SKIP and exits
-// 0 when no Chrome is found; set CHROME=/path/to/chrome to point at one.
+// has loaded, and checks the markers of every mode: empty page, demo link,
+// admin link, viewer link, collect link (links come from the CLI). Prints
+// SKIP and exits 0 when no Chrome is found; set CHROME=/path/to/chrome.
 //
 // Usage: node scripts/web-browser-smoke.mjs [path/to/vouch0rzii-binary]
 // Requires a prior `go build -o vouch0rzii .` and `scripts/build-web.sh`.
@@ -43,22 +43,28 @@ const check = (name, cond) => {
   if (!cond) failures++;
 };
 const noError = (html) => !html.includes('class="error"');
+const planned = (html) => html.includes('7 Vouchers · 7 Tage · 47 Slots');
 
 const home = dom(page);
 check('empty page: wasm loaded, loading note hidden', home.includes('<p id="loading" hidden=""'));
 check('empty page: version shown', /Version \S+/.test(home));
-check('empty page: example dropdown filled', home.includes('<option value="congress2026">'));
+const demo = (home.match(/href="(#s=[A-Za-z0-9_-]+)"/) || [])[1];
+check('empty page: demo link present', !!demo);
 check('empty page: no error box', noError(home));
 
+const demoDom = dom(page + demo);
+check('demo: plan rendered in admin mode', planned(demoDom) && demoDom.includes('<table id="matrix" class="editable">'));
+check('demo: diagram inlined', demoDom.includes('<div class="scroll" id="diagram"><svg'));
+
 const admin = dom(link('admin'));
-check('admin: plan rendered from the link', admin.includes('7 Vouchers · 7 Tage · 47 Slots'));
+check('admin: plan rendered from the link', planned(admin));
 check('admin: matrix editable and shows the group slot', admin.includes('<table id="matrix" class="editable">') && admin.includes('mammut+10'));
 check('admin: one sheet row per slot', (admin.match(/data-who=/g) || []).length === 47);
 check('admin: share buttons visible', admin.includes('<nav id="sharebar">'));
 check('admin: no error box', noError(admin));
 
 const view = dom(link('view'));
-check('view: plan rendered, matrix not editable', view.includes('7 Vouchers · 7 Tage · 47 Slots') && !view.includes('class="editable"'));
+check('view: plan rendered, matrix not editable', planned(view) && !view.includes('class="editable"'));
 check('view: frozen (47 pinned)', view.includes('47 gepinnt'));
 check('view: editor and share buttons hidden', view.includes('<section id="editor" hidden=""') && view.includes('<nav id="sharebar" hidden=""'));
 check('view: no error box', noError(view));

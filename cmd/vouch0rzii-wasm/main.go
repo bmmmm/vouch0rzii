@@ -66,7 +66,7 @@ func ok(warnings []string, fields map[string]any) any {
 	return js.ValueOf(res)
 }
 
-// planFn(eventJSON, pinsJSON) → {ok, errors, warnings, exportJson, markdown, csv}
+// planFn(eventJSON, pinsJSON) → {ok, errors, warnings, exportJson, markdown, csv, svg}
 func planFn(_ js.Value, args []js.Value) any {
 	e, err := plan.ParseEvent([]byte(strArg(args, 0)))
 	if err != nil {
@@ -90,6 +90,7 @@ func planFn(_ js.Value, args []js.Value) any {
 		"exportJson": string(js),
 		"markdown":   p.Markdown(),
 		"csv":        p.CSV(),
+		"svg":        p.SVG(),
 	})
 }
 

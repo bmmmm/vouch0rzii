@@ -160,7 +160,7 @@
       renderResult();
       return false;
     }
-    plan = { ...JSON.parse(r.exportJson), exportJson: r.exportJson, markdown: r.markdown, csv: r.csv };
+    plan = { ...JSON.parse(r.exportJson), exportJson: r.exportJson, markdown: r.markdown, csv: r.csv, svg: r.svg };
     showMessages([], warnings.concat(plan.warnings));
     renderResult();
     writeHash();
@@ -221,6 +221,7 @@
       (s.forbidden ? `, ${s.forbidden} direkt an eigene +N` : '') + (s.pinned ? ` · ${s.pinned} gepinnt` : '') + ` · Übergabe ${plan.handover}`;
     $('#r-pinhelp').hidden = state.mode !== 'admin';
     renderMatrix();
+    $('#diagram').innerHTML = plan.svg; // our own SVG, labels escaped by the Go side
     renderHandovers();
     renderSheets();
   }
@@ -357,27 +358,9 @@
     if (state.event.people && state.event.people.length) computePlan({ fromForm: false });
   }
 
-  async function loadExamples() {
-    try {
-      const names = await (await fetch('events/index.json')).json();
-      $('#examples').replaceChildren(...names.map((n) => el('option', { value: n }, n)));
-    } catch {
-      $('#examples').replaceChildren(el('option', { value: '' }, 'keine Beispiele (Seite über http öffnen, nicht file://)'));
-    }
-  }
-
   function wireAdmin() {
     $('#compute').addEventListener('click', () => { selected = null; computePlan(); });
     $('#settings').addEventListener('submit', (e) => { e.preventDefault(); computePlan(); });
-    $('#loadExample').addEventListener('click', async () => {
-      const name = $('#examples').value;
-      if (!name) { showMessages(['Kein Beispiel verfügbar: die Seite muss über http laufen, nicht über file://.']); return; }
-      try {
-        loadEvent(await (await fetch(`events/${name}.json`)).json());
-      } catch (e) {
-        showMessages([`Beispiel ${name} konnte nicht geladen werden: ${e}`]);
-      }
-    });
     $('#loadFile').addEventListener('change', async (e) => {
       const f = e.target.files[0];
       if (!f) return;
@@ -434,6 +417,7 @@
     $('#copyMd').addEventListener('click', () => plan && copy(plan.markdown, 'Markdown'));
     $('#dlCsv').addEventListener('click', () => plan && download(`${plan.event}-plan.csv`, plan.csv, 'text/csv'));
     $('#dlJson').addEventListener('click', () => plan && download(`${plan.event}-plan.json`, plan.exportJson, 'application/json'));
+    $('#dlSvg').addEventListener('click', () => plan && download(`${plan.event}-plan.svg`, plan.svg, 'image/svg+xml'));
     $('#who').addEventListener('input', filterSheets);
   }
 
@@ -468,7 +452,6 @@
     wireAdmin();
     wireResult();
     wireCollect();
-    loadExamples();
     const boot = () => {
       const st = readHash();
       if (st) {
