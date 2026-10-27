@@ -13,7 +13,6 @@ import (
 	"io"
 	"os"
 	"runtime/debug"
-	"strings"
 
 	"github.com/bmmmm/vouch0rzii/internal/plan"
 )
@@ -32,10 +31,8 @@ Flags:
   -event FILE     event file (JSON: settings + people)
   -roster FILE    roster paste (TSV/CSV) replacing the event's people
   -pins FILE      JSON array of pins, e.g. [{"label":"alpha","day":1,"voucher":2}]
-  -format F       table (default), md, csv, json, event, roster
+  -format F       md (default), csv, json, event (the normalised event file)
   -seed S         override the seed (a new draw)
-  -vouchers N     override the voucher count
-  -start DATE     override day 1 (YYYY-MM-DD)
   -share MODE     print a share link instead of the plan: admin, view, collect
   -base URL       page URL for -share (default ` + DefaultBase + `)
   -to EMAIL       contact address for -share collect
@@ -66,10 +63,8 @@ func run(args []string, stdout, stderr io.Writer) int {
 		eventPath  = fs.String("event", "", "")
 		rosterPath = fs.String("roster", "", "")
 		pinsPath   = fs.String("pins", "", "")
-		format     = fs.String("format", "table", "")
+		format     = fs.String("format", "md", "")
 		seed       = fs.String("seed", "", "")
-		vouchers   = fs.Int("vouchers", 0, "")
-		start      = fs.String("start", "", "")
 		share      = fs.String("share", "", "")
 		base       = fs.String("base", DefaultBase, "")
 		to         = fs.String("to", "", "")
@@ -89,53 +84,44 @@ func run(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprint(stderr, usage)
 		return 2
 	}
-	e, err := plan.LoadEvent(*eventPath)
-	if err != nil {
+	reject := func(err error) int {
 		fmt.Fprintln(stderr, err)
 		return 2
+	}
+	e, err := plan.LoadEvent(*eventPath)
+	if err != nil {
+		return reject(err)
 	}
 	if *rosterPath != "" {
 		b, err := os.ReadFile(*rosterPath)
 		if err != nil {
-			fmt.Fprintln(stderr, err)
-			return 2
+			return reject(err)
 		}
 		people, warnings, err := plan.ParseRoster(string(b))
 		for _, w := range warnings {
 			fmt.Fprintln(stderr, "warning:", w)
 		}
 		if err != nil {
-			fmt.Fprintln(stderr, err)
-			return 2
+			return reject(err)
 		}
 		e.People = people
 	}
 	if *seed != "" {
 		e.Seed = *seed
 	}
-	if *vouchers > 0 {
-		e.Vouchers = *vouchers
-	}
-	if *start != "" {
-		e.Start = *start
-	}
 	var pins []plan.Pin
 	if *pinsPath != "" {
 		b, err := os.ReadFile(*pinsPath)
 		if err != nil {
-			fmt.Fprintln(stderr, err)
-			return 2
+			return reject(err)
 		}
 		if err := json.Unmarshal(b, &pins); err != nil {
-			fmt.Fprintln(stderr, "pins:", err)
-			return 2
+			return reject(fmt.Errorf("pins: %w", err))
 		}
 	}
-
 	p, err := plan.Compute(e, pins)
 	if err != nil {
-		fmt.Fprintln(stderr, err)
-		return 2
+		return reject(err)
 	}
 
 	if *share != "" {
@@ -145,46 +131,35 @@ func run(args []string, stdout, stderr io.Writer) int {
 			st.Pins = plan.Freeze(p)
 		case plan.ModeCollect:
 			if *to == "" {
-				fmt.Fprintln(stderr, "-share collect needs -to EMAIL")
-				return 2
+				return reject(errors.New("-share collect needs -to EMAIL"))
 			}
 			st.Collect = &plan.Collect{To: *to}
 		}
 		enc, err := plan.EncodeState(st)
 		if err != nil {
-			fmt.Fprintln(stderr, err)
-			return 2
+			return reject(err)
 		}
 		fmt.Fprintln(stdout, *base+"#s="+enc)
 		return 0
 	}
 
-	switch strings.ToLower(*format) {
-	case "table", "text", "txt":
-		fmt.Fprint(stdout, p.Text())
-	case "md", "markdown":
-		fmt.Fprint(stdout, p.Markdown())
+	var out []byte
+	switch *format {
+	case "md":
+		out = []byte(p.Markdown())
 	case "csv":
-		fmt.Fprint(stdout, p.CSV())
+		out = []byte(p.CSV())
 	case "json":
-		b, err := p.JSON()
-		if err != nil {
-			fmt.Fprintln(stderr, err)
-			return 1
-		}
-		stdout.Write(b)
+		out, err = p.JSON()
 	case "event":
-		b, err := plan.MarshalEvent(e)
-		if err != nil {
-			fmt.Fprintln(stderr, err)
-			return 1
-		}
-		stdout.Write(b)
-	case "roster", "tsv":
-		fmt.Fprint(stdout, plan.FormatRoster(e.People))
+		out, err = plan.MarshalEvent(e)
 	default:
-		fmt.Fprintf(stderr, "unknown format %q\n", *format)
-		return 2
+		return reject(fmt.Errorf("unknown format %q", *format))
 	}
+	if err != nil {
+		fmt.Fprintln(stderr, err)
+		return 1
+	}
+	stdout.Write(out)
 	return 0
 }

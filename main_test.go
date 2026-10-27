@@ -5,6 +5,8 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -22,9 +24,9 @@ func runOK(t *testing.T, args ...string) string {
 	return out.String()
 }
 
-func TestExampleTable(t *testing.T) {
+func TestExampleMarkdown(t *testing.T) {
 	out := runOK(t, "-event", example)
-	for _, want := range []string{"congress2026 — 7 vouchers, 7 days, 47 slots", "Fr 30.10.", "Mo 09.11.", "india+10"} {
+	for _, want := range []string{"# congress2026", "7 vouchers, 7 days, 47 slots", "Fr 30.10.", "Mo 09.11.", "mammut+10"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("missing %q in\n%s", want, out)
 		}
@@ -70,7 +72,6 @@ func TestExampleJSONRespectsTiersAndCounts(t *testing.T) {
 	if maxNamedDay > minPlusDay {
 		t.Fatalf("a +N slot (day %d) comes before a named person (day %d)", minPlusDay, maxNamedDay)
 	}
-	// No sponsor hands directly to their own +k, except the group exception.
 	for _, h := range ex.Handovers {
 		if h.Forbidden {
 			t.Errorf("forbidden handover %s → %s", h.From, h.To)
@@ -89,6 +90,20 @@ func TestSeedChangesDrawNotLength(t *testing.T) {
 	}
 	if !strings.Contains(runOK(t, "-event", example, "-seed", "other"), "7 days") {
 		t.Fatal("another seed must not change the number of days")
+	}
+}
+
+func TestRosterFileReplacesPeople(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "roster.tsv")
+	if err := os.WriteFile(path, []byte("Name\tStatus\t+N\nigel\tMitglied\t1\nkoala\tGast\t\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	var ex plan.Export
+	if err := json.Unmarshal([]byte(runOK(t, "-event", example, "-roster", path, "-format", "json")), &ex); err != nil {
+		t.Fatal(err)
+	}
+	if ex.Stats.Slots != 3 || ex.Grid[0][0] != "igel" {
+		t.Fatalf("export %+v", ex.Stats)
 	}
 }
 
@@ -127,13 +142,9 @@ func TestRejectsBadInput(t *testing.T) {
 	}
 }
 
-func TestRosterAndEventFormats(t *testing.T) {
-	tsv := runOK(t, "-event", example, "-format", "roster")
-	if !strings.HasPrefix(tsv, plan.RosterHeader+"\n") || !strings.Contains(tsv, "\tindia\tnein\tMitglied\t10\tindia@example.org\tkilo, lima\tja\t") {
-		t.Fatalf("roster:\n%s", tsv)
-	}
+func TestEventFormatPrintsNormalisedFile(t *testing.T) {
 	ev := runOK(t, "-event", example, "-format", "event")
-	if !strings.Contains(ev, `"name": "congress2026"`) {
+	if !strings.Contains(ev, `"name": "congress2026"`) || !strings.Contains(ev, `"id": "mammut"`) {
 		t.Fatalf("event:\n%s", ev)
 	}
 }

@@ -9,8 +9,8 @@ and hands it to whom, with as few days as possible and as many handovers as
 possible between people who already know each other.
 
 Everything runs in the browser (Go compiled to WebAssembly) or on the command
-line with the same code. Nothing is stored or sent anywhere: the share link
-*is* the data.
+line with the same code. Nothing is sent to a server: the share link *is* the
+data, and your browser history keeps it like any other link.
 
 ## Rules the planner follows
 
@@ -24,7 +24,9 @@ line with the same code. Nothing is stored or sent anywhere: the share link
 3. **+N is capped at 2** unless the person carries the group flag (they
    represent a larger group). Their surplus (+3, +4, …) comes last. A person
    never hands the voucher directly to their own +N — unless they have the
-   group flag, then their block may run back to back.
+   group flag, then their block may run back to back. If such a handover
+   cannot be avoided (one voucher, one person with +1) it is used and reported
+   as a warning.
 4. **Connections.** For each day the assignment person → voucher is chosen so
    that as many handovers as possible happen between people who know each
    other (`Kennt`/`knows`). +N slots stand in for their sponsor. Without manual
@@ -34,7 +36,8 @@ line with the same code. Nothing is stored or sent anywhere: the share link
    the plan (instant SEPA transfers are the default).
 6. **Pins.** In the admin view a slot can be moved to another cell or swapped
    with another slot. Pins are kept in the link and respected before the
-   automatic placement fills the rest.
+   automatic placement fills the rest. A voucher may idle for a day; the
+   handover then goes to the next holder and says on which day they buy.
 
 ## Roster columns
 
@@ -43,15 +46,15 @@ English, in any order:
 
 | Column | Aliases | Values |
 |---|---|---|
-| `Reihenfolge` | order, nr | manual position within the tier, empty = lot |
-| `Name` | handle, id | unique, no `+` |
+| `Reihenfolge` | order | manual position within the tier, empty = lot |
+| `Name` | handle | unique; must not contain `+ ; , \|` |
 | `Kreditkarte` | card | ja/nein, x, 1/0 |
 | `Status` | tier, "Mitglied / (Häufiger) Gast / Bekanntschaft" | Mitglied, Gast, Bekanntschaft |
 | `+N` | plus | number of extra people |
 | `E-Mail` | email, mail | contact for the handover |
-| `Kennt` | knows, connections | handles, comma separated |
+| `Kennt` | knows | handles, comma separated |
 | `Gruppe` | group | ja = may exceed +N max, block allowed |
-| `Notiz` | note | free text |
+| `Notiz` | note | free text, never part of viewer links |
 
 ## Links and modes
 
@@ -59,10 +62,11 @@ The page keeps its whole state in the URL fragment (`#s=…`,
 base64url-encoded deflated JSON). Three modes, all views on the same data —
 **not** access control: whoever has a link has what is in it.
 
-- **Admin**: edit settings and roster, compute, pin cells, copy links.
-- **Viewer**: the plan only, frozen (every slot pinned), so it renders
-  identically on any later version. Filter "Ich bin …" to find your row; the
-  Mail link prepares the handover mail to the next person.
+- **Admin**: settings, roster, pins and the organiser's address. Edit, compute,
+  pin cells, copy links.
+- **Viewer**: settings, roster without notes, and the frozen plan (every slot
+  pinned), so it renders identically on any later version. Filter "Ich bin …"
+  to find your row; the Mail link prepares the handover mail to the next person.
 - **Sammeln / collect**: a sign-up form for people interested in a voucher.
   It carries only the event settings and the organiser's address; the result
   is one line (`Name; E-Mail; Status; +N; Kreditkarte; Kennt; Notiz`) that is
@@ -71,19 +75,19 @@ base64url-encoded deflated JSON). Three modes, all views on the same data —
 
 ## Example
 
-`events/congress2026.json` is a pseudonymised real roster (25 named people,
-NATO alphabet, 22 extra slots, 7 vouchers → 7 days). Status, credit card,
-e-mail and connections are **placeholders**; the real values live only in
-your own links and files.
+`events/congress2026.json` is a pseudonymised real roster (25 animals, 22
+extra slots, 7 vouchers → 7 days). Status, credit card, e-mail and
+connections are **placeholders**; the real values live only in your own links
+and files.
 
 ## Command line
 
 ```
 go install github.com/bmmmm/vouch0rzii@latest
 
-vouch0rzii -event events/congress2026.json              # text matrix + handovers
-vouch0rzii -event events/congress2026.json -format md    # md | csv | json | event | roster
-vouch0rzii -event e.json -roster paste.tsv               # roster from a spreadsheet paste
+vouch0rzii -event events/congress2026.json              # Markdown: matrix + handovers
+vouch0rzii -event events/congress2026.json -format csv   # csv | json | event
+vouch0rzii -event e.json -roster paste.tsv -format event # spreadsheet paste → event file
 vouch0rzii -event e.json -pins pins.json -seed other     # manual pins, new draw
 vouch0rzii -event e.json -share view                     # frozen viewer link
 vouch0rzii -event e.json -share collect -to orga@example.org
