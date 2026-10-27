@@ -18,6 +18,9 @@ what to check.
   roll a new seed (🎲) or collect one from pointer movement (🖱️ super
   random); a roll is one undo step. "How random?" explains seed, hashes,
   generator and the number of possible results of the draw.
+- Start page and demo: the demo link only shows on the untouched start page;
+  the demo page says it is the demo in a banner, also after edits and
+  reloads; the title and "＋ New event" lead back to an empty start page.
 - JSON export: `draw` with the seed, per tier the people drawn and fixed and
   the number of orders (`n!`), and all lineups together, as exact decimals.
 

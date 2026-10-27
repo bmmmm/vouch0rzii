@@ -188,10 +188,24 @@
   let state = emptyState();
   let plan = null;      // last export plus exportJson/markdown/csv/svg
   let selected = null;  // cell chosen as move source: {label, day, voucher}
-  // ?demo marks the demo link (scripts/build-web.sh): it shows the draw on
-  // open. A display flag only; links built here never carry it.
-  let demo = new URLSearchParams(location.search).has('demo'); // cleared by the first change
+  // ?demo marks the demo page (scripts/build-web.sh): it opens on its
+  // shuffling plan and says it is the demo for as long as the flag is in
+  // the address bar, edits and reloads included. A display flag only; links
+  // built here never carry it, another link in the tab drops it.
+  let demo = new URLSearchParams(location.search).has('demo') && location.hash.startsWith('#s=');
   let drawShown = false; // the first plan computed or opened on this page
+  // The demo link is offered only on the untouched start page, so nobody
+  // ends up working in the demo by mistake; a new event is always one click
+  // away, and the browser's Back returns to the state left behind.
+  const startPage = location.href.split(/[?#]/)[0];
+  let typed = false; // something was typed into the editor on this page
+  const pristine = () => !plan && !location.hash && !typed;
+  function renderStart() {
+    const fresh = pristine();
+    document.querySelectorAll('.demo-link').forEach((n) => { n.hidden = !fresh; });
+    $('#newEvent').hidden = fresh;
+    $('#demoBanner').hidden = !(demo && state.mode === 'admin');
+  }
 
   // ---------- undo / redo: in memory, admin only; the link always holds the current state
   const past = [], future = [];
@@ -205,7 +219,6 @@
     const before = snapshot();
     fn();
     if (snapshot() === before) return;
-    demo = false; // from here on it is the admin's own plan
     past.push(before);
     if (past.length > 100) past.shift();
     future.length = 0;
@@ -319,10 +332,10 @@
   }
   function writeHash() {
     if (state.mode !== 'admin') return;
-    try { history.replaceState(null, '', location.href.split(/[?#]/)[0] + '#s=' + encodeState(state)); } catch (e) { showMessages([String(e)]); } // drops ?demo
+    try { history.replaceState(null, '', '#s=' + encodeState(state)); } catch (e) { showMessages([String(e)]); } // keeps ?demo: the demo stays the demo
   }
   function linkFor(mode, extra) {
-    return location.href.split(/[?#]/)[0] + '#s=' + encodeState({ ...state, mode, ...extra }); // never the ?demo flag
+    return startPage + '#s=' + encodeState({ ...state, mode, ...extra }); // never the ?demo flag
   }
 
   // ---------- form <-> state.event
@@ -603,6 +616,7 @@
 
   // ---------- rendering
   function renderResult() {
+    renderStart();
     const board = state.mode === 'board';
     $('#result').hidden = !plan || board;
     $('#board').hidden = !plan || !board;
@@ -980,6 +994,7 @@
     $('#collect').hidden = m !== 'collect';
     $('#result').hidden = true;
     $('#board').hidden = true;
+    renderStart();
     if (m === 'collect') {
       $('#c-event').textContent = state.event.name || t('theEvent');
       $('#c-plus').max = String(state.event.plusMax || 2);
@@ -993,6 +1008,10 @@
 
   function wireAdmin() {
     $('#compute').addEventListener('click', () => { selected = null; computePlan({ shuffle: !drawShown }); }); // the first plan shows its draw
+    $('#editor').addEventListener('input', () => { if (!typed) { typed = true; renderStart(); } });
+    // Leaving for a new event first puts pending edits into the link, if they
+    // compute, so the browser's Back returns to them.
+    for (const a of document.querySelectorAll('#newEvent, #demoBanner a')) a.addEventListener('click', () => { if (location.hash && state.mode === 'admin') computePlan(); });
     $('#settings').addEventListener('submit', (e) => { e.preventDefault(); computePlan({ shuffle: !drawShown }); });
     $('#roll').addEventListener('click', roll);
     $('#superRandom').addEventListener('click', () => { if ($('#entropy').hidden) openEntropy(); else closeEntropy(); });
@@ -1156,13 +1175,20 @@
       past.length = future.length = 0; // a new link is a new baseline
       applyMode();
     };
+    // ?demo without a readable demo state is no demo: the flag leaves the
+    // address bar, so the admin's own event never reloads as the demo.
+    if (new URLSearchParams(location.search).has('demo') && !demo) history.replaceState(null, '', startPage + location.hash);
     const opensDemo = demo;
     boot();
+    if (demo && !plan) { demo = false; history.replaceState(null, '', startPage + location.hash); renderStart(); }
     if (opensDemo && plan && state.mode === 'admin') { // the demo opens on its plan, shuffling
       $('#result').scrollIntoView({ block: 'start' });
       shuffleMatrix();
     }
-    window.addEventListener('hashchange', () => { demo = false; boot(); }); // another link is not the demo
+    window.addEventListener('hashchange', () => { // another link is not the demo
+      if (demo) { demo = false; history.replaceState(null, '', startPage + location.hash); }
+      boot();
+    });
   }
 
   main();

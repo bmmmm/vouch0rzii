@@ -16,10 +16,11 @@
 <body>
 <header>
   <div class="brand">
-    <h1>vouch0rzii</h1>
+    <h1><a id="home" class="home" href="index.html" title="Zur Startseite, ein neues Event anlegen" data-en-title="To the start page, start a new event">vouch0rzii</a></h1>
     <p class="tagline"><span lang="de">Voucher-Kettenplaner</span><span lang="en">voucher chain planner</span> · <span id="modeLabel"></span> <span id="fingerprint" title="Kennung dieses Stands: gleiche Emojis, gleicher Plan" data-en-title="Fingerprint of this state: same emojis, same plan"></span></p>
   </div>
   <nav id="sharebar" hidden>
+    <a id="newEvent" class="button" href="index.html" title="Leere Startseite; Zurück im Browser führt zum zuletzt berechneten Stand" data-en-title="Empty start page; the browser's Back leads to the last computed state" hidden><span aria-hidden="true">＋</span> <span lang="de">Neues Event</span><span lang="en">New event</span></a>
     <button type="button" id="copyAdmin" title="Dieser Link enthält Roster, Einstellungen und Pins" data-en-title="This link holds the roster, settings and pins"><span lang="de">Admin-Link kopieren</span><span lang="en">Copy admin link</span></button>
     <button type="button" id="copyView" title="Eingefrorener Plan zum Weitergeben" data-en-title="Frozen plan to pass on"><span lang="de">Viewer-Link kopieren</span><span lang="en">Copy viewer link</span></button>
     <button type="button" id="copyBoard" title="Dashboard zum Mitfiebern, gleiche Daten wie der Viewer-Link" data-en-title="Dashboard to follow along, same data as the viewer link"><span lang="de">Board-Link kopieren</span><span lang="en">Copy board link</span></button>
@@ -31,9 +32,10 @@
 <main>
   <p id="loading"><span lang="de">Planer wird geladen …</span><span lang="en">Loading the planner …</span></p>
   <div id="messages" aria-live="polite"></div>
+  <p id="demoBanner" class="warning" hidden><span lang="de"><strong>Demo-Seite</strong> zum Ausprobieren, geladen mit pseudonymen Tier-Namen. Sie bleibt als Demo markiert, solange <code>?demo</code> in der Adresse steht; kopierte Links sind keine Demo mehr. Für dein eigenes Event: <a href="index.html">Eigenes Event anlegen</a></span><span lang="en"><strong>Demo page</strong> to try things out, loaded with pseudonymous animal names. It stays marked as the demo while <code>?demo</code> is in the address; copied links are no demo any more. For your own event: <a href="index.html">Start your own event</a></span></p>
 
   <section id="editor" hidden>
-    <p id="intro" class="intro"><span lang="de">So geht's: <b>1</b> Event-Daten eintragen · <b>2</b> Roster aus der Tabelle einfügen · <b>3</b> Plan berechnen · <b>4</b> Admin-Link für dich sichern, Viewer-Link teilen. Oder erst die <a href="__DEMO__">Demo</a> ansehen.</span><span lang="en">How it works: <b>1</b> enter the event data · <b>2</b> paste the roster from your sheet · <b>3</b> compute the plan · <b>4</b> keep the admin link for yourself, share the viewer link. Or look at the <a href="__DEMO__">demo</a> first.</span></p>
+    <p id="intro" class="intro"><span lang="de">So geht's: <b>1</b> Event-Daten eintragen · <b>2</b> Roster aus der Tabelle einfügen · <b>3</b> Plan berechnen · <b>4</b> Admin-Link für dich sichern, Viewer-Link teilen.<span class="demo-link"> Oder erst die <a href="__DEMO__">Demo</a> ansehen.</span></span><span lang="en">How it works: <b>1</b> enter the event data · <b>2</b> paste the roster from your sheet · <b>3</b> compute the plan · <b>4</b> keep the admin link for yourself, share the viewer link.<span class="demo-link"> Or look at the <a href="__DEMO__">demo</a> first.</span></span></p>
     <form id="settings" class="card" autocomplete="off">
       <h2>Event</h2>
       <div class="grid">
@@ -115,7 +117,7 @@
         <label class="file"><span lang="de">Event-Datei laden</span><span lang="en">Load event file</span> <input id="loadFile" type="file" accept=".json,application/json"></label>
         <button type="button" id="saveFile"><span lang="de">Event-Datei speichern</span><span lang="en">Save event file</span></button>
       </div>
-      <p class="hint"><span lang="de">Zum Ausprobieren: <a href="__DEMO__">Demo öffnen</a>, ein pseudonymes Tier-Roster in dieser Ansicht.</span><span lang="en">To try it out: <a href="__DEMO__">open the demo</a>, a pseudonymous animal roster in this view.</span></p>
+      <p class="hint demo-link"><span lang="de">Zum Ausprobieren: <a href="__DEMO__">Demo öffnen</a>, ein pseudonymes Tier-Roster in dieser Ansicht.</span><span lang="en">To try it out: <a href="__DEMO__">open the demo</a>, a pseudonymous animal roster in this view.</span></p>
       <details>
         <summary><span lang="de">Zeilen aus Sammel-Mails hinzufügen</span><span lang="en">Add lines from sign-up mails</span></summary>
         <p class="hint" lang="de">Eine Zeile pro Person, so wie der Sammel-Link sie erzeugt: <code>Name; Email; Status; +N; Knows; Note</code>. Von Hand getippt darf nach dem Namen alles in beliebiger Reihenfolge kommen: E-Mail am @, Status am Wort, +N als Zahl, Knows als erste Liste von Handles mit Komma (dazu jeder bekannte Name, einzeln oder in einer weiteren Liste aus nur bekannten Namen), Doppeltes und ja/nein wird mit Warnung ignoriert, der Rest wird Notiz. Vorhandene Handles werden übersprungen; danach „Plan berechnen".</p>

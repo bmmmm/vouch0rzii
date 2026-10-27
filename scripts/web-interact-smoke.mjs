@@ -314,6 +314,20 @@ try {
   check('contrast: landing page with the intro shown', await js('!document.getElementById("intro").hidden'));
   await contrast('landing page');
 
+  // Start page: the demo is offered only while nothing is typed; a new event
+  // is one click away everywhere else.
+  const startState = () => js(`({
+    demoLinks: [...document.querySelectorAll('.demo-link')].map((n) => !n.hidden),
+    newEvent: !document.getElementById('newEvent').hidden, banner: !document.getElementById('demoBanner').hidden,
+    home: document.getElementById('home').href,
+  })`);
+  const fresh = await startState();
+  check('start: the untouched start page offers the demo, no new-event button, home link to itself', fresh.demoLinks.length === 3 && fresh.demoLinks.every(Boolean) && !fresh.newEvent && !fresh.banner && fresh.home === page, JSON.stringify(fresh));
+  await js(`(() => { const f = document.getElementById('f-name'); f.value = 'mine'; f.dispatchEvent(new Event('input', { bubbles: true })); })(); 0`);
+  const typedState = await startState();
+  check('start: once something is typed the demo link goes, new event comes', typedState.demoLinks.every((v) => !v) && typedState.newEvent, JSON.stringify(typedState));
+  await js(`document.getElementById('f-name').value = ''; 0`);
+
   // Chance: the draw is made visible. The first plan computed on the page
   // shuffles, opening a link does not; dice and super random work only
   // before the start; a roll is one undo step and the CLI draws the same.
@@ -437,15 +451,28 @@ try {
   let demoShuffled = false;
   for (let i = 0; i < 200 && !demoShuffled; i++) { demoShuffled = await js(`document.getElementById('matrix').classList.contains('shuffling')`).catch(() => false); if (!demoShuffled) await sleep(20); }
   check('chance: the demo opens on its plan, shuffling, with the hint shown', demoShuffled && (await js(`!document.getElementById('r-demo').hidden && Math.abs(document.getElementById('result').getBoundingClientRect().top) < 5`)));
-  check('chance: the address bar drops the demo flag', await js(`location.search === '' && location.hash.startsWith('#s=')`));
+  const onDemo = await startState();
+  check('demo: it keeps its flag and says so, no demo link, new event offered', (await js(`location.search === '?demo' && location.hash.startsWith('#s=')`)) && onDemo.banner && onDemo.newEvent && onDemo.demoLinks.every((v) => !v), JSON.stringify(onDemo));
   await calm();
   await js(`document.getElementById('r-nerd').open = true; 0`);
   await contrast('demo with its hint and the nerd panel');
   await js(`document.getElementById('roll').click(); 0`);
-  check('chance: after the first roll it is no longer the demo', await js(`document.getElementById('r-demo').hidden`));
-  await send('Page.navigate', { url: page + '?demo' + share('view').slice(share('view').indexOf('#')) }, sessionId); // view mode never rewrites the address
+  await calm();
+  check('demo: after a roll it is still the demo', await js(`location.search === '?demo' && !document.getElementById('demoBanner').hidden && !document.getElementById('r-demo').hidden`));
+  await js(`document.getElementById('f-seed').value = 'pending'; [...document.querySelectorAll('#demoBanner a')].find((a) => a.offsetParent).click(); 0`); // an edit not computed yet
+  await sleep(200);
+  for (let i = 0; i < 200 && !(await js('!!globalThis.vouch0rzii && !document.getElementById("intro").hidden').catch(() => false)); i++) await sleep(50);
+  const leftDemo = { ...(await startState()), ...(await js(`({ href: location.href, name: document.getElementById('f-name').value, roster: document.getElementById('roster').value.trim().split('\\n').length })`)) }; // the header line only
+  check('demo: "start your own event" opens the empty start page', leftDemo.href === page && leftDemo.name === '' && leftDemo.roster === 1 && !leftDemo.banner && leftDemo.demoLinks.every(Boolean) && !leftDemo.newEvent, JSON.stringify(leftDemo));
+  await js(`history.back(); 0`);
+  await sleep(200);
   for (let i = 0; i < 200 && !(await js('!!globalThis.vouch0rzii && !document.getElementById("result").hidden').catch(() => false)); i++) await sleep(50);
-  check('chance: links built on a ?demo page carry no demo flag', await js(`location.search === '?demo' && !document.getElementById('toBoard').href.includes('?demo')`));
+  check('demo: Back returns to the demo with the edit made before leaving', await js(`document.getElementById('f-seed').value === 'pending' && location.search === '?demo' && !document.getElementById('demoBanner').hidden`));
+  await send('Page.navigate', { url: page + '?demo&view' + share('view').slice(share('view').indexOf('#')) }, sessionId); // a new document; view mode never rewrites the address
+  await sleep(200);
+  for (let i = 0; i < 200 && !(await js('!!globalThis.vouch0rzii && !document.getElementById("result").hidden').catch(() => false)); i++) await sleep(50);
+  const onDemoView = await js(`({ search: location.search, board: document.getElementById('toBoard').href.slice(0, 120), mode: document.getElementById('modeLabel').textContent })`);
+  check('chance: links built on a ?demo page carry no demo flag', onDemoView.search === '?demo&view' && !onDemoView.board.includes('?demo'), JSON.stringify(onDemoView));
   await send('Page.navigate', { url: page + demoHref.replace('?demo', '?demo&again') }, sessionId); // a new document, so the demo starts for real
   await sleep(200);
   for (let i = 0; i < 200 && !(await js('!!globalThis.vouch0rzii && !document.getElementById("result").hidden').catch(() => false)); i++) await sleep(50);
@@ -454,7 +481,16 @@ try {
   const demoBefore = await js(`({ hint: !document.getElementById('r-demo').hidden, open: !document.getElementById('entropy').hidden, note: document.getElementById('r-randomnote').textContent })`);
   await js(`location.hash = ${JSON.stringify(link.slice(link.indexOf('#')))}; 0`);
   for (let i = 0; i < 100 && !(await js(`document.getElementById('r-demo').hidden`)); i++) await sleep(50);
-  check('chance: another link in the same tab is not the demo, starts without note or open super random', demoBefore.hint && demoBefore.open && demoBefore.note.startsWith('Gelost') && (await js(`document.getElementById('r-demo').hidden && document.getElementById('entropy').hidden && document.getElementById('r-randomnote').textContent === ''`)), JSON.stringify(demoBefore));
+  check('chance: another link in the same tab is not the demo, starts without note or open super random', demoBefore.hint && demoBefore.open && demoBefore.note.startsWith('Gelost') && (await js(`location.search === '' && document.getElementById('demoBanner').hidden && document.getElementById('r-demo').hidden && document.getElementById('entropy').hidden && document.getElementById('r-randomnote').textContent === ''`)), JSON.stringify(demoBefore));
+  await send('Page.navigate', { url: page + '?demo' }, sessionId); // the flag without a state
+  await sleep(200);
+  for (let i = 0; i < 200 && !(await js('!!globalThis.vouch0rzii && !document.getElementById("intro").hidden').catch(() => false)); i++) await sleep(50);
+  const bareDemo = await startState();
+  check('demo: ?demo without a state is the plain start page, the flag leaves the address', !bareDemo.banner && bareDemo.demoLinks.every(Boolean) && !bareDemo.newEvent && (await js(`location.search === ''`)), JSON.stringify(bareDemo));
+  await send('Page.navigate', { url: page + '?demo#s=broken' }, sessionId);
+  await sleep(200);
+  for (let i = 0; i < 200 && !(await js('!!globalThis.vouch0rzii && document.getElementById("loading").hidden').catch(() => false)); i++) await sleep(50);
+  check('demo: an unreadable demo link is no demo either', await js(`document.getElementById('demoBanner').hidden && location.search === ''`));
   await send('Page.navigate', { url: page + '?fresh' }, sessionId); // a new document: nothing computed yet
   await sleep(200);
   for (let i = 0; i < 200 && !(await js('!!globalThis.vouch0rzii && !document.getElementById("intro").hidden').catch(() => false)); i++) await sleep(50);
@@ -464,6 +500,8 @@ try {
     document.getElementById('compute').click();
   })(); 0`);
   check('chance: with nothing to draw the first plan does not shuffle and says why', !(await isShuffling()) && (await js(`document.getElementById('roll').disabled && document.getElementById('r-randomnote').textContent.startsWith('Nichts zu losen')`)));
+  const afterSolo = await startState(); // values were set without input events: the plan alone ends the start page
+  check('start: a computed plan ends the start page, even without typing', afterSolo.demoLinks.every((v) => !v) && afterSolo.newEvent, JSON.stringify(afterSolo));
 } catch (e) {
   check(`no exception: ${e.message}`, false);
 } finally {

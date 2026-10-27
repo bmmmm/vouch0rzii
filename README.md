@@ -143,7 +143,13 @@ extra slots, 7 vouchers → 7 days, voucher phase of 11 days with 30 slots
 free). Status, e-mail and
 connections are **placeholders**; the real values live only in your own links
 and files. The page's demo link is an admin link of this roster,
-generated at build time; the file itself is not part of the site.
+generated at build time; the file itself is not part of the site. It is
+offered only on the untouched start page, so nobody works in the demo by
+mistake: the demo opens on its shuffling plan and a banner says it is the
+demo for as long as `?demo` is in the address bar (links copied from it
+never carry the flag). The title and "＋ New event" always lead back to an
+empty start page; "New event" first puts pending edits into the link if
+they compute, so the browser's Back returns to the last computed state.
 
 ## Command line
 
