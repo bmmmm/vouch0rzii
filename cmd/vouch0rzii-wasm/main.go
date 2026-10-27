@@ -107,10 +107,17 @@ func parseRoster(_ js.Value, args []js.Value) any {
 	return ok(warnings, map[string]any{"peopleJson": string(b)})
 }
 
-// parseSignup(text) → {ok, errors, warnings, peopleJson}: sign-up lines, by
-// position or by content (plan.ParseSignup).
+// parseSignup(text, knownJson) → {ok, errors, warnings, peopleJson}: sign-up
+// lines, by position or by content (plan.ParseSignup); knownJson is an array
+// of the roster's handles.
 func parseSignup(_ js.Value, args []js.Value) any {
-	people, warnings, err := plan.ParseSignup(strArg(args, 0))
+	var known []string
+	if s := strings.TrimSpace(strArg(args, 1)); s != "" {
+		if err := json.Unmarshal([]byte(s), &known); err != nil {
+			return fail(err, nil)
+		}
+	}
+	people, warnings, err := plan.ParseSignup(strArg(args, 0), known)
 	if err != nil {
 		return fail(err, warnings)
 	}

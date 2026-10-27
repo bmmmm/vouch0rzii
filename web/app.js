@@ -783,14 +783,14 @@
     $('#addInbox').addEventListener('click', () => {
       const near = $('#addInbox').parentElement;
       if (!$('#inbox').value.trim()) return;
-      const r = bridge.parseSignup($('#inbox').value);
-      if (!r.ok) { showMessages(r.errors, r.warnings, near); return; }
       let current = [];
       if ($('#roster').value.trim()) {
         const cur = rosterToPeople();
         if (!cur) return;
         current = cur.people;
       }
+      const r = bridge.parseSignup($('#inbox').value, JSON.stringify(current.map((p) => p.id)));
+      if (!r.ok) { showMessages(r.errors, r.warnings, near); return; }
       const have = new Set(current.map((p) => p.id.toLowerCase()));
       const skipped = [];
       let added = 0;

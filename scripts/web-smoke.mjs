@@ -53,8 +53,10 @@ const tsv = bridge.formatRoster(JSON.stringify(ev.people));
 const parsed = bridge.parseRoster(tsv.tsv);
 check('roster TSV round trip', parsed.ok && JSON.stringify(JSON.parse(parsed.peopleJson)) === JSON.stringify(ev.people), JSON.stringify(parsed.errors));
 
-const signup = bridge.parseSignup('bananaaa ; hallo@babna.com ; mitglied ; no ; panda ; nein\n');
+const signup = bridge.parseSignup('bananaaa ; hallo@babna.com ; mitglied ; no ; panda ; nein\n', '["Panda"]');
 check('parseSignup reads a hand-typed line by content', signup.ok && JSON.stringify(JSON.parse(signup.peopleJson)) === '[{"id":"bananaaa","email":"hallo@babna.com","tier":"member","knows":["panda"]}]' && signup.warnings.length === 3, JSON.stringify(signup));
+const note = bridge.parseSignup('anna; Gast; Veganerin', '[]');
+check('parseSignup keeps a single unknown word as the note', note.ok && JSON.parse(note.peopleJson)[0].note === 'Veganerin' && !JSON.parse(note.peopleJson)[0].knows && note.warnings.some((w) => w.includes('no known handle')), JSON.stringify(note));
 check('parseSignup names the line in errors', !bridge.parseSignup('\n; x@example.org').ok && bridge.parseSignup('\n; x@example.org').errors[0].startsWith('line 2:'));
 
 const state = { v: 1, mode: 'view', event: ev, pins: JSON.parse(planned.exportJson).pins };
