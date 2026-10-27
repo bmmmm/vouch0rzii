@@ -50,6 +50,7 @@ check('empty page: wasm loaded, loading note hidden', home.includes('<p id="load
 check('empty page: version shown', /Version \S+/.test(home));
 const demo = (home.match(/href="(#s=[A-Za-z0-9_-]+)"/) || [])[1];
 check('empty page: demo link present', !!demo);
+check('empty page: intro visible', home.includes('<p id="intro" class="intro">'));
 check('empty page: no error box', noError(home));
 
 const demoDom = dom(page + demo);
@@ -63,6 +64,8 @@ check('admin: one sheet row per slot', (admin.match(/data-who=/g) || []).length 
 check('admin: live status lists every voucher', (admin.match(/<li class="live"/g) || []).length === 7);
 check('admin: status buttons on every sheet row', (admin.match(/<button type="button" class="badge st-open"/g) || []).length === 47);
 check('admin: freeze and extra-voucher controls present', admin.includes('id="freezeToday"') && admin.includes('id="f-extra"'));
+check('admin: matrix cells keyboard-focusable', (admin.match(/tabindex="0"/g) || []).length >= 47);
+check('admin: intro hidden once a plan exists', admin.includes('<p id="intro" class="intro" hidden=""'));
 check('admin: share buttons visible', admin.includes('<nav id="sharebar">'));
 check('admin: no error box', noError(admin));
 const fp = (html) => (html.match(/id="fingerprint"[^>]*>([^<]*)</) || [])[1] || '';

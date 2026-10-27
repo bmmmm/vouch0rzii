@@ -7,6 +7,7 @@
         content="default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self'; img-src 'self' data:; connect-src 'self'; base-uri 'none'; form-action 'none'">
   <meta name="description" content="Voucher-Kettenplaner für Event-Vorverkäufe. Läuft komplett im Browser, nichts wird gespeichert oder gesendet.">
   <title>vouch0rzii — Voucher-Kettenplaner</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ctext y='54' font-size='56'%3E%F0%9F%8E%9F%3C/text%3E%3C/svg%3E">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -27,6 +28,7 @@
   <div id="messages" aria-live="polite"></div>
 
   <section id="editor" hidden>
+    <p id="intro" class="intro">So geht's: <b>1</b> Event-Daten eintragen · <b>2</b> Roster aus der Tabelle einfügen · <b>3</b> Plan berechnen · <b>4</b> Admin-Link für dich sichern, Viewer-Link teilen. Oder erst die <a href="__DEMO__">Demo</a> ansehen.</p>
     <form id="settings" class="card" autocomplete="off">
       <h2>Event</h2>
       <div class="grid">
@@ -56,6 +58,8 @@
           <dt>Pins</dt><dd>Manuell festgenagelte Slots. Im Plan Zelle anklicken, dann Zielzelle: leer heißt festnageln, belegt heißt tauschen. Pins wandern mit dem Link.</dd>
           <dt>Bis heute festnageln</dt><dd>Pinnt alle Slots bis einschließlich heute. Danach ändern Roster-Änderungen nur noch die Zukunft; die Vergangenheit bleibt, wie sie passiert ist.</dd>
           <dt>Kennung</dt><dd>Die vier Emojis im Kopf sind ein Fingerabdruck aus Einstellungen, Roster und Platzierung. Gleiche Emojis, gleicher Plan; so erkennen Admins veraltete Links.</dd>
+          <dt>Status</dt><dd>Hängt am Slot-Namen. Wer einen Handle umbenennt, setzt dessen Status zurück.</dd>
+          <dt>Link je Person</dt><dd>In der Tabelle unten kopiert „Link" einen Viewer-Link, der die Zeilen dieser Person sofort hervorhebt.</dd>
         </dl>
       </details>
     </form>
@@ -145,7 +149,7 @@
       <h2>Übergaben je Abend</h2>
       <div id="handovers"></div>
     </div>
-    <div class="card">
+    <div class="card" id="sheets-card">
       <div class="row">
         <h2>Wer, wann, von wem, an wen</h2>
         <span class="spacer"></span>
@@ -158,7 +162,7 @@
 
 <footer>
   <p>Nichts wird an einen Server gesendet. Der Link ist die Datenbank: wer ihn hat, hat das Roster, und der Browserverlauf merkt sich den Link.
-    <span id="version"></span> · <a href="https://github.com/bmmmm/vouch0rzii">Quelltext</a> · GPL-3.0-or-later</p>
+    <span id="version"></span> · <a href="https://github.com/bmmmm/vouch0rzii">Quelltext</a> · GPL-3.0-or-later · <a href="https://ko-fi.com/bmabma">Ko-fi</a></p>
 </footer>
 
 <div id="toast" hidden></div>

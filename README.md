@@ -79,7 +79,9 @@ so two people can tell at a glance whether they look at the same plan.
   live status and the frozen plan (every slot pinned), so it renders
   identically on any later version. Filter "Ich bin …" to find your row; the
   Mail link prepares the handover mail to the next person, "melden" a status
-  report to the organisers.
+  report to the organisers. Admins can copy a personal viewer link per
+  person ("Link" in the sheet table) that highlights that person's rows.
+  The viewer prints as a clean sheet: matrix, handovers, who-when-whom.
 - **Sammeln / collect**: a sign-up form for people interested in a voucher.
   It carries only the event settings and the organiser's address; the result
   is one line (`Name; E-Mail; Status; +N; Kreditkarte; Kennt; Notiz`) that is
@@ -128,9 +130,12 @@ node scripts/web-browser-smoke.mjs             # headless Chrome over web/dist, 
 cd web/dist && python3 -m http.server 8077     # then open http://localhost:8077/ (file:// cannot fetch)
 ```
 
-`scripts/web-smoke.mjs` proves the wasm build plans byte-equal to the CLI;
+`scripts/web-smoke.mjs` proves the wasm build plans byte-equal to the CLI and
+pins the privacy contract (CSP, no storage, no external resources);
 `scripts/web-browser-smoke.mjs` loads the page in headless Chrome and checks
-the DOM of the empty page and of an admin, a viewer and a collect link.
+the DOM of the empty page and of a demo, an admin, a viewer and a collect
+link. Agent instructions live in `AGENTS.md`, the security policy in
+`SECURITY.md`, notable changes in `CHANGELOG.md`.
 Layout: `internal/plan` (model, codecs, scheduling, assignment, rendering,
 share state), `main.go` (CLI), `cmd/vouch0rzii-wasm` (browser bridge),
 `web/` (page), `events/` (examples).

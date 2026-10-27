@@ -62,5 +62,17 @@ const bad = bridge.decodeState('not-a-state');
 check('decodeState rejects garbage', bad.ok === false && bad.errors.length === 1);
 check('version string present', typeof bridge.version === 'string' && bridge.version.length > 0);
 
+// --- privacy contract (README: nothing leaves the page except through the
+// links, mails and downloads the user triggers; the fragment is the only store)
+const html = readFileSync(join(root, 'web', 'index.html'), 'utf8');
+const js = readFileSync(join(root, 'web', 'app.js'), 'utf8');
+const csp = "default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self'; img-src 'self' data:; connect-src 'self'; base-uri 'none'; form-action 'none'";
+check('privacy: CSP pinned literally', html.includes(`content="${csp}"`));
+check('privacy: no storage APIs', !/localStorage|sessionStorage|indexedDB|document\.cookie|caches\./.test(js));
+check('privacy: fetch only loads the wasm', (js.match(/fetch\(/g) || []).length === 2 && !/fetch\((?!'vouch0rzii\.wasm')/.test(js));
+check('privacy: no beacons, sockets or XHR', !/sendBeacon|WebSocket|XMLHttpRequest|EventSource/.test(js));
+check('privacy: no external resources in the page', !/<(script|link|img|iframe)[^>]+(src|href)="(https?:)?\/\//.test(html));
+check('privacy: one HTML string sink, the plan SVG', (js.match(/innerHTML/g) || []).length === 1 && js.includes('innerHTML = plan.svg'));
+
 console.log(failures ? `\n${failures} check(s) failed` : '\nall web smoke checks passed');
 process.exit(failures ? 1 : 0);

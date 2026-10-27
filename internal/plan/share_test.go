@@ -65,6 +65,17 @@ func TestViewStateCarriesNoNotesButStatusAndOrgaAddress(t *testing.T) {
 	if got.Collect == nil || got.Collect.To != "orga@example.org" || got.Status["a"] != "bought" || got.StatusAt == "" {
 		t.Fatalf("view state must keep status and the organisers' address: %+v", got)
 	}
+	enc, err = EncodeState(&State{Mode: ModeView, Event: e, Me: "a"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, _ = DecodeState(enc); got.Me != "a" {
+		t.Fatalf("personal link lost me: %+v", got)
+	}
+	enc, _ = EncodeState(&State{Mode: ModeCollect, Event: e, Me: "a"})
+	if got, _ = DecodeState(enc); got.Me != "" {
+		t.Fatal("collect links must not carry me")
+	}
 	if e.People[0].Note != "private" {
 		t.Fatal("EncodeState must not mutate the caller's event")
 	}

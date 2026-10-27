@@ -33,6 +33,7 @@ type State struct {
 	Collect  *Collect          `json:"collect,omitempty"`
 	Status   map[string]string `json:"status,omitempty"`   // slot label → open|received|bought|passed, curated by admins
 	StatusAt string            `json:"statusAt,omitempty"` // when Status last changed, set by the page
+	Me       string            `json:"me,omitempty"`       // personal viewer link: handle to highlight
 }
 
 // Collect holds the organisers' address: sign-up lines and status reports
@@ -59,7 +60,7 @@ func EncodeState(st *State) (string, error) {
 			ev.People = nil
 			out.Event = &ev
 		}
-		out.Pins, out.Status, out.StatusAt = nil, nil, ""
+		out.Pins, out.Status, out.StatusAt, out.Me = nil, nil, "", ""
 	case ModeView:
 		if out.Event != nil {
 			ev := *out.Event

@@ -113,6 +113,17 @@ button.badge { cursor: pointer; font: inherit; font-size: .8rem; }
   #matrix td.cell.st-received { background: #1f3447; }
   #matrix td.cell.st-bought { background: #1f3b2c; }
 }
+.intro { background: var(--pin); border-radius: 8px; padding: .6rem .9rem; margin: 1rem 0 0; }
+.intro b { display: inline-block; min-width: 1.3em; text-align: center; border-radius: 50%; background: var(--accent); color: var(--accent-ink); font-size: .8em; }
+#matrix td.cell:focus { outline: 3px solid var(--select); outline-offset: -3px; }
+@media print {
+  html { font-size: 10.5px; background: #fff; color: #000; }
+  header nav, #editor, #collect, #r-pinhelp, button, .button, #toast, p.hint, label.inline, #matrix .extra, footer { display: none !important; }
+  .card { border: none; padding: 0; margin: 0 0 1rem; break-inside: avoid; }
+  #sheets-card { break-before: page; }
+  a { color: inherit; text-decoration: none; }
+  th, td { border-color: #999; }
+}
 #toast { position: fixed; left: 50%; bottom: 1.5rem; transform: translateX(-50%); background: var(--ink); color: var(--bg); padding: .5rem 1rem; border-radius: 8px; font-size: .9rem; }
 #loading { color: var(--muted); }
 @media (max-width: 640px) { html { font-size: 14px; } header { align-items: start; } }

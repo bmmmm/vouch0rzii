@@ -31,7 +31,7 @@
   const STATUS = ['open', 'received', 'bought', 'passed'];
   const STATUS_LABEL = { open: 'offen', received: 'Voucher da', bought: 'Ticket gekauft', passed: 'weitergegeben' };
 
-  const emptyState = () => ({ v: 1, mode: 'admin', event: { ...DEFAULT_EVENT }, pins: [], collect: { to: '' }, status: {}, statusAt: '' });
+  const emptyState = () => ({ v: 1, mode: 'admin', event: { ...DEFAULT_EVENT }, pins: [], collect: { to: '' }, status: {}, statusAt: '', me: '' });
   let bridge = null;
   let state = emptyState();
   let plan = null;      // last export plus exportJson/markdown/csv/svg
@@ -281,6 +281,7 @@
   // ---------- rendering
   function renderResult() {
     $('#result').hidden = !plan;
+    $('#intro').hidden = !!plan;
     $('#fingerprint').textContent = plan ? plan.fingerprint : '';
     if (!plan) return;
     const s = plan.stats;
@@ -308,7 +309,7 @@
     const days = plan.days.slice();
     if (editable) days.push({ day: days.length + 1, date: '', label: '+ Tag', extra: true });
 
-    const head = el('tr', {}, el('th', {}, 'Voucher'), days.map((d) => el('th', { class: d.date === now ? 'today' : null }, d.label, d.date && el('small', {}, d.date))));
+    const head = el('tr', {}, el('th', {}, 'Voucher'), days.map((d) => el('th', { class: d.extra ? 'extra' : d.date === now ? 'today' : null }, d.label, d.date && el('small', {}, d.date))));
     const rows = [];
     for (let v = 1; v <= plan.vouchers; v++) {
       const tds = days.map((d) => {
@@ -326,9 +327,12 @@
         if (label && statusOf(label) !== 'open') cls.push('st-' + statusOf(label));
         if (selected && label && selected.label === label) cls.push('selected');
         const title = label ? `${h ? `${h.from} → ${h.to}` : 'bekommt den Voucher von der Orga'} · ${STATUS_LABEL[statusOf(label)]}` : '';
-        const td = el('td', { class: cls.join(' '), draggable: editable && label ? 'true' : null, title }, label || (editable ? '·' : ''));
+        const td = el('td', { class: cls.join(' '), draggable: editable && label ? 'true' : null, tabindex: editable ? '0' : null, title }, label || (editable ? '·' : ''));
         if (editable) {
           td.addEventListener('click', () => onCellPick(cell));
+          td.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onCellPick(cell); } else if (e.key === 'Escape' && selected) { selected = null; renderMatrix(); }
+          });
           if (label) {
             td.addEventListener('dragstart', (e) => { selected = cell; e.dataTransfer.setData('text/plain', label); e.dataTransfer.effectAllowed = 'move'; });
             td.addEventListener('dragend', () => { if (selected) { selected = null; renderMatrix(); } });
@@ -407,7 +411,8 @@
         el('td', {}, s.from, s.fromEmail && el('small', {}, el('br'), s.fromEmail)),
         el('td', {}, s.to || '— Kette endet', s.toEmail && el('small', {}, el('br'), s.toEmail)),
         el('td', {}, badge, report && [' ', el('a', { href: report, title: 'Statusmeldung an die Orga vorbereiten' }, 'melden')]),
-        el('td', {}, mail && el('a', { href: mail, title: 'Mail an die nächste Person vorbereiten' }, 'Mail')),
+        el('td', {}, mail && el('a', { href: mail, title: 'Mail an die nächste Person vorbereiten' }, 'Mail'),
+          admin && [' ', el('button', { type: 'button', class: 'small', title: `Viewer-Link, der die Zeilen von ${s.person} hervorhebt`, onclick: () => copy(linkFor('view', { pins: plan.pins, me: s.person }), `Link für ${s.person}`) }, 'Link')]),
       );
     });
     table.replaceChildren(el('thead', {}, head), el('tbody', {}, rows));
@@ -437,6 +442,7 @@
     }
     eventToForm();
     peopleToRoster(state.event.people);
+    if (state.me) $('#who').value = state.me;
     if (state.event.people && state.event.people.length) computePlan({ fromForm: false });
   }
 
@@ -549,7 +555,7 @@
       if (st) {
         state = {
           ...emptyState(), mode: st.mode || 'admin', event: { ...DEFAULT_EVENT, ...(st.event || {}) },
-          pins: st.pins || [], collect: st.collect || { to: '' }, status: st.status || {}, statusAt: st.statusAt || '',
+          pins: st.pins || [], collect: st.collect || { to: '' }, status: st.status || {}, statusAt: st.statusAt || '', me: st.me || '',
         };
       }
       selected = null;
