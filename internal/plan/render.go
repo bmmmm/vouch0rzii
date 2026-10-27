@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
-	"unicode/utf8"
 )
 
 // Export is the serialisable view of a plan: what the CLI prints as JSON and
@@ -50,7 +49,6 @@ type Sheet struct {
 	Label     string `json:"label"`
 	Person    string `json:"person"`
 	Email     string `json:"email,omitempty"`
-	Tier      string `json:"tier"`
 	Card      bool   `json:"card,omitempty"`
 	Day       int    `json:"day"`
 	Date      string `json:"date"`
@@ -86,12 +84,13 @@ func (p *Plan) dayLabel(d int) string {
 // ToExport flattens the plan.
 func (p *Plan) ToExport() *Export {
 	ex := &Export{
-		Event:    p.Event.Name,
-		Vouchers: p.Event.Vouchers,
-		Handover: p.Event.HandoverOrDefault(),
-		Pins:     Freeze(p),
-		Stats:    p.Stats,
-		Warnings: append([]string{}, p.Warnings...),
+		Event:     p.Event.Name,
+		Vouchers:  p.Event.Vouchers,
+		Handover:  p.Event.HandoverOrDefault(),
+		Handovers: []HandoverExport{},
+		Pins:      Freeze(p),
+		Stats:     p.Stats,
+		Warnings:  append([]string{}, p.Warnings...),
 	}
 	for d := range p.Grid {
 		ex.Days = append(ex.Days, DayExport{Day: d + 1, Date: p.Dates[d], Label: p.dayLabel(d + 1)})
@@ -116,10 +115,9 @@ func (p *Plan) ToExport() *Export {
 			if s == nil {
 				continue
 			}
-			q := p.Event.Person(s.PersonID)
 			sh := Sheet{Label: s.Label, Person: s.PersonID, Day: d + 1, Date: p.Dates[d], Voucher: v + 1, Pinned: s.Pinned, From: OrgaLabel}
-			if q != nil {
-				sh.Email, sh.Tier, sh.Card = q.Email, q.Tier.String(), q.Card
+			if q := p.Event.Person(s.PersonID); q != nil {
+				sh.Email, sh.Card = q.Email, q.Card
 			}
 			if prev := prevHolder(p.Grid, d+1, v+1); prev != nil {
 				sh.From, sh.FromEmail = prev.Label, p.email(prev)
@@ -129,12 +127,6 @@ func (p *Plan) ToExport() *Export {
 			}
 			ex.Sheets = append(ex.Sheets, sh)
 		}
-	}
-	if ex.Handovers == nil {
-		ex.Handovers = []HandoverExport{}
-	}
-	if ex.Warnings == nil {
-		ex.Warnings = []string{}
 	}
 	return ex
 }
@@ -148,105 +140,26 @@ func (p *Plan) JSON() ([]byte, error) {
 	return append(b, '\n'), nil
 }
 
-func pad(s string, w int) string {
-	if n := utf8.RuneCountInString(s); n < w {
-		return s + strings.Repeat(" ", w-n)
-	}
-	return s
-}
-
-// Text renders the matrix (vouchers × days), the evening handovers per day,
-// the statistics and the warnings as plain text for terminals.
-func (p *Plan) Text() string {
-	ex := p.ToExport()
-	var b strings.Builder
-	fmt.Fprintf(&b, "%s — %d vouchers, %d days, %d slots, handover %s\n\n", ex.Event, ex.Vouchers, ex.Stats.Days, ex.Stats.Slots, ex.Handover)
-	w := 0
-	for _, row := range ex.Grid {
-		for _, c := range row {
-			if n := utf8.RuneCountInString(c); n > w {
-				w = n
-			}
-		}
-	}
-	for _, d := range ex.Days {
-		if n := utf8.RuneCountInString(d.Label); n > w {
-			w = n
-		}
-	}
-	b.WriteString(pad("Voucher", 8))
-	for _, d := range ex.Days {
-		b.WriteString("  " + pad(d.Label, w))
-	}
-	b.WriteByte('\n')
-	for v := 1; v <= ex.Vouchers; v++ {
-		b.WriteString(pad(fmt.Sprint(v), 8))
-		for d := range ex.Days {
-			cell := ex.Grid[d][v-1]
-			if cell == "" {
-				cell = "·"
-			}
-			if s := p.Grid[d][v-1]; s != nil && s.Pinned {
-				cell += "*"
-			}
-			b.WriteString("  " + pad(cell, w))
-		}
-		b.WriteByte('\n')
-	}
-	b.WriteString("\nHandovers (* = pinned, ✓ = know each other, ! = direct to own +N):\n")
-	day := 0
-	for _, h := range ex.Handovers {
-		if h.Day != day {
-			day = h.Day
-			fmt.Fprintf(&b, "%s %s\n", ex.Days[day-1].Label, ex.Handover)
-		}
-		mark := " "
-		if h.Known {
-			mark = "✓"
-		}
-		if h.Forbidden {
-			mark = "!"
-		}
-		fmt.Fprintf(&b, "  V%d %s %s → %s", h.Voucher, mark, h.From, h.To)
-		if h.ToEmail != "" {
-			fmt.Fprintf(&b, " <%s>", h.ToEmail)
-		}
-		b.WriteByte('\n')
-	}
-	fmt.Fprintf(&b, "\nHandovers: %d, between people who know each other: %d, strangers: %d", ex.Stats.Handovers, ex.Stats.Known, ex.Stats.Unknown)
-	if ex.Stats.Forbidden > 0 {
-		fmt.Fprintf(&b, ", direct to own +N: %d", ex.Stats.Forbidden)
-	}
-	if ex.Stats.Pinned > 0 {
-		fmt.Fprintf(&b, ", pinned: %d", ex.Stats.Pinned)
-	}
-	b.WriteByte('\n')
-	for _, wmsg := range ex.Warnings {
-		fmt.Fprintf(&b, "warning: %s\n", wmsg)
-	}
-	return b.String()
-}
-
-// Markdown renders the matrix and the handovers per day as Markdown.
+// Markdown renders the matrix (vouchers × days, pinned cells bold), the
+// evening handovers per day, the statistics and the warnings.
 func (p *Plan) Markdown() string {
-	ex := p.ToExport()
 	var b strings.Builder
-	fmt.Fprintf(&b, "# %s\n\n%d vouchers, %d days, %d slots, handover at %s.\n\n", ex.Event, ex.Vouchers, ex.Stats.Days, ex.Stats.Slots, ex.Handover)
+	s := p.Stats
+	fmt.Fprintf(&b, "# %s\n\n%d vouchers, %d days, %d slots, handover at %s.\n\n", p.Event.Name, p.Event.Vouchers, s.Days, s.Slots, p.Event.HandoverOrDefault())
 	b.WriteString("| Voucher |")
-	for _, d := range ex.Days {
-		fmt.Fprintf(&b, " %s |", d.Label)
+	for d := range p.Grid {
+		fmt.Fprintf(&b, " %s |", p.dayLabel(d+1))
 	}
-	b.WriteString("\n|---|")
-	for range ex.Days {
-		b.WriteString("---|")
-	}
-	b.WriteByte('\n')
-	for v := 1; v <= ex.Vouchers; v++ {
+	b.WriteString("\n|---|" + strings.Repeat("---|", len(p.Grid)) + "\n")
+	for v := 1; v <= p.Event.Vouchers; v++ {
 		fmt.Fprintf(&b, "| %d |", v)
-		for d := range ex.Days {
-			cell := ex.Grid[d][v-1]
-			if s := p.Grid[d][v-1]; s != nil && s.Pinned {
-				cell = "**" + cell + "**"
+		for d := range p.Grid {
+			cell := ""
+			if slot := p.Grid[d][v-1]; slot != nil {
+				cell = slot.Label
+				if slot.Pinned {
+					cell = "**" + cell + "**"
+				}
 			}
 			fmt.Fprintf(&b, " %s |", cell)
 		}
@@ -254,14 +167,17 @@ func (p *Plan) Markdown() string {
 	}
 	b.WriteString("\n## Handovers\n")
 	day := 0
-	for _, h := range ex.Handovers {
+	for _, h := range p.Handovers {
 		if h.Day != day {
 			day = h.Day
-			fmt.Fprintf(&b, "\n**%s, %s**\n\n", ex.Days[day-1].Label, ex.Handover)
+			fmt.Fprintf(&b, "\n**%s, %s**\n\n", p.dayLabel(day), p.Event.HandoverOrDefault())
 		}
-		fmt.Fprintf(&b, "- Voucher %d: %s → %s", h.Voucher, h.From, h.To)
-		if h.ToEmail != "" {
-			fmt.Fprintf(&b, " (%s)", h.ToEmail)
+		fmt.Fprintf(&b, "- Voucher %d: %s → %s", h.Voucher, h.From.Label, h.To.Label)
+		if e := p.email(h.To); e != "" {
+			fmt.Fprintf(&b, " (%s)", e)
+		}
+		if h.To.Day != h.Day+1 {
+			fmt.Fprintf(&b, ", buys on %s", p.dayLabel(h.To.Day))
 		}
 		if h.Known {
 			b.WriteString(" ✓")
@@ -271,8 +187,8 @@ func (p *Plan) Markdown() string {
 		}
 		b.WriteByte('\n')
 	}
-	fmt.Fprintf(&b, "\n%d handovers, %d between people who know each other, %d between strangers.\n", ex.Stats.Handovers, ex.Stats.Known, ex.Stats.Unknown)
-	for _, w := range ex.Warnings {
+	fmt.Fprintf(&b, "\n%d handovers, %d between people who know each other, %d between strangers.\n", s.Handovers, s.Known, s.Unknown)
+	for _, w := range p.Warnings {
 		fmt.Fprintf(&b, "\n> ⚠ %s\n", w)
 	}
 	return b.String()
@@ -281,17 +197,19 @@ func (p *Plan) Markdown() string {
 // CSV renders the matrix semicolon-separated, one row per voucher, for
 // spreadsheets.
 func (p *Plan) CSV() string {
-	ex := p.ToExport()
 	var b strings.Builder
 	b.WriteString("Voucher")
-	for _, d := range ex.Days {
-		fmt.Fprintf(&b, ";%s %s", d.Label, d.Date)
+	for d := range p.Grid {
+		fmt.Fprintf(&b, ";%s %s", p.dayLabel(d+1), p.Dates[d])
 	}
 	b.WriteByte('\n')
-	for v := 1; v <= ex.Vouchers; v++ {
+	for v := 1; v <= p.Event.Vouchers; v++ {
 		fmt.Fprint(&b, v)
-		for d := range ex.Days {
-			b.WriteString(";" + ex.Grid[d][v-1])
+		for d := range p.Grid {
+			b.WriteByte(';')
+			if s := p.Grid[d][v-1]; s != nil {
+				b.WriteString(s.Label)
+			}
 		}
 		b.WriteByte('\n')
 	}

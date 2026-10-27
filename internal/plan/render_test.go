@@ -17,21 +17,24 @@ func renderEvent() *Event {
 	return mkEvent(2, ps...)
 }
 
-func TestMarkdownAndTextContainMatrixAndHandovers(t *testing.T) {
+func TestMarkdownAndCSV(t *testing.T) {
 	p := mustCompute(t, renderEvent(), nil)
 	md := p.Markdown()
-	for _, want := range []string{"| Voucher | Fr 30.10. | Mo 02.11. |", "| 1 | a | c |", "| 2 | b | a+1 |", "- Voucher 1: a → c (c@example.org)", "- Voucher 2: b → a+1 (a@example.org)"} {
+	for _, want := range []string{
+		"# t\n\n2 vouchers, 2 days, 4 slots, handover at 23:00.",
+		"| Voucher | Fr 30.10. | Mo 02.11. |",
+		"| 1 | a | c |",
+		"| 2 | b | a+1 |",
+		"**Fr 30.10., 23:00**",
+		"- Voucher 1: a → c (c@example.org)\n",
+		"- Voucher 2: b → a+1 (a@example.org)\n",
+		"2 handovers, 0 between people who know each other, 2 between strangers.",
+	} {
 		if !strings.Contains(md, want) {
 			t.Errorf("markdown missing %q:\n%s", want, md)
 		}
 	}
-	txt := p.Text()
-	for _, want := range []string{"2 vouchers, 2 days, 4 slots", "a → c", "b → a+1 <a@example.org>", "strangers: 2"} {
-		if !strings.Contains(txt, want) {
-			t.Errorf("text missing %q:\n%s", want, txt)
-		}
-	}
-	if csv := p.CSV(); !strings.HasPrefix(csv, "Voucher;Fr 30.10. 2026-10-30;Mo 02.11. 2026-11-02\n1;a;c\n2;b;a+1\n") {
+	if csv := p.CSV(); csv != "Voucher;Fr 30.10. 2026-10-30;Mo 02.11. 2026-11-02\n1;a;c\n2;b;a+1\n" {
 		t.Errorf("csv:\n%s", csv)
 	}
 }
@@ -61,7 +64,14 @@ func TestJSONExport(t *testing.T) {
 	if ex.Sheets[0].From != OrgaLabel {
 		t.Fatalf("first holder should receive from %s: %+v", OrgaLabel, ex.Sheets[0])
 	}
-	if ex.Warnings == nil || ex.Handovers == nil {
-		t.Fatal("empty lists must serialise as [] not null")
+	// A one-day plan has no handovers and no warnings; both must be [] in JSON.
+	one, err := mustCompute(t, mkEvent(2, ordered("a", "b")...), nil).JSON()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{`"handovers": []`, `"warnings": []`} {
+		if !strings.Contains(string(one), want) {
+			t.Errorf("missing %s in\n%s", want, one)
+		}
 	}
 }

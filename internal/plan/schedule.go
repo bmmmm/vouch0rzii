@@ -29,12 +29,13 @@ func newRand(seed string) *rand.Rand {
 //  3. the overflow (+k beyond PlusMax, group exceptions only), by sponsor rank
 //     and then k.
 //
-// The lot depends only on the seed and the set of IDs per tier, so adding a
-// guest never reshuffles the members.
+// Each tier is drawn with its own generator (seed + tier name), so the lot of a
+// tier depends only on the seed and that tier's IDs: adding a guest never
+// reshuffles the members.
 func buildSlots(e *Event) []*Slot {
-	rng := newRand(e.SeedOrDefault())
 	var named []*Person
 	for tier := TierMember; tier <= TierAcquaintance; tier++ {
+		rng := newRand(e.SeedOrDefault() + "/" + tier.String())
 		var fixed, drawn []*Person
 		for i := range e.People {
 			p := &e.People[i]
@@ -101,7 +102,7 @@ func placeSlots(e *Event, slots []*Slot, pins []Pin) (grid [][]*Slot, warnings [
 		case !ok:
 			warnings = append(warnings, fmt.Sprintf("pin %s: no such slot, dropped", pin.Label))
 			continue
-		case pin.Day < 1 || pin.Voucher < 1 || pin.Voucher > v:
+		case pin.Day < 1 || pin.Day > MaxDays || pin.Voucher < 1 || pin.Voucher > v:
 			warnings = append(warnings, fmt.Sprintf("pin %s: cell day %d / voucher %d outside the plan, dropped", pin.Label, pin.Day, pin.Voucher))
 			continue
 		case s.Pinned:
@@ -115,6 +116,9 @@ func placeSlots(e *Event, slots []*Slot, pins []Pin) (grid [][]*Slot, warnings [
 		if pin.Day > days {
 			days = pin.Day
 		}
+	}
+	if days > MaxDays {
+		return nil, nil, fmt.Errorf("plan would need %d days, more than %d", days, MaxDays)
 	}
 	if minDays := (len(slots) + v - 1) / v; days > minDays {
 		warnings = append(warnings, fmt.Sprintf("pins stretch the plan to %d days, %d would do", days, minDays))

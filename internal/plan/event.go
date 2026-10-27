@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"sort"
 	"strings"
@@ -34,6 +35,9 @@ func ParseEvent(b []byte) (*Event, error) {
 	if err := dec.Decode(&e); err != nil {
 		return nil, fmt.Errorf("event: %w", err)
 	}
+	if _, err := dec.Token(); err != io.EOF {
+		return nil, errors.New("event: trailing data after the JSON object")
+	}
 	return &e, nil
 }
 
@@ -55,8 +59,8 @@ func Normalize(e *Event) (warnings []string, err error) {
 	if strings.TrimSpace(e.Name) == "" {
 		errs = append(errs, errors.New("event name missing"))
 	}
-	if e.Vouchers < 1 {
-		errs = append(errs, fmt.Errorf("vouchers must be at least 1, got %d", e.Vouchers))
+	if e.Vouchers < 1 || e.Vouchers > MaxVouchers {
+		errs = append(errs, fmt.Errorf("vouchers must be between 1 and %d, got %d", MaxVouchers, e.Vouchers))
 	}
 	if e.PlusMax < 0 {
 		errs = append(errs, fmt.Errorf("plusMax must not be negative, got %d", e.PlusMax))
@@ -68,6 +72,8 @@ func Normalize(e *Event) (warnings []string, err error) {
 	}
 	if len(e.People) == 0 {
 		errs = append(errs, errors.New("no people"))
+	} else if len(e.People) > MaxPeople {
+		errs = append(errs, fmt.Errorf("%d people, more than %d", len(e.People), MaxPeople))
 	}
 
 	plusMax := e.PlusMaxOrDefault()
@@ -80,16 +86,16 @@ func Normalize(e *Event) (warnings []string, err error) {
 		case p.ID == "":
 			errs = append(errs, fmt.Errorf("person %d: empty id", i+1))
 			continue
-		case strings.ContainsAny(p.ID, "+\t\n;,"):
-			errs = append(errs, fmt.Errorf("%s: id must not contain '+', ';', ',' or whitespace breaks", p.ID))
+		case strings.ContainsAny(p.ID, "+;,|\t\n"):
+			errs = append(errs, fmt.Errorf("%s: id must not contain + ; , |", p.ID))
 		}
 		if j, dup := seen[strings.ToLower(p.ID)]; dup {
 			errs = append(errs, fmt.Errorf("%s: duplicate id (rows %d and %d)", p.ID, j+1, i+1))
 		} else {
 			seen[strings.ToLower(p.ID)] = i
 		}
-		if p.Plus < 0 {
-			errs = append(errs, fmt.Errorf("%s: plus must not be negative", p.ID))
+		if p.Plus < 0 || p.Plus > MaxPlus {
+			errs = append(errs, fmt.Errorf("%s: plus must be between 0 and %d", p.ID, MaxPlus))
 		}
 		if p.Plus > plusMax && !p.Group {
 			errs = append(errs, fmt.Errorf("%s: +%d exceeds the limit of +%d; set group for an exception", p.ID, p.Plus, plusMax))

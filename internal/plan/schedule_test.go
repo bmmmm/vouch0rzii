@@ -168,6 +168,37 @@ func TestPinWarningsAndErrors(t *testing.T) {
 	}
 }
 
+func TestHandoversCrossIdleDays(t *testing.T) {
+	// a holds voucher 1 on day 1, nobody on day 2, b (pinned) on day 3: the
+	// handover a → b happens on the evening of day 1 and b buys on day 3.
+	p := mustCompute(t, mkEvent(1, ordered("a", "b")...), []Pin{{Label: "b", Day: 3, Voucher: 1}})
+	if p.Stats.Handovers != 1 || p.Handovers[0].Day != 1 || p.Handovers[0].To.Label != "b" {
+		t.Fatalf("handovers %+v", p.Handovers)
+	}
+	if ex := p.ToExport(); ex.Sheets[1].From != "a" || ex.Handovers[0].Date != "2026-10-30" {
+		t.Fatalf("export %+v", ex)
+	}
+	if md := p.Markdown(); !strings.Contains(md, "- Voucher 1: a → b, buys on Di 03.11.") {
+		t.Fatalf("markdown:\n%s", md)
+	}
+	ps := ordered("a")
+	ps[0].Plus = 1
+	p = mustCompute(t, mkEvent(1, ps...), []Pin{{Label: "a+1", Day: 3, Voucher: 1}})
+	if p.Stats.Forbidden != 1 {
+		t.Fatalf("forbidden handover across an idle day not counted: %+v", p.Stats)
+	}
+}
+
+func TestDayLimit(t *testing.T) {
+	p := mustCompute(t, mkEvent(2, members(4)...), []Pin{{Label: "m00", Day: MaxDays + 1, Voucher: 1}})
+	if p.Stats.Days != 2 || !strings.Contains(strings.Join(p.Warnings, "\n"), "outside the plan") {
+		t.Fatalf("pin beyond MaxDays should be dropped: days %d, warnings %v", p.Stats.Days, p.Warnings)
+	}
+	if _, err := Compute(mkEvent(1, members(MaxDays+1)...), nil); err == nil || !strings.Contains(err.Error(), "more than 400") {
+		t.Fatalf("too many days must fail, got %v", err)
+	}
+}
+
 func TestFreezeReproducesPlanUnderAnotherSeed(t *testing.T) {
 	ps := members(11)
 	ps[3].Plus = 2

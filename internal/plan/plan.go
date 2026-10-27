@@ -2,7 +2,10 @@
 
 package plan
 
-import "fmt"
+import (
+	"fmt"
+	"sort"
+)
 
 // Compute normalises the event and builds the plan. Pins fix slots to cells
 // before the automatic placement fills the rest. The returned plan carries all
@@ -26,17 +29,29 @@ func Compute(e *Event, pins []Pin) (*Plan, error) {
 	for _, t := range Dates(start, len(grid), e.Weekends) {
 		p.Dates = append(p.Dates, t.Format(DateLayout))
 	}
-	for d := 1; d < len(grid); d++ {
+	// Every holder except the first of a chain receives the voucher from the
+	// previous holder, even across days on which the voucher idles.
+	for d := 1; d <= len(grid); d++ {
 		for v := 1; v <= e.Vouchers; v++ {
-			from, to := grid[d-1][v-1], grid[d][v-1]
-			if from == nil || to == nil {
+			to := grid[d-1][v-1]
+			if to == nil {
+				continue
+			}
+			from := prevHolder(grid, d, v)
+			if from == nil {
 				continue
 			}
 			c := edgeCost(e, from, to)
-			h := Handover{Day: d, Voucher: v, From: from, To: to, Known: c == costKnown, Forbidden: c == costForbidden}
-			p.Handovers = append(p.Handovers, h)
+			p.Handovers = append(p.Handovers, Handover{Day: from.Day, Voucher: v, From: from, To: to, Known: c == costKnown, Forbidden: c == costForbidden})
 		}
 	}
+	sort.SliceStable(p.Handovers, func(i, j int) bool {
+		a, b := p.Handovers[i], p.Handovers[j]
+		if a.Day != b.Day {
+			return a.Day < b.Day
+		}
+		return a.Voucher < b.Voucher
+	})
 	p.Stats = Stats{Days: len(grid), Slots: len(slots), Handovers: len(p.Handovers)}
 	for _, h := range p.Handovers {
 		switch {

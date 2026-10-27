@@ -17,7 +17,10 @@ func TestNormalizeErrors(t *testing.T) {
 		{"duplicate id", mkEvent(1, Person{ID: "Alpha"}, Person{ID: "alpha"}), "duplicate id"},
 		{"plus over max", mkEvent(1, Person{ID: "a", Plus: 3}), "exceeds the limit of +2"},
 		{"plus sign in id", mkEvent(1, Person{ID: "a+b"}), "must not contain"},
-		{"no vouchers", mkEvent(0, Person{ID: "a"}), "vouchers must be at least 1"},
+		{"no vouchers", mkEvent(0, Person{ID: "a"}), "vouchers must be between 1 and 200"},
+		{"too many vouchers", mkEvent(MaxVouchers+1, Person{ID: "a"}), "vouchers must be between 1 and 200"},
+		{"plus too big", mkEvent(1, Person{ID: "a", Plus: MaxPlus + 1, Group: true}), "plus must be between 0 and 200"},
+		{"pipe in id", mkEvent(1, Person{ID: "a|b"}), "must not contain"},
 		{"bad date", &Event{Name: "t", Vouchers: 1, Start: "30.10.2026", People: []Person{{ID: "a"}}}, "YYYY-MM-DD"},
 		{"no people", mkEvent(1), "no people"},
 		{"no name", &Event{Vouchers: 1, Start: "2026-10-30", People: []Person{{ID: "a"}}}, "name missing"},
@@ -76,6 +79,9 @@ func TestNormalizeKnowsSymmetricAndCleaned(t *testing.T) {
 func TestParseEventRejectsUnknownFields(t *testing.T) {
 	if _, err := ParseEvent([]byte(`{"name":"t","vouchers":1,"start":"2026-10-30","peple":[]}`)); err == nil {
 		t.Fatal("typo in field name must fail")
+	}
+	if _, err := ParseEvent([]byte(`{"name":"t","vouchers":1,"start":"2026-10-30","people":[]} {}`)); err == nil || !strings.Contains(err.Error(), "trailing data") {
+		t.Fatalf("trailing data must fail, got %v", err)
 	}
 	e, err := ParseEvent([]byte(`{"name":"t","vouchers":1,"start":"2026-10-30","people":[{"id":"a","tier":"Gast"}]}`))
 	if err != nil {

@@ -48,6 +48,25 @@ func TestCollectStateCarriesNoRoster(t *testing.T) {
 	}
 }
 
+func TestViewStateCarriesNoNotesAndNoOrgaAddress(t *testing.T) {
+	e := mkEvent(2, ordered("a", "b")...)
+	e.People[0].Note = "private"
+	enc, err := EncodeState(&State{Mode: ModeView, Event: e, Pins: []Pin{{Label: "a", Day: 1, Voucher: 1}}, Collect: &Collect{To: "orga@example.org"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := DecodeState(enc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got.Event.People) != 2 || got.Event.People[0].Note != "" || got.Collect != nil || len(got.Pins) != 1 {
+		t.Fatalf("view state: %+v", got)
+	}
+	if e.People[0].Note != "private" {
+		t.Fatal("EncodeState must not mutate the caller's event")
+	}
+}
+
 func rawState(js string) string {
 	var buf bytes.Buffer
 	w, _ := flate.NewWriter(&buf, flate.BestCompression)

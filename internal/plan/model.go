@@ -11,10 +11,15 @@ import (
 	"strings"
 )
 
-// Defaults applied when an Event leaves a field empty.
+// Defaults and bounds. The bounds keep the cubic assignment, the grid and the
+// share link small enough for a browser tab.
 const (
 	DefaultPlusMax  = 2
 	DefaultHandover = "23:00"
+	MaxVouchers     = 200
+	MaxPeople       = 2000
+	MaxPlus         = 200
+	MaxDays         = 400
 )
 
 // Tier is the membership status of a named person. Lower tiers are served
@@ -31,12 +36,9 @@ var tierNames = [...]string{"member", "guest", "acquaintance"}
 
 // tierAliases maps lower-cased spellings (German and English) to a tier.
 var tierAliases = map[string]Tier{
-	"member": TierMember, "mitglied": TierMember, "m": TierMember,
+	"member": TierMember, "mitglied": TierMember,
 	"guest": TierGuest, "gast": TierGuest, "häufiger gast": TierGuest,
-	"haeufiger gast": TierGuest, "(häufiger) gast": TierGuest, "g": TierGuest,
 	"acquaintance": TierAcquaintance, "bekanntschaft": TierAcquaintance,
-	"bekannt": TierAcquaintance, "bekannte": TierAcquaintance,
-	"bekannter": TierAcquaintance, "a": TierAcquaintance, "b": TierAcquaintance,
 }
 
 // String returns the canonical English name.
@@ -67,8 +69,8 @@ func (t *Tier) UnmarshalText(b []byte) error {
 }
 
 // Person is one named participant. IDs are handles and must be unique; they
-// must not contain '+', which separates the handle from the +k suffix in slot
-// labels.
+// must not contain '+' (slot label suffix), ';' and ',' (roster delimiters)
+// or '|' (Markdown tables).
 type Person struct {
 	ID    string   `json:"id"`
 	Email string   `json:"email,omitempty"`
@@ -78,7 +80,7 @@ type Person struct {
 	Group bool     `json:"group,omitempty"` // represents a larger group: Plus may exceed PlusMax, own +k may follow each other
 	Order int      `json:"order,omitempty"` // manual position within the tier; 0 = drawn by lot
 	Knows []string `json:"knows,omitempty"` // IDs of people this person knows; made symmetric on load
-	Note  string   `json:"note,omitempty"`
+	Note  string   `json:"note,omitempty"`  // free text from the sign-up form; never in viewer links
 }
 
 // Event is the per-event configuration plus the roster. It is the canonical
@@ -155,24 +157,11 @@ func SlotLabel(id string, k int) string {
 	return fmt.Sprintf("%s+%d", id, k)
 }
 
-// ParseSlotLabel splits "alpha+2" into ("alpha", 2) and "alpha" into
-// ("alpha", 0). The suffix must be a positive integer.
-func ParseSlotLabel(label string) (id string, k int, err error) {
-	label = strings.TrimSpace(label)
-	i := strings.LastIndexByte(label, '+')
-	if i < 0 {
-		return label, 0, nil
-	}
-	if _, err := fmt.Sscanf(label[i+1:], "%d", &k); err != nil || k <= 0 || fmt.Sprint(k) != label[i+1:] {
-		return "", 0, fmt.Errorf("bad slot label %q", label)
-	}
-	return label[:i], k, nil
-}
-
-// Handover is one evening transfer of a voucher from the holder of day d to
-// the holder of day d+1 in the same chain.
+// Handover is one evening transfer of a voucher: on the evening of Day the
+// holder From passes it to To, who holds it next in the same chain — on the
+// following day, or later if the voucher idles for a day in between.
 type Handover struct {
-	Day       int // the evening of this day
+	Day       int
 	Voucher   int
 	From, To  *Slot
 	Known     bool // the two know each other
@@ -191,13 +180,13 @@ type Stats struct {
 }
 
 // Plan is the computed result. Grid[d-1][v-1] is the slot of voucher v on day
-// d, or nil when the chain has ended.
+// d, or nil when the voucher idles or the chain has ended.
 type Plan struct {
 	Event     *Event
 	Dates     []string // YYYY-MM-DD per day
 	Slots     []*Slot  // in priority order
 	Grid      [][]*Slot
-	Handovers []Handover
+	Handovers []Handover // sorted by day, then voucher
 	Warnings  []string
 	Stats     Stats
 }

@@ -43,18 +43,32 @@ type Collect struct {
 const maxStateBytes = 4 << 20
 
 // EncodeState serialises a state as base64url(deflate(json)) for a URL
-// fragment. Collect states are stripped of roster and pins.
+// fragment. Collect states carry no roster and no pins; view states carry no
+// notes and no organiser address.
 func EncodeState(st *State) (string, error) {
-	if st.Mode != ModeAdmin && st.Mode != ModeView && st.Mode != ModeCollect {
-		return "", fmt.Errorf("unknown mode %q", st.Mode)
-	}
 	out := *st
 	out.V = StateVersion
-	if out.Mode == ModeCollect && out.Event != nil {
-		ev := *out.Event
-		ev.People = nil
-		out.Event = &ev
+	switch out.Mode {
+	case ModeAdmin:
+	case ModeCollect:
+		if out.Event != nil {
+			ev := *out.Event
+			ev.People = nil
+			out.Event = &ev
+		}
 		out.Pins = nil
+	case ModeView:
+		if out.Event != nil {
+			ev := *out.Event
+			ev.People = append([]Person(nil), ev.People...)
+			for i := range ev.People {
+				ev.People[i].Note = ""
+			}
+			out.Event = &ev
+		}
+		out.Collect = nil
+	default:
+		return "", fmt.Errorf("unknown mode %q", st.Mode)
 	}
 	js, err := json.Marshal(&out)
 	if err != nil {

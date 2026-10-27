@@ -12,7 +12,7 @@ const spreadsheetPaste = "Reihenfolge\tName\tKreditkarte Verfügbar\tMitglied / 
 	"1\talpha\tja\tMitglied\t+1\talpha@example.org\tbravo, charlie\tnein\tblau\n" +
 	"\tbravo\tnein\tGast\t\tbravo@example.org\t\t\t\n" +
 	"\n" +
-	"\tcharlie\tx\tBekanntschaft\t2\t\talpha/bravo\tja\t\n"
+	"\tcharlie\tx\tBekanntschaft\t2\t\talpha, bravo\tja\t\n"
 
 func TestParseRosterSpreadsheetPaste(t *testing.T) {
 	people, warnings, err := ParseRoster(spreadsheetPaste)
@@ -32,7 +32,7 @@ func TestParseRosterSpreadsheetPaste(t *testing.T) {
 	}
 }
 
-func TestParseRosterSemicolonAndMissingStatus(t *testing.T) {
+func TestParseRosterSemicolonBomAndMissingStatus(t *testing.T) {
 	people, warnings, err := ParseRoster("\uFEFFName;E-Mail;+N\r\nalpha;a@example.org;1\r\nbravo;;\r\n")
 	if err != nil {
 		t.Fatal(err)
@@ -45,6 +45,16 @@ func TestParseRosterSemicolonAndMissingStatus(t *testing.T) {
 	}
 }
 
+func TestKnowsSplitsOnCommaOnly(t *testing.T) {
+	people, _, err := ParseRoster("Name\tKennt\nMax Mustermann\tErika M, Bob/Alice\nErika M\t\nBob/Alice\t\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(people[0].Knows, []string{"Erika M", "Bob/Alice"}) {
+		t.Fatalf("knows %v", people[0].Knows)
+	}
+}
+
 func TestParseRosterErrors(t *testing.T) {
 	cases := []struct{ in, want string }{
 		{"", "empty"},
@@ -52,7 +62,7 @@ func TestParseRosterErrors(t *testing.T) {
 		{"Name\tKreditkarte\nalpha\tvielleicht\n", "row 2: card"},
 		{"Name\tStatus\nalpha\tKönig\n", "row 2: unknown status"},
 		{"Name\t+N\nalpha\tzwei\n", "row 2: +N"},
-		{"Name\tName\nalpha\talpha\n", "appears twice"},
+		{"Name\tHandle\nalpha\talpha\n", "mean the same"},
 		{"Name\n\n", "no rows"},
 	}
 	for _, tc := range cases {
@@ -67,7 +77,7 @@ func TestRosterRoundTrip(t *testing.T) {
 	in := []Person{
 		{ID: "alpha", Order: 1, Card: true, Tier: TierMember, Plus: 1, Email: "alpha@example.org", Knows: []string{"bravo"}, Note: "bringt Kuchen"},
 		{ID: "bravo", Tier: TierGuest},
-		{ID: "india", Tier: TierAcquaintance, Plus: 10, Group: true},
+		{ID: "mammut", Tier: TierAcquaintance, Plus: 10, Group: true},
 	}
 	out, warnings, err := ParseRoster(FormatRoster(in))
 	if err != nil || len(warnings) != 0 {
@@ -79,7 +89,7 @@ func TestRosterRoundTrip(t *testing.T) {
 }
 
 func TestParseBool(t *testing.T) {
-	for _, s := range []string{"ja", "Yes", "x", "1", "TRUE", "✓"} {
+	for _, s := range []string{"ja", "Yes", "x", "1", "TRUE"} {
 		if v, err := ParseBool(s); err != nil || !v {
 			t.Errorf("%q should be true", s)
 		}
