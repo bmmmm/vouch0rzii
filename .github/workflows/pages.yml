@@ -1,0 +1,58 @@
+name: pages
+
+# Builds the static web version (web/ + cmd/vouch0rzii-wasm + events/) and
+# publishes it to GitHub Pages. The site is fully static: no server code, no
+# storage; the URL fragment carries the state. The same build and smoke gate
+# also run in ci.yml on PRs. Action pins verified 2026-10-27.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions: {}
+
+# Never abort a running deployment: a cancelled deploy-pages can leave the
+# site in a failed state until the next run finishes.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    # Runs repo code (build script, smoke test), so it gets read access only;
+    # the deploy job alone holds the Pages/OIDC rights.
+    permissions:
+      contents: read
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0 # git describe needs the tags for the version stamp
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+      - name: Build site and prove it matches the CLI
+        run: |
+          go build -o vouch0rzii .
+          scripts/build-web.sh
+          node scripts/web-smoke.mjs
+      - uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: web/dist
+
+  deploy:
+    needs: build
+    permissions:
+      pages: write
+      id-token: write
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1

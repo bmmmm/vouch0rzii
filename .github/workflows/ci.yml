@@ -1,0 +1,33 @@
+# Gates on every push and PR: gofmt, vet, tests, CLI build, then the web
+# build (cmd/vouch0rzii-wasm is tagged js&&wasm, so `go vet ./...` never sees
+# it) and the smoke gate that proves the wasm plans byte-equal to the CLI.
+# Action pins verified 2026-10-27 against releases/latest.
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+      - name: gofmt
+        run: test -z "$(gofmt -l .)" || { gofmt -l .; exit 1; }
+      - run: go vet ./...
+      - run: go test ./...
+      - run: go build -o vouch0rzii .
+      - name: Web build + smoke
+        run: |
+          GOOS=js GOARCH=wasm go vet ./cmd/vouch0rzii-wasm
+          scripts/build-web.sh
+          node scripts/web-smoke.mjs

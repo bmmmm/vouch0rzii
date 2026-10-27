@@ -1,0 +1,23 @@
+# The `dependencies` label is referenced explicitly — create it once per repo
+# (`gh label create dependencies --color 0366d6`) or dependabot's first PR
+# warns. On dual-remote mirror repos, dependabot PRs are adopted locally via
+# the dependabot-adopt skill, never merged on the GitHub UI.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    commit-message:
+      prefix: chore(deps)
+    labels:
+      - dependencies
+
+  - package-ecosystem: gomod
+    directory: /
+    schedule:
+      interval: monthly
+    commit-message:
+      prefix: chore(deps)
+    labels:
+      - dependencies

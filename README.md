@@ -1,0 +1,109 @@
+# vouch0rzii
+
+Voucher chain planner for event presales (Congress, Easterhegg, Camp, …).
+
+A group holds a handful of vouchers. Each voucher buys one ticket per day and
+is handed on by e-mail in the evening, so every voucher is a chain of people.
+vouch0rzii turns a roster into that plan: who holds which voucher on which day
+and hands it to whom, with as few days as possible and as many handovers as
+possible between people who already know each other.
+
+Everything runs in the browser (Go compiled to WebAssembly) or on the command
+line with the same code. Nothing is stored or sent anywhere: the share link
+*is* the data.
+
+## Rules the planner follows
+
+1. **As few days as possible.** With `V` vouchers and `N` ticket slots the plan
+   has `ceil(N / V)` days. Weekends are skipped unless the event says otherwise.
+2. **Tiers.** Named people first — members, then frequent guests, then
+   acquaintances. After all named people come everybody's +1, then everybody's
+   +2, each round ordered by the sponsor's position. Within a tier the order is
+   drawn by lot with a fixed seed (reproducible; change the seed for a new
+   draw). A manual `Reihenfolge`/`order` number overrides the lot.
+3. **+N is capped at 2** unless the person carries the group flag (they
+   represent a larger group). Their surplus (+3, +4, …) comes last. A person
+   never hands the voucher directly to their own +N — unless they have the
+   group flag, then their block may run back to back.
+4. **Connections.** For each day the assignment person → voucher is chosen so
+   that as many handovers as possible happen between people who know each
+   other (`Kennt`/`knows`). +N slots stand in for their sponsor. Without manual
+   pins this day-by-day optimum is already the global optimum; with pins a
+   2-opt pass cleans up around them.
+5. **Credit card** is shown as an emergency fallback only and never affects
+   the plan (instant SEPA transfers are the default).
+6. **Pins.** In the admin view a slot can be moved to another cell or swapped
+   with another slot. Pins are kept in the link and respected before the
+   automatic placement fills the rest.
+
+## Roster columns
+
+Paste from a spreadsheet; the header row is matched by name, German or
+English, in any order:
+
+| Column | Aliases | Values |
+|---|---|---|
+| `Reihenfolge` | order, nr | manual position within the tier, empty = lot |
+| `Name` | handle, id | unique, no `+` |
+| `Kreditkarte` | card | ja/nein, x, 1/0 |
+| `Status` | tier, "Mitglied / (Häufiger) Gast / Bekanntschaft" | Mitglied, Gast, Bekanntschaft |
+| `+N` | plus | number of extra people |
+| `E-Mail` | email, mail | contact for the handover |
+| `Kennt` | knows, connections | handles, comma separated |
+| `Gruppe` | group | ja = may exceed +N max, block allowed |
+| `Notiz` | note | free text |
+
+## Links and modes
+
+The page keeps its whole state in the URL fragment (`#s=…`,
+base64url-encoded deflated JSON). Three modes, all views on the same data —
+**not** access control: whoever has a link has what is in it.
+
+- **Admin**: edit settings and roster, compute, pin cells, copy links.
+- **Viewer**: the plan only, frozen (every slot pinned), so it renders
+  identically on any later version. Filter "Ich bin …" to find your row; the
+  Mail link prepares the handover mail to the next person.
+- **Sammeln / collect**: a sign-up form for people interested in a voucher.
+  It carries only the event settings and the organiser's address; the result
+  is one line (`Name; E-Mail; Status; +N; Kreditkarte; Kennt; Notiz`) that is
+  mailed or copied to the organiser, who pastes it into "Zeilen aus
+  Sammel-Mails hinzufügen".
+
+## Example
+
+`events/congress2026.json` is a pseudonymised real roster (25 named people,
+NATO alphabet, 22 extra slots, 7 vouchers → 7 days). Status, credit card,
+e-mail and connections are **placeholders**; the real values live only in
+your own links and files.
+
+## Command line
+
+```
+go install github.com/bmmmm/vouch0rzii@latest
+
+vouch0rzii -event events/congress2026.json              # text matrix + handovers
+vouch0rzii -event events/congress2026.json -format md    # md | csv | json | event | roster
+vouch0rzii -event e.json -roster paste.tsv               # roster from a spreadsheet paste
+vouch0rzii -event e.json -pins pins.json -seed other     # manual pins, new draw
+vouch0rzii -event e.json -share view                     # frozen viewer link
+vouch0rzii -event e.json -share collect -to orga@example.org
+```
+
+Exit status 2 means the input was rejected; the reasons are on stderr.
+
+## Development
+
+```
+go test ./... && go vet ./... && GOOS=js GOARCH=wasm go vet ./cmd/vouch0rzii-wasm
+go build -o vouch0rzii . && scripts/build-web.sh && node scripts/web-smoke.mjs
+cd web/dist && python3 -m http.server 8077     # then open http://localhost:8077/
+```
+
+`scripts/web-smoke.mjs` proves the wasm build plans byte-equal to the CLI.
+Layout: `internal/plan` (model, codecs, scheduling, assignment, rendering,
+share state), `main.go` (CLI), `cmd/vouch0rzii-wasm` (browser bridge),
+`web/` (page), `events/` (examples).
+
+## License
+
+GPL-3.0-or-later, see `LICENSE`.
