@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self'; img-src 'self' data:; connect-src 'self'; base-uri 'none'; form-action 'none'">
+  <meta name="description" content="Voucher-Kettenplaner für Event-Vorverkäufe. Läuft komplett im Browser, nichts wird gespeichert oder gesendet.">
+  <title>vouch0rzii — Voucher-Kettenplaner</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+  <div class="brand">
+    <h1>vouch0rzii</h1>
+    <p class="tagline">Voucher-Kettenplaner · <span id="modeLabel"></span></p>
+  </div>
+  <nav id="sharebar" hidden>
+    <button type="button" id="copyAdmin" title="Dieser Link enthält Roster, Einstellungen und Pins">Admin-Link kopieren</button>
+    <button type="button" id="copyView" title="Eingefrorener Plan zum Weitergeben">Viewer-Link kopieren</button>
+    <button type="button" id="copyCollect" title="Formular für Interessierte, ohne Roster">Sammel-Link kopieren</button>
+  </nav>
+</header>
+
+<main>
+  <p id="loading">Planer wird geladen …</p>
+  <div id="messages" aria-live="polite"></div>
+
+  <section id="editor" hidden>
+    <form id="settings" class="card" autocomplete="off">
+      <h2>Event</h2>
+      <div class="grid">
+        <label>Name <input id="f-name" required placeholder="congress2026"></label>
+        <label>Vouchers <input id="f-vouchers" type="number" min="1" max="99" value="7" required></label>
+        <label>Tag 1 <input id="f-start" type="date" required></label>
+        <label>+N max <input id="f-plusMax" type="number" min="0" max="20" value="2"></label>
+        <label>Seed <input id="f-seed" placeholder="leer = Name"></label>
+        <label>Übergabe um <input id="f-handover" value="23:00" placeholder="23:00"></label>
+        <label>Orga-Adresse <input id="f-collectTo" type="email" placeholder="für den Sammel-Link"></label>
+        <label class="check"><input id="f-weekends" type="checkbox"> auch Sa/So planen</label>
+      </div>
+    </form>
+
+    <section class="card">
+      <h2>Roster</h2>
+      <p class="hint">Aus der Tabelle einfügen. Erste Zeile ist die Kopfzeile, Spalten in beliebiger Reihenfolge:
+        <code>Reihenfolge</code> <code>Name</code> <code>Kreditkarte</code> <code>Status</code> <code>+N</code> <code>E-Mail</code> <code>Kennt</code> <code>Gruppe</code> <code>Notiz</code>.
+        Status: Mitglied, Gast, Bekanntschaft. Gruppe = ja erlaubt mehr als +N max.</p>
+      <textarea id="roster" rows="12" spellcheck="false" placeholder="Reihenfolge	Name	Kreditkarte	Status	+N	E-Mail	Kennt	Gruppe	Notiz
+	alpha	nein	Mitglied	1	alpha@example.org	bravo, charlie	nein	"></textarea>
+      <div class="row">
+        <button type="button" id="compute" class="primary">Plan berechnen</button>
+        <span class="spacer"></span>
+        <select id="examples" title="Beispiel-Events aus dem Repo"></select>
+        <button type="button" id="loadExample">Beispiel laden</button>
+        <label class="file">Event-Datei laden <input id="loadFile" type="file" accept=".json,application/json"></label>
+        <button type="button" id="saveFile">Event-Datei speichern</button>
+      </div>
+      <details>
+        <summary>Zeilen aus Sammel-Mails hinzufügen</summary>
+        <p class="hint">Eine Zeile pro Person, so wie der Sammel-Link sie erzeugt: <code>Name; E-Mail; Status; +N; Kreditkarte; Kennt; Notiz</code>. Vorhandene Handles werden übersprungen.</p>
+        <textarea id="inbox" rows="4" spellcheck="false"></textarea>
+        <div class="row"><button type="button" id="addInbox">Zum Roster hinzufügen</button></div>
+      </details>
+    </section>
+  </section>
+
+  <section id="collect" class="card" hidden>
+    <h2>Interesse an einem Voucher für <span id="c-event"></span></h2>
+    <p class="hint">Fülle das Formular aus, erzeuge die Zeile und schick sie an die Orga. Diese Seite speichert nichts.</p>
+    <form id="collectForm" autocomplete="on">
+      <div class="grid">
+        <label>Handle <input id="c-handle" required placeholder="wie man dich kennt"></label>
+        <label>E-Mail <input id="c-email" type="email" required></label>
+        <label>Status
+          <select id="c-tier"><option value="Mitglied">Mitglied</option><option value="Gast">häufiger Gast</option><option value="Bekanntschaft">Bekanntschaft</option></select>
+        </label>
+        <label>+N (zusätzliche Personen) <input id="c-plus" type="number" min="0" max="20" value="0"></label>
+        <label>Kennt (Handles, mit Komma) <input id="c-knows" placeholder="alpha, bravo"></label>
+        <label>Notiz <input id="c-note"></label>
+        <label class="check"><input id="c-card" type="checkbox"> Kreditkarte für den Notfall vorhanden</label>
+      </div>
+      <div class="row">
+        <button type="submit" class="primary">Zeile erzeugen</button>
+      </div>
+    </form>
+    <div id="collectOut" hidden>
+      <textarea id="c-line" rows="2" readonly></textarea>
+      <div class="row">
+        <a id="c-mail" class="button primary" href="#">An Orga senden</a>
+        <button type="button" id="c-copy">Zeile kopieren</button>
+      </div>
+    </div>
+  </section>
+
+  <section id="result" hidden>
+    <div class="card">
+      <div class="row">
+        <h2 id="r-title">Plan</h2>
+        <span class="spacer"></span>
+        <button type="button" id="copyMd">Markdown kopieren</button>
+        <button type="button" id="copyText">Text kopieren</button>
+        <button type="button" id="dlCsv">CSV</button>
+        <button type="button" id="dlJson">JSON</button>
+      </div>
+      <p id="r-stats" class="stats"></p>
+      <p id="r-pinhelp" class="hint" hidden>Zelle anklicken oder ziehen, dann Zielzelle: leer = festnageln, belegt = tauschen. Gepinnte Zellen sind fett, × löst den Pin.
+        <button type="button" id="unpinAll" class="small">Alle Pins lösen</button></p>
+      <div class="scroll"><table id="matrix"></table></div>
+      <p class="legend"><span class="sw known"></span> Übergabe unter Bekannten <span class="sw stranger"></span> unter Fremden <span class="sw forbidden"></span> direkt an eigene +N</p>
+    </div>
+    <div class="card">
+      <h2>Übergaben je Abend</h2>
+      <div id="handovers"></div>
+    </div>
+    <div class="card">
+      <div class="row">
+        <h2>Wer, wann, von wem, an wen</h2>
+        <span class="spacer"></span>
+        <label class="inline">Ich bin <input id="who" placeholder="Handle"></label>
+      </div>
+      <div class="scroll"><table id="sheets"></table></div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <p>Alles bleibt im Browser, nichts wird gesendet oder gespeichert. Der Link enthält die Daten: wer ihn hat, hat das Roster.
+    <span id="version"></span> · <a href="https://github.com/bmmmm/vouch0rzii">Quelltext</a> · GPL-3.0-or-later</p>
+</footer>
+
+<div id="toast" hidden></div>
+<script src="wasm_exec.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
