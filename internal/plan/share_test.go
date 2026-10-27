@@ -32,7 +32,7 @@ func TestStateRoundTrip(t *testing.T) {
 
 func TestCollectStateCarriesNoRoster(t *testing.T) {
 	e := mkEvent(2, ordered("a", "b")...)
-	enc, err := EncodeState(&State{Mode: ModeCollect, Event: e, Pins: []Pin{{Label: "a", Day: 1, Voucher: 1}}, Collect: &Collect{To: "orga@example.org"}})
+	enc, err := EncodeState(&State{Mode: ModeCollect, Event: e, Pins: []Pin{{Label: "a", Day: 1, Voucher: 1}}, Collect: &Collect{To: "orga@example.org"}, Status: map[string]string{"a": "bought"}, StatusAt: "2026-10-27T12:00:00Z"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -40,18 +40,18 @@ func TestCollectStateCarriesNoRoster(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(got.Event.People) != 0 || got.Pins != nil || got.Event.Name != "t" || got.Collect.To != "orga@example.org" {
-		t.Fatalf("collect state leaks roster: %+v", got)
+	if len(got.Event.People) != 0 || got.Pins != nil || got.Status != nil || got.StatusAt != "" || got.Event.Name != "t" || got.Collect.To != "orga@example.org" {
+		t.Fatalf("collect state leaks roster or status: %+v", got)
 	}
 	if len(e.People) != 2 {
 		t.Fatal("EncodeState must not mutate the caller's event")
 	}
 }
 
-func TestViewStateCarriesNoNotesAndNoOrgaAddress(t *testing.T) {
+func TestViewStateCarriesNoNotesButStatusAndOrgaAddress(t *testing.T) {
 	e := mkEvent(2, ordered("a", "b")...)
 	e.People[0].Note = "private"
-	enc, err := EncodeState(&State{Mode: ModeView, Event: e, Pins: []Pin{{Label: "a", Day: 1, Voucher: 1}}, Collect: &Collect{To: "orga@example.org"}})
+	enc, err := EncodeState(&State{Mode: ModeView, Event: e, Pins: []Pin{{Label: "a", Day: 1, Voucher: 1}}, Collect: &Collect{To: "orga@example.org"}, Status: map[string]string{"a": "bought"}, StatusAt: "2026-10-27T12:00:00Z"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -59,8 +59,11 @@ func TestViewStateCarriesNoNotesAndNoOrgaAddress(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(got.Event.People) != 2 || got.Event.People[0].Note != "" || got.Collect != nil || len(got.Pins) != 1 {
+	if len(got.Event.People) != 2 || got.Event.People[0].Note != "" || len(got.Pins) != 1 {
 		t.Fatalf("view state: %+v", got)
+	}
+	if got.Collect == nil || got.Collect.To != "orga@example.org" || got.Status["a"] != "bought" || got.StatusAt == "" {
+		t.Fatalf("view state must keep status and the organisers' address: %+v", got)
 	}
 	if e.People[0].Note != "private" {
 		t.Fatal("EncodeState must not mutate the caller's event")

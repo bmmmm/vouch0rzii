@@ -30,15 +30,30 @@
     <form id="settings" class="card" autocomplete="off">
       <h2>Event</h2>
       <div class="grid">
-        <label>Name <input id="f-name" required placeholder="congress2026"></label>
-        <label>Vouchers <input id="f-vouchers" type="number" min="1" max="99" value="7" required></label>
-        <label>Tag 1 <input id="f-start" type="date" required></label>
-        <label>+N max <input id="f-plusMax" type="number" min="1" max="20" value="2"></label>
-        <label>Seed <input id="f-seed" placeholder="leer = Name"></label>
-        <label>Übergabe um <input id="f-handover" value="23:00" placeholder="23:00"></label>
-        <label>Orga-Adresse <input id="f-collectTo" type="email" placeholder="für den Sammel-Link"></label>
-        <label class="check"><input id="f-weekends" type="checkbox"> auch Sa/So planen</label>
+        <label title="Erscheint in Links, Mails und Exporten. Ohne Seed ist der Name auch der Seed der Losung.">Name <input id="f-name" required placeholder="congress2026"></label>
+        <label title="Wie viele Voucher gleichzeitig im Umlauf sind. Jeder Voucher ist eine eigene Kette von Personen.">Vouchers <input id="f-vouchers" type="number" min="1" max="200" value="7" required></label>
+        <label title="Datum des ersten Kauftags. Danach ein Kauftag pro Tag, Wochenenden nur mit Häkchen.">Tag 1 <input id="f-start" type="date" required></label>
+        <label title="Wie viele zusätzliche Personen (+1, +2 …) jemand normal mitbringen darf. Mehr nur mit Gruppe = ja im Roster.">+N max <input id="f-plusMax" type="number" min="1" max="20" value="2"></label>
+        <label title="Startwert der Losung innerhalb einer Stufe. Gleicher Seed, gleiche Reihenfolge. Anderer Seed, neue Losung. Leer = Event-Name.">Seed <input id="f-seed" placeholder="leer = Name"></label>
+        <label title="Uhrzeit, zu der der Voucher abends weitergegeben wird. Reine Anzeige in Listen und Mails.">Übergabe um <input id="f-handover" value="23:00" placeholder="23:00"></label>
+        <label title="E-Mail der Orga. Dorthin gehen Sammel-Zeilen und Statusmeldungen; steht im Sammel- und im Viewer-Link.">Orga-Adresse <input id="f-collectTo" type="email" placeholder="für Sammel-Link und Statusmeldungen"></label>
+        <label class="check" title="Samstag und Sonntag als Kauftage nutzen."><input id="f-weekends" type="checkbox"> auch Sa/So planen</label>
       </div>
+      <details class="help">
+        <summary>Was bedeuten die Felder?</summary>
+        <dl>
+          <dt>Name</dt><dd>Name des Events. Erscheint in Links, Mails und Exporten und ist ohne Seed auch der Seed der Losung.</dd>
+          <dt>Vouchers</dt><dd>Wie viele Voucher gleichzeitig im Umlauf sind. Jeder Voucher ist eine Kette: eine Person pro Tag, abends Übergabe an die nächste.</dd>
+          <dt>Tag 1</dt><dd>Datum des ersten Kauftags. Es folgt ein Kauftag pro Tag; Samstag und Sonntag nur mit Häkchen.</dd>
+          <dt>+N max</dt><dd>Wie viele zusätzliche Personen (+1, +2 …) jemand normal mitbringen darf. Mehr geht nur mit <code>Gruppe = ja</code> im Roster, zum Beispiel für jemanden, der eine ganze Gruppe vertritt.</dd>
+          <dt>Seed</dt><dd>Startwert der Losung. Innerhalb einer Stufe (Mitglieder, Gäste, Bekanntschaften) wird die Reihenfolge gelost; gleicher Seed heißt gleiche Reihenfolge, ein anderer Seed lost neu. Leer bedeutet Event-Name.</dd>
+          <dt>Übergabe um</dt><dd>Uhrzeit der abendlichen Weitergabe. Nur Anzeige in Listen und Mails, rechnet nicht mit.</dd>
+          <dt>Orga-Adresse</dt><dd>E-Mail der Orga. Dorthin schicken Interessierte ihre Sammel-Zeile und Teilnehmende ihre Statusmeldung. Steht im Sammel- und im Viewer-Link.</dd>
+          <dt>auch Sa/So planen</dt><dd>Wochenenden als Kauftage nutzen statt zu überspringen.</dd>
+          <dt>Pins</dt><dd>Manuell festgenagelte Slots. Im Plan Zelle anklicken, dann Zielzelle: leer heißt festnageln, belegt heißt tauschen. Pins wandern mit dem Link.</dd>
+          <dt>Kennung</dt><dd>Die vier Emojis im Kopf sind ein Fingerabdruck aus Einstellungen, Roster und Platzierung. Gleiche Emojis, gleicher Plan; so erkennen Admins veraltete Links.</dd>
+        </dl>
+      </details>
     </form>
 
     <section class="card">
@@ -93,6 +108,12 @@
   </section>
 
   <section id="result" hidden>
+    <div class="card">
+      <h2>Live-Status</h2>
+      <p class="hint">Stufen je Slot: offen → Voucher da → Ticket gekauft → weitergegeben. Admins klicken den Status in der Tabelle „Wer, wann, von wem, an wen" weiter und teilen den Link neu; Teilnehmende melden ihren Status dort per Mail. Die heutige Spalte ist im Plan markiert.</p>
+      <ul id="liveList"></ul>
+      <p id="liveAt" class="hint"></p>
+    </div>
     <div class="card">
       <div class="row">
         <h2 id="r-title">Plan</h2>

@@ -4,7 +4,8 @@
 // (globalThis.vouch0rzii); this file only moves data between the form, the
 // URL fragment and the DOM. The fragment "#s=…" is the whole state (see
 // internal/plan/share.go); modes admin/view/collect are views on it, not
-// access control.
+// access control. The live status per slot is curated by admins and travels
+// in the same state.
 'use strict';
 (() => {
   const $ = (sel) => document.querySelector(sel);
@@ -27,10 +28,13 @@
   const DEFAULT_EVENT = { name: '', vouchers: 7, start: '', weekends: false, plusMax: 2, seed: '', handover: '23:00', people: [] };
   const MODE_LABEL = { admin: 'Admin', view: 'Ansicht', collect: 'Anmeldung' };
   const COLLECT_HEADER = 'Name;E-Mail;Status;+N;Kreditkarte;Kennt;Notiz';
+  const STATUS = ['open', 'received', 'bought', 'passed'];
+  const STATUS_LABEL = { open: 'offen', received: 'Voucher da', bought: 'Ticket gekauft', passed: 'weitergegeben' };
 
+  const emptyState = () => ({ v: 1, mode: 'admin', event: { ...DEFAULT_EVENT }, pins: [], collect: { to: '' }, status: {}, statusAt: '' });
   let bridge = null;
-  let state = { v: 1, mode: 'admin', event: { ...DEFAULT_EVENT }, pins: [], collect: { to: '' } };
-  let plan = null;      // last export plus exportJson/markdown/csv
+  let state = emptyState();
+  let plan = null;      // last export plus exportJson/markdown/csv/svg
   let selected = null;  // cell chosen as move source: {label, day, voucher}
 
   // ---------- wasm
@@ -49,7 +53,7 @@
     return globalThis.vouch0rzii;
   }
 
-  // ---------- messages
+  // ---------- messages, clipboard, files
   function showMessages(errors = [], warnings = []) {
     const box = $('#messages');
     box.replaceChildren();
@@ -80,6 +84,15 @@
   }
   function mailto(to, subject, body) {
     return `mailto:${to}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  }
+  function today() {
+    const d = new Date();
+    const p = (n) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+  }
+  function fmtAt(iso) {
+    const d = new Date(iso);
+    return isNaN(d) ? iso : d.toLocaleString('de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
   }
 
   // ---------- state <-> URL
@@ -167,8 +180,7 @@
     return true;
   }
   function loadEvent(ev) {
-    state.event = { ...DEFAULT_EVENT, ...ev };
-    state.pins = [];
+    state = { ...emptyState(), event: { ...DEFAULT_EVENT, ...ev } };
     selected = null;
     eventToForm();
     peopleToRoster(state.event.people);
@@ -210,6 +222,56 @@
     moveSlot(selected.label, cell);
   }
 
+  // ---------- live status (curated by admins, carried in the link)
+  const statusOf = (label) => (STATUS.includes(state.status[label]) ? state.status[label] : 'open');
+  function cycleStatus(label) {
+    const next = STATUS[(STATUS.indexOf(statusOf(label)) + 1) % STATUS.length];
+    if (next === 'open') delete state.status[label]; else state.status[label] = next;
+    state.statusAt = new Date().toISOString();
+    writeHash();
+    renderResult();
+  }
+  function reportMail(sheet) {
+    const to = state.collect && state.collect.to;
+    if (!to) return null;
+    const next = STATUS[Math.min(STATUS.indexOf(statusOf(sheet.label)) + 1, STATUS.length - 1)];
+    const body = `Slot: ${sheet.label}\nVoucher: ${sheet.voucher}\nNeuer Status: ${STATUS_LABEL[next]}\nPlan: ${plan.fingerprint}\n`;
+    return mailto(to, `vouch0rzii ${plan.event}: ${sheet.label} ${STATUS_LABEL[next]}`, body);
+  }
+  function renderLive() {
+    const now = today();
+    const items = [];
+    for (let v = 1; v <= plan.vouchers; v++) {
+      const chain = plan.sheets.filter((s) => s.voucher === v); // in day order
+      const st = chain.map((s) => statusOf(s.label));
+      const holder = st.lastIndexOf('received') > st.lastIndexOf('bought') ? st.lastIndexOf('received') : st.lastIndexOf('bought');
+      const passed = st.lastIndexOf('passed');
+      const day = (s) => plan.days[s.day - 1].label;
+      let text, late = false;
+      if (passed > holder) {
+        const next = chain[passed + 1];
+        if (!next) text = `Voucher ${v}: Kette abgeschlossen`;
+        else { text = `Voucher ${v}: unterwegs zu ${next.label}, ${chain[passed].label} hat weitergegeben, Kauf am ${day(next)}`; late = next.date < now; }
+      } else if (holder >= 0) {
+        const h = chain[holder];
+        const next = chain.slice(holder + 1).find((s) => statusOf(s.label) === 'open');
+        text = `Voucher ${v}: bei ${h.label} (${STATUS_LABEL[st[holder]]})` + (next ? `, als Nächstes ${next.label} am ${day(next)}` : ', letzte Station');
+        late = h.date < now;
+      } else if (chain.length) {
+        text = `Voucher ${v}: noch bei der Orga, Start ${chain[0].label} am ${day(chain[0])}`;
+        late = chain[0].date < now;
+      } else {
+        text = `Voucher ${v}: ohne Slots`;
+      }
+      items.push(el('li', { class: late ? 'live overdue' : 'live' }, text, late ? ' — überfällig' : ''));
+    }
+    $('#liveList').replaceChildren(...items);
+    const n = Object.keys(state.status).length;
+    $('#liveAt').textContent = n
+      ? `${n} Slot(s) mit Status, Stand ${fmtAt(state.statusAt)}.`
+      : 'Noch kein Status gesetzt.';
+  }
+
   // ---------- rendering
   function renderResult() {
     $('#result').hidden = !plan;
@@ -221,6 +283,7 @@
       `${plan.vouchers} Vouchers · ${s.days} Tage · ${s.slots} Slots · ${s.handovers} Übergaben, davon ${s.known} unter Buddies, ${s.unknown} neue Verbindungen` +
       (s.forbidden ? `, ${s.forbidden} direkt an eigene Begleitung` : '') + (s.pinned ? ` · ${s.pinned} gepinnt` : '') + ` · Übergabe ${plan.handover}`;
     $('#r-pinhelp').hidden = state.mode !== 'admin';
+    renderLive();
     renderMatrix();
     $('#diagram').innerHTML = plan.svg; // our own SVG, labels escaped by the Go side
     renderHandovers();
@@ -231,6 +294,7 @@
     const table = $('#matrix');
     const editable = state.mode === 'admin';
     table.classList.toggle('editable', editable);
+    const now = today();
     const pos = positions();
     const incoming = new Map(); // "day-voucher" of the receiving cell → handover
     for (const h of plan.handovers) incoming.set(`${pos.get(h.to).day}-${h.voucher}`, h);
@@ -238,7 +302,7 @@
     const days = plan.days.slice();
     if (editable) days.push({ day: days.length + 1, date: '', label: '+ Tag', extra: true });
 
-    const head = el('tr', {}, el('th', {}, 'Voucher'), days.map((d) => el('th', {}, d.label, d.date && el('small', {}, d.date))));
+    const head = el('tr', {}, el('th', {}, 'Voucher'), days.map((d) => el('th', { class: d.date === now ? 'today' : null }, d.label, d.date && el('small', {}, d.date))));
     const rows = [];
     for (let v = 1; v <= plan.vouchers; v++) {
       const tds = days.map((d) => {
@@ -248,11 +312,13 @@
         const cls = ['cell'];
         if (!label) cls.push('empty');
         if (d.extra) cls.push('extra');
+        if (d.date === now) cls.push('today');
         if (h) cls.push(h.forbidden ? 'forbidden' : h.known ? 'known' : 'stranger');
         if (label && pinned.has(label)) cls.push('pinned');
+        if (label && statusOf(label) !== 'open') cls.push('st-' + statusOf(label));
         if (selected && label && selected.label === label) cls.push('selected');
-        const td = el('td', { class: cls.join(' '), draggable: editable && label ? 'true' : null, title: h ? `${h.from} → ${h.to}` : (label ? 'bekommt den Voucher von der Orga' : '') },
-          label || (editable ? '·' : ''));
+        const title = label ? `${h ? `${h.from} → ${h.to}` : 'bekommt den Voucher von der Orga'} · ${STATUS_LABEL[statusOf(label)]}` : '';
+        const td = el('td', { class: cls.join(' '), draggable: editable && label ? 'true' : null, title }, label || (editable ? '·' : ''));
         if (editable) {
           td.addEventListener('click', () => onCellPick(cell));
           if (label) {
@@ -316,9 +382,15 @@
 
   function renderSheets() {
     const table = $('#sheets');
-    const head = el('tr', {}, ['Slot', 'Kontakt', 'Tag', 'Voucher', 'bekommt von', 'gibt weiter an', ''].map((h) => el('th', {}, h)));
+    const admin = state.mode === 'admin';
+    const head = el('tr', {}, ['Slot', 'Kontakt', 'Tag', 'Voucher', 'bekommt von', 'gibt weiter an', 'Status', ''].map((h) => el('th', {}, h)));
     const rows = plan.sheets.map((s) => {
       const mail = mailFor(s);
+      const st = statusOf(s.label);
+      const badge = admin
+        ? el('button', { type: 'button', class: `badge st-${st}`, title: 'Klick: nächster Status', onclick: () => cycleStatus(s.label) }, STATUS_LABEL[st])
+        : el('span', { class: `badge st-${st}` }, STATUS_LABEL[st]);
+      const report = !admin && reportMail(s);
       return el('tr', { dataset: { who: `${s.label} ${s.person} ${s.email || ''}`.toLowerCase() } },
         el('td', {}, s.label, s.pinned ? ' 📌' : ''),
         el('td', {}, s.person, s.email && el('small', {}, el('br'), s.email), s.card ? el('small', { title: 'Kreditkarte für den Notfall' }, ' 💳') : ''),
@@ -326,6 +398,7 @@
         el('td', {}, s.voucher),
         el('td', {}, s.from, s.fromEmail && el('small', {}, el('br'), s.fromEmail)),
         el('td', {}, s.to || '— Kette endet', s.toEmail && el('small', {}, el('br'), s.toEmail)),
+        el('td', {}, badge, report && [' ', el('a', { href: report, title: 'Statusmeldung an die Orga vorbereiten' }, 'melden')]),
         el('td', {}, mail && el('a', { href: mail, title: 'Mail an die nächste Person vorbereiten' }, 'Mail')),
       );
     });
@@ -456,7 +529,10 @@
     const boot = () => {
       const st = readHash();
       if (st) {
-        state = { v: 1, mode: st.mode || 'admin', event: { ...DEFAULT_EVENT, ...(st.event || {}) }, pins: st.pins || [], collect: st.collect || { to: '' } };
+        state = {
+          ...emptyState(), mode: st.mode || 'admin', event: { ...DEFAULT_EVENT, ...(st.event || {}) },
+          pins: st.pins || [], collect: st.collect || { to: '' }, status: st.status || {}, statusAt: st.statusAt || '',
+        };
       }
       selected = null;
       plan = null;

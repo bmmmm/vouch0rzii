@@ -26,16 +26,19 @@ const (
 
 // State is everything the page knows, serialised into the URL fragment.
 type State struct {
-	V       int      `json:"v"`
-	Mode    string   `json:"mode"`
-	Event   *Event   `json:"event,omitempty"`
-	Pins    []Pin    `json:"pins,omitempty"`
-	Collect *Collect `json:"collect,omitempty"`
+	V        int               `json:"v"`
+	Mode     string            `json:"mode"`
+	Event    *Event            `json:"event,omitempty"`
+	Pins     []Pin             `json:"pins,omitempty"`
+	Collect  *Collect          `json:"collect,omitempty"`
+	Status   map[string]string `json:"status,omitempty"`   // slot label → open|received|bought|passed, curated by admins
+	StatusAt string            `json:"statusAt,omitempty"` // when Status last changed, set by the page
 }
 
-// Collect configures the sign-up mode.
+// Collect holds the organisers' address: sign-up lines and status reports
+// are mailed there.
 type Collect struct {
-	To string `json:"to"` // address the sign-up line is mailed to
+	To string `json:"to"`
 }
 
 // maxStateBytes bounds the decompressed state; a roster of a few hundred
@@ -43,8 +46,8 @@ type Collect struct {
 const maxStateBytes = 4 << 20
 
 // EncodeState serialises a state as base64url(deflate(json)) for a URL
-// fragment. Collect states carry no roster and no pins; view states carry no
-// notes and no organiser address.
+// fragment. Collect states carry no roster, pins or status; view states
+// carry no notes (they keep the organisers' address for status reports).
 func EncodeState(st *State) (string, error) {
 	out := *st
 	out.V = StateVersion
@@ -56,7 +59,7 @@ func EncodeState(st *State) (string, error) {
 			ev.People = nil
 			out.Event = &ev
 		}
-		out.Pins = nil
+		out.Pins, out.Status, out.StatusAt = nil, nil, ""
 	case ModeView:
 		if out.Event != nil {
 			ev := *out.Event
@@ -66,7 +69,6 @@ func EncodeState(st *State) (string, error) {
 			}
 			out.Event = &ev
 		}
-		out.Collect = nil
 	default:
 		return "", fmt.Errorf("unknown mode %q", st.Mode)
 	}

@@ -68,14 +68,26 @@ so two people can tell at a glance whether they look at the same plan.
 
 - **Admin**: settings, roster, pins and the organiser's address. Edit, compute,
   pin cells, copy links.
-- **Viewer**: settings, roster without notes, and the frozen plan (every slot
-  pinned), so it renders identically on any later version. Filter "Ich bin …"
-  to find your row; the Mail link prepares the handover mail to the next person.
+- **Viewer**: settings, roster without notes, the organisers' address, the
+  live status and the frozen plan (every slot pinned), so it renders
+  identically on any later version. Filter "Ich bin …" to find your row; the
+  Mail link prepares the handover mail to the next person, "melden" a status
+  report to the organisers.
 - **Sammeln / collect**: a sign-up form for people interested in a voucher.
   It carries only the event settings and the organiser's address; the result
   is one line (`Name; E-Mail; Status; +N; Kreditkarte; Kennt; Notiz`) that is
   mailed or copied to the organiser, who pastes it into "Zeilen aus
   Sammel-Mails hinzufügen".
+
+## Live status
+
+There is no server, so the status is curated: admins click a slot's status
+through *offen → Voucher da → Ticket gekauft → weitergegeben* in the sheet
+table, the status and its timestamp travel in the link, and a re-shared
+viewer link shows everyone where each voucher is, who is next, and what is
+overdue (date before today, status not advanced). Participants report their
+status with the "melden" mail link; admins enter it. Two admins compare
+fingerprint and status timestamp to see who holds the newer link.
 
 ## Demo and example
 
