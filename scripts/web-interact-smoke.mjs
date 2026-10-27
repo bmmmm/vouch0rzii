@@ -199,8 +199,9 @@ try {
   check('inbox: a bad roster row is reported under the clicked button', (await msgAfter('addInbox')) && await js(`/not a number/.test(document.querySelector('#messages .error')?.textContent || '')`));
   await js(`(() => { const r = document.getElementById('roster'); r.value = r.value.replace('\\tbroken\\tMitglied\\tx\\t', '\\tbroken\\tMitglied\\t3\\t'); document.getElementById('compute').click(); })(); 0`);
   check('roster: a rule violation (+3 without group) is reported under "Plan berechnen" too', (await msgAfter('compute')) && await js(`/exceeds the limit/.test(document.querySelector('#messages .error')?.textContent || '')`));
+  const belowFold = await js(`window.scrollTo(0, 0); document.getElementById('messages').getBoundingClientRect().top > innerHeight`);
   await js(`document.getElementById('lang').click(); 0`);
-  check('lang: a Go message on screen gets the English heading and stays put', (await msgAfter('compute')) && await js(`document.querySelector('#messages .error strong')?.textContent === 'That does not work:' && /exceeds the limit/.test(document.querySelector('#messages .error')?.textContent || '')`));
+  check('lang: a Go message on screen gets the English heading and stays put, the page does not jump', belowFold && (await msgAfter('compute')) && (await js(`window.scrollY`)) === 0 && await js(`document.querySelector('#messages .error strong')?.textContent === 'That does not work:' && /exceeds the limit/.test(document.querySelector('#messages .error')?.textContent || '')`));
   await js(`document.getElementById('lang').click(); document.getElementById('f-collectTo').value = ''; document.getElementById('copyCollect').click(); 0`);
   const needTo = () => js(`document.querySelector('#messages .error li')?.textContent`);
   const deNeedTo = await needTo();

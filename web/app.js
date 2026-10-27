@@ -154,9 +154,6 @@
     const [y, m, day] = d.date.split('-');
     return `${['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'][new Date(y, m - 1, day).getDay()]} ${day}.${m}.`;
   };
-  // The first holder of a chain gets the voucher from the organisers; a
-  // person whose handle happens to be "organisers" keeps it.
-  const fromName = (s) => (plan.sheets.some((o) => o.voucher === s.voucher && o.day < s.day) ? s.from : t('orga'));
 
   const DEFAULT_EVENT = { name: '', vouchers: 7, start: '', weekends: false, plusMax: 2, seed: '', handover: '23:00', people: [] };
   const STATUS = ['open', 'received', 'bought', 'passed'];
@@ -230,7 +227,7 @@
   // box sits at the top of the page. A message is a string from Go or a
   // function that builds page text, so a language switch can build it again.
   let shown = [[], []];
-  function showMessages(errors = [], warnings = [], anchor = null) {
+  function showMessages(errors = [], warnings = [], anchor = null, scroll = true) {
     shown = [errors, warnings];
     const box = $('#messages');
     (anchor || $('#loading')).after(box);
@@ -238,7 +235,7 @@
     const li = (m) => el('li', {}, typeof m === 'function' ? m() : m);
     if (errors.length) box.append(el('div', { class: 'error' }, el('strong', {}, t('errorsHead')), el('ul', {}, errors.map(li))));
     if (warnings.length) box.append(el('div', { class: 'warning' }, el('strong', {}, t('warningsHead')), el('ul', {}, warnings.map(li))));
-    if (errors.length) box.scrollIntoView({ block: 'nearest' });
+    if (errors.length && scroll) box.scrollIntoView({ block: 'nearest' });
   }
   let toastTimer = 0;
   function toast(msg) {
@@ -698,6 +695,11 @@
     const admin = state.mode === 'admin';
     const labels = new Set(plan.sheets.map((s) => s.label));
     for (const l of picked) if (!labels.has(l)) picked.delete(l);
+    // The first holder of a chain gets the voucher from the organisers; a
+    // person whose handle happens to be "organisers" keeps it.
+    const firstDay = new Map();
+    for (const s of plan.sheets) if (!(firstDay.get(s.voucher) <= s.day)) firstDay.set(s.voucher, s.day);
+    const fromName = (s) => (firstDay.get(s.voucher) === s.day ? t('orga') : s.from);
     $('#sheets-count').textContent = boughtText();
     const pickAll = admin && el('input', { type: 'checkbox', id: 'pickAll', title: t('pickAll'), onchange: () => {
       const visible = [...table.querySelectorAll('tbody tr:not(.hidden)')].map((tr) => tr.dataset.label);
@@ -901,7 +903,7 @@
     if (bridge) $('#modeLabel').textContent = t('mode')[state.mode] || state.mode; // the mode is known once the link is read
     if (state.mode === 'collect') $('#c-event').textContent = state.event.name || t('theEvent');
     if (plan) renderResult();
-    if (shown.flat().length) showMessages(...shown, $('#messages').previousElementSibling);
+    if (shown.flat().length) showMessages(...shown, $('#messages').previousElementSibling, false);
   }
 
   async function main() {
