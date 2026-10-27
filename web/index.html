@@ -1,12 +1,12 @@
 <!doctype html>
-<html lang="de">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta http-equiv="Content-Security-Policy"
         content="default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self'; img-src 'self' data:; connect-src 'self'; base-uri 'none'; form-action 'none'">
   <meta name="description" content="Voucher chain planner for event presales, in German and English. Runs entirely in the browser, nothing is sent; the link is the storage.">
-  <title>vouch0rzii — Voucher-Kettenplaner</title>
+  <title>vouch0rzii — voucher chain planner</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ctext y='54' font-size='56'%3E%F0%9F%8E%9F%3C/text%3E%3C/svg%3E">
   <link rel="stylesheet" href="style.css">
 </head>
@@ -118,7 +118,7 @@
       <p class="hint"><span lang="de">Zum Ausprobieren: <a href="__DEMO__">Demo öffnen</a>, ein pseudonymes Tier-Roster in dieser Ansicht.</span><span lang="en">To try it out: <a href="__DEMO__">open the demo</a>, a pseudonymous animal roster in this view.</span></p>
       <details>
         <summary><span lang="de">Zeilen aus Sammel-Mails hinzufügen</span><span lang="en">Add lines from sign-up mails</span></summary>
-        <p class="hint" lang="de">Eine Zeile pro Person, so wie der Sammel-Link sie erzeugt: <code>Name; Email; Status; +N; Knows; Note</code>. Von Hand getippt darf nach dem Namen alles in beliebiger Reihenfolge kommen: E-Mail am @, Status am Wort, +N als Zahl, Kennt als Handles mit Komma (ein einzelnes Wort nur, wenn es ein bekannter Name ist), der Rest wird Notiz. Vorhandene Handles werden übersprungen; danach „Plan berechnen".</p>
+        <p class="hint" lang="de">Eine Zeile pro Person, so wie der Sammel-Link sie erzeugt: <code>Name; Email; Status; +N; Knows; Note</code>. Von Hand getippt darf nach dem Namen alles in beliebiger Reihenfolge kommen: E-Mail am @, Status am Wort, +N als Zahl, Knows als Handles mit Komma (ein einzelnes Wort nur, wenn es ein bekannter Name ist), der Rest wird Notiz. Vorhandene Handles werden übersprungen; danach „Plan berechnen".</p>
         <p class="hint" lang="en">One line per person, as the sign-up link writes it: <code>Name; Email; Status; +N; Knows; Note</code>. Typed by hand, anything may follow the name in any order: the e-mail by its @, the status by its word, +N as a number, knows as handles with commas (a single word only if it is a known name), the rest becomes the note. Handles already in the roster are skipped; then "Compute plan".</p>
         <textarea id="inbox" rows="4" spellcheck="false"></textarea>
         <div class="row"><button type="button" id="addInbox"><span lang="de">Zum Roster hinzufügen</span><span lang="en">Add to roster</span></button></div>

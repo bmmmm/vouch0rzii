@@ -56,7 +56,7 @@
       stats: (v, s) => `${v} Vouchers · ${s.days} Tage · ${s.slots} Slots · ${s.handovers} Übergaben, davon ${s.known} unter Buddies, ${s.unknown} neue Verbindungen` +
         (s.forbidden ? `, ${s.forbidden} direkt an eigene Begleitung` : '') + (s.pinned ? ` · ${s.pinned} gepinnt` : ''),
       handoverAt: (at) => ` · Übergabe ${at}`,
-      order: (seed) => `Reihenfolge: erst Mitglieder, dann häufige Gäste, dann Bekanntschaften; innerhalb jeder Gruppe entscheidet das Los mit Seed „${seed}" (gleicher Seed, gleiche Losung). Danach die Begleitungen rundenweise: alle +1, dann alle +2 und so weiter. Eine Zahl in „Reihenfolge" überstimmt das Los.`,
+      order: (seed) => `Reihenfolge: erst Mitglieder, dann häufige Gäste, dann Bekanntschaften; innerhalb jeder Gruppe entscheidet das Los mit Seed „${seed}" (gleicher Seed, gleiche Losung). Danach die Begleitungen rundenweise: alle +1, dann alle +2 und so weiter. Eine Zahl in der Spalte „Order" überstimmt das Los.`,
       phase: (day, days, free) => `Voucher-Phase bis ${day} (${days} Tage) · ${free} Slots frei`,
       noEnd: (free) => `Kein Ende der Voucher-Phase gesetzt · ${free} Slots frei im Plan`,
       addDay: '+ Tag', free: 'frei', notYet: 'Voucher noch nicht verfügbar', fromOrga: 'bekommt den Voucher von der Orga',
@@ -148,14 +148,15 @@
   };
   let lang = 'de';
   const t = (key, ...args) => { const v = TEXT[lang][key]; return typeof v === 'function' ? v(...args) : v; };
-  // Go writes English labels ("Fri 30/10", ORGA); the German page relabels.
+  // Go writes English labels ("Fri 30/10", "organisers"); the German page relabels.
   const dayName = (d) => {
     if (lang === 'en' || !d.date) return d.label;
     const [y, m, day] = d.date.split('-');
     return `${['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'][new Date(y, m - 1, day).getDay()]} ${day}.${m}.`;
   };
-  const ORGA = 'organisers'; // OrgaLabel in internal/plan/render.go
-  const fromName = (from) => (from === ORGA ? t('orga') : from);
+  // The first holder of a chain gets the voucher from the organisers; a
+  // person whose handle happens to be "organisers" keeps it.
+  const fromName = (s) => (plan.sheets.some((o) => o.voucher === s.voucher && o.day < s.day) ? s.from : t('orga'));
 
   const DEFAULT_EVENT = { name: '', vouchers: 7, start: '', weekends: false, plusMax: 2, seed: '', handover: '23:00', people: [] };
   const STATUS = ['open', 'received', 'bought', 'passed'];
@@ -226,13 +227,17 @@
   // ---------- messages, clipboard, files
   // showMessages renders errors and warnings right after the control that
   // caused them (anchor), where the admin is looking; without an anchor the
-  // box sits at the top of the page.
+  // box sits at the top of the page. A message is a string from Go or a
+  // function that builds page text, so a language switch can build it again.
+  let shown = [[], []];
   function showMessages(errors = [], warnings = [], anchor = null) {
+    shown = [errors, warnings];
     const box = $('#messages');
     (anchor || $('#loading')).after(box);
     box.replaceChildren();
-    if (errors.length) box.append(el('div', { class: 'error' }, el('strong', {}, t('errorsHead')), el('ul', {}, errors.map((e) => el('li', {}, e)))));
-    if (warnings.length) box.append(el('div', { class: 'warning' }, el('strong', {}, t('warningsHead')), el('ul', {}, warnings.map((w) => el('li', {}, w)))));
+    const li = (m) => el('li', {}, typeof m === 'function' ? m() : m);
+    if (errors.length) box.append(el('div', { class: 'error' }, el('strong', {}, t('errorsHead')), el('ul', {}, errors.map(li))));
+    if (warnings.length) box.append(el('div', { class: 'warning' }, el('strong', {}, t('warningsHead')), el('ul', {}, warnings.map(li))));
     if (errors.length) box.scrollIntoView({ block: 'nearest' });
   }
   let toastTimer = 0;
@@ -281,7 +286,7 @@
     if (!m) return null;
     const r = bridge.decodeState(m[1]);
     if (!r.ok) {
-      showMessages([t('linkUnreadable', r.errors.join('; '))]);
+      showMessages([() => t('linkUnreadable', r.errors.join('; '))]);
       return null;
     }
     return JSON.parse(r.stateJson);
@@ -347,7 +352,7 @@
   // ---------- planning
   function computePlan({ fromForm } = { fromForm: true }) {
     let warnings = [];
-    const anchor = fromForm ? $('#compute').parentElement : null; // form problems show under "Plan berechnen"
+    const anchor = fromForm ? $('#compute').parentElement : null; // form problems show under "Compute plan"
     if (fromForm) {
       const f = readForm();
       const r = rosterToPeople();
@@ -596,6 +601,9 @@
     renderLive();
     renderMatrix();
     $('#diagram').innerHTML = plan.svg; // our own SVG, labels escaped by the Go side
+    // The bold texts are the day headers, one per plan day, the only Go text
+    // in the diagram that is not a handle.
+    $('#diagram').querySelectorAll('text[font-weight="600"]').forEach((n, i) => { n.textContent = dayName(plan.days[i]); });
     renderHandovers();
     renderSheets();
   }
@@ -711,7 +719,7 @@
         el('td', {}, s.person, s.email && el('small', {}, el('br'), s.email)),
         el('td', {}, dayName(plan.days[s.day - 1]), el('small', {}, el('br'), s.date)),
         el('td', {}, s.voucher),
-        el('td', {}, fromName(s.from), s.fromEmail && el('small', {}, el('br'), s.fromEmail)),
+        el('td', {}, fromName(s), s.fromEmail && el('small', {}, el('br'), s.fromEmail)),
         el('td', {}, s.to || t('chainEnds'), s.toEmail && el('small', {}, el('br'), s.toEmail)),
         el('td', {}, badge, report && [' ', el('a', { href: report, title: t('reportTitle') }, t('report'))]),
         el('td', {}, mail && el('a', { href: mail, title: t('mailTitle') }, 'Mail'),
@@ -773,7 +781,7 @@
       try {
         loadEvent(JSON.parse(await f.text()));
       } catch (err) {
-        showMessages([t('fileUnreadable', err)]);
+        showMessages([() => t('fileUnreadable', err)]);
       }
       e.target.value = '';
     });
@@ -805,7 +813,7 @@
       }
       peopleToRoster(current);
       $('#inbox').value = '';
-      showMessages([], r.warnings.concat(skipped.length ? [t('skipped', skipped.join(', '))] : []), near);
+      showMessages([], r.warnings.concat(skipped.length ? [() => t('skipped', skipped.join(', '))] : []), near);
       toast(added ? t('added', added) : t('nothingAdded'));
     });
     $('#unpinAll').addEventListener('click', () => { mutate(() => { state.pins = []; }); selected = null; computePlan({ fromForm: false }); });
@@ -834,8 +842,8 @@
     $('#copyBoard').addEventListener('click', () => { if (computePlan()) copy(linkFor('board', { pins: plan.pins }), t('boardLink', plan.fingerprint)); });
     $('#copyCollect').addEventListener('click', () => {
       const f = readForm();
-      if (!f.to) { showMessages([t('needTo')]); return; }
-      if (!f.event.name) { showMessages([t('needName')]); return; }
+      if (!f.to) { showMessages([() => t('needTo')]); return; }
+      if (!f.event.name) { showMessages([() => t('needName')]); return; }
       copy(linkFor('collect', { event: f.event, collect: { to: f.to } }), t('collectLink'));
     });
   }
@@ -893,6 +901,7 @@
     if (bridge) $('#modeLabel').textContent = t('mode')[state.mode] || state.mode; // the mode is known once the link is read
     if (state.mode === 'collect') $('#c-event').textContent = state.event.name || t('theEvent');
     if (plan) renderResult();
+    if (shown.flat().length) showMessages(...shown, $('#messages').previousElementSibling);
   }
 
   async function main() {

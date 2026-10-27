@@ -81,7 +81,8 @@ check('admin: the draw is explained with the seed', admin.includes('entscheidet 
 check('admin: share buttons visible', admin.includes('<nav id="sharebar">'));
 check('admin: board hidden, "Board" opens a board state in a new tab', admin.includes('<section id="board" class="card" hidden="">') && /id="toBoard" class="button" href="[^"]+"[^>]* rel="noopener"[^>]* target="_blank"/.test(admin) && decode(hrefOf(admin, 'toBoard')).mode === 'board');
 check('admin: no error box', noError(admin));
-check('admin: German page relabels the organisers and formats German day labels', (admin.match(/<td>Orga<\/td>/g) || []).length === 7 && !admin.includes('>organisers<') && admin.includes('>Fr 30.10.<small>2026-10-30<'));
+check('admin: German page relabels the organisers and formats German day labels', (admin.match(/<td>Orga<\/td>/g) || []).length === 7 && (admin.match(/>Orga</g) || []).length === 7 && !admin.includes('>organisers<') && admin.includes('>Fr 30.10.<small>2026-10-30<') && admin.includes('font-weight="600">Fr 30.10.<') && !admin.includes('font-weight="600">Fri 30/10<'));
+check('admin: a German browser gets the German page', admin.includes('<html lang="de">') && admin.includes('<title>vouch0rzii — Voucher-Kettenplaner</title>'));
 const fp = (html) => (html.match(/id="fingerprint"[^>]*>([^<]*)</) || [])[1] || '';
 check('admin: four-emoji fingerprint shown', [...fp(admin)].length === 4);
 
@@ -123,6 +124,11 @@ check('early end: no day after the end offered', !early.includes('>+ Tag<') && n
 const open = variant('open.json', { seed: 'würfel' }); // a seed that differs from the name
 check('no end: open-ended summary, free cells, "+ Tag" offered', open.includes('Kein Ende der Voucher-Phase gesetzt · 2 Slots frei im Plan') && (open.match(/>frei<\/td>/g) || []).length === 2 && open.includes('>+ Tag<') && open.includes('<div id="r-public" class="warning" hidden="">'));
 check('no end: the explanation names the seed, not the event name', open.includes('entscheidet das Los mit Seed „würfel"'));
+// A chain that starts later and a member whose handle is "organisers": the
+// German page says "Orga" for each first holder, the member keeps the name.
+const people = JSON.parse(readFileSync(demoEvent, 'utf8')).people;
+const late = variant('late.json', { extra: [{ date: '2026-11-03', count: 1 }], people: [{ id: 'organisers', email: 'organisers@example.org', tier: 'member' }, ...people] });
+check('late chain: "Orga" for the eight first holders only, the member "organisers" keeps the name', (late.match(/>Orga</g) || []).length === 8 && late.includes('<td>organisers<small>') && noError(late));
 rmSync(scratch, { recursive: true });
 
 const collect = dom(link('collect', ['-to', 'orga@example.org']));
@@ -136,7 +142,7 @@ check('en: page language follows the browser', en.includes('<html lang="en">') &
 check('en: plan summary, phase and free cells in English', en.includes('7 vouchers · 7 days · 47 slots') && en.includes('Voucher phase until Fri 13/11 (11 days) · 30 slots free') && (en.match(/>free<\/td>/g) || []).length === 2 && en.includes('>+ day<'));
 check('en: draw, counter and status badges in English', en.includes('the draw with seed "congress2026" decides') && en.includes('0 of 47 tickets bought') && (en.match(/class="badge st-open"[^>]*>open</g) || []).length === 47);
 check('en: attributes swapped, German kept beside them', en.includes('title="This link holds the roster, settings and pins"') && en.includes('data-de-title="Dieser Link enthält Roster, Einstellungen und Pins"') && en.includes('>DE</button>'));
-check('en: first holders get it from the organisers', (en.match(/<td>organisers<\/td>/g) || []).length === 7 && !en.includes('>Orga<'));
+check('en: first holders get it from the organisers', (en.match(/<td>organisers<\/td>/g) || []).length === 7 && !en.includes('>Orga<') && en.includes('font-weight="600">Fri 30/10<'));
 check('en: same plan as German', fp(en) === fp(admin) && noError(en));
 const enBoard = dom(link('board'), 'en-US');
 check('en: board in English', enBoard.includes('0 of 47 tickets bought') && enBoard.includes('<b>30</b><span>slots free</span>'));

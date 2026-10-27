@@ -199,6 +199,15 @@ try {
   check('inbox: a bad roster row is reported under the clicked button', (await msgAfter('addInbox')) && await js(`/not a number/.test(document.querySelector('#messages .error')?.textContent || '')`));
   await js(`(() => { const r = document.getElementById('roster'); r.value = r.value.replace('\\tbroken\\tMitglied\\tx\\t', '\\tbroken\\tMitglied\\t3\\t'); document.getElementById('compute').click(); })(); 0`);
   check('roster: a rule violation (+3 without group) is reported under "Plan berechnen" too', (await msgAfter('compute')) && await js(`/exceeds the limit/.test(document.querySelector('#messages .error')?.textContent || '')`));
+  await js(`document.getElementById('lang').click(); 0`);
+  check('lang: a Go message on screen gets the English heading and stays put', (await msgAfter('compute')) && await js(`document.querySelector('#messages .error strong')?.textContent === 'That does not work:' && /exceeds the limit/.test(document.querySelector('#messages .error')?.textContent || '')`));
+  await js(`document.getElementById('lang').click(); document.getElementById('f-collectTo').value = ''; document.getElementById('copyCollect').click(); 0`);
+  const needTo = () => js(`document.querySelector('#messages .error li')?.textContent`);
+  const deNeedTo = await needTo();
+  await js(`document.getElementById('lang').click(); 0`);
+  const enNeedTo = await needTo();
+  await js(`document.getElementById('lang').click(); 0`);
+  check('lang: a page message on screen is built again in the other language', deNeedTo.startsWith('Für den Sammel-Link') && enNeedTo === 'The sign-up link needs the organiser address (field above).', `${deNeedTo} / ${enNeedTo}`);
 
   // The sign-up form writes the canonical English line whatever the page language.
   const collect = execFileSync(cli, ['-event', join(root, 'events', 'congress2026.json'), '-share', 'collect', '-to', 'orga@example.org', '-base', page]).toString().trim();

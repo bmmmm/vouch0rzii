@@ -19,8 +19,8 @@ what to check.
   roster text (`Order Name Status +N Email Knows Group Out Note`, `member`,
   `yes`/`no`), the sign-up line (`Name; Email; Status; +N; Knows; Note`) and
   `from` of a chain's first holder (`organisers` instead of `Orga`). German
-  headers and values are still read. Check: scripts that match day labels
-  or the old roster header.
+  headers and values are still read. Check: scripts that match day labels,
+  the old roster header or `from` = `Orga`.
 
 ## [0.1.0] - 2026-10-27
 
@@ -37,8 +37,8 @@ what to check.
 - End of the voucher phase (`end`): the plan stops there, tickets that do
   not fit are listed for the public sale (`public`), free voucher days are
   marked *free* and counted (`free`).
-- Live status per slot (offen → Voucher da → Ticket gekauft →
-  weitergegeben), curated by admins, carried in the link, with per-voucher
+- Live status per slot (open → voucher received → ticket bought →
+  passed on), curated by admins, carried in the link, with per-voucher
   summary and overdue marks; status reports by mail. Rows in the sheet table
   can be ticked (header box: all visible rows) and set to one status in a
   single step; rows are tinted by status and a counter shows tickets bought.
@@ -47,7 +47,7 @@ what to check.
   removed. The plan card, roster hint and sign-up form explain the draw.
 - Sign-up lines pasted by hand are read by content (e-mail at `@`, tier
   word, number, handles, note) when they are not in the form's
-  order; roster and sign-up problems are reported under "Plan berechnen" or
+  order; roster and sign-up problems are reported under "Compute plan" or
   the sign-up button, rejected cell names above the matrix.
 - Share links: admin, viewer, board (dashboard for everyone: progress, a
   tile per voucher, today and next, free slots, public sale), collect
