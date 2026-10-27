@@ -115,3 +115,64 @@ func TestRosterQuotesAreLiteralAndEmptyHeaderCellIgnored(t *testing.T) {
 		t.Fatalf("empty first header cell must be ignored: %v %+v", err, people)
 	}
 }
+
+func TestParseSignupByContentAndPosition(t *testing.T) {
+	// A hand-typed line in its own order, as pasted by an organiser.
+	people, warnings, err := ParseSignup("bananaaa ; hallo@babna.com ; mitglied ; no ; panda ; nein\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := Person{ID: "bananaaa", Email: "hallo@babna.com", Tier: TierMember, Knows: []string{"panda"}}
+	if len(people) != 1 || !reflect.DeepEqual(people[0], want) {
+		t.Fatalf("got %+v, want %+v", people, want)
+	}
+	if len(warnings) != 1 || !strings.Contains(warnings[0], `bananaaa: "nein" ignored`) {
+		t.Fatalf("warnings %v", warnings)
+	}
+	// The form's seven fields are read by position, a note is a note.
+	people, warnings, err = ParseSignup("dodo; dodo@example.org; Gast; 1; ja; alpha, bravo; Veganerin\n\n")
+	if err != nil || len(warnings) != 0 {
+		t.Fatalf("form line: %v %v", err, warnings)
+	}
+	want = Person{ID: "dodo", Email: "dodo@example.org", Tier: TierGuest, Plus: 1, Card: true, Knows: []string{"alpha", "bravo"}, Note: "Veganerin"}
+	if !reflect.DeepEqual(people[0], want) {
+		t.Fatalf("got %+v, want %+v", people[0], want)
+	}
+	// Seven fields in the wrong order fall back to content with a warning.
+	people, warnings, err = ParseSignup("emu; Bekanntschaft; emu@example.org; ja; +2; ; bringt Kuchen mit")
+	if err != nil {
+		t.Fatal(err)
+	}
+	want = Person{ID: "emu", Email: "emu@example.org", Tier: TierAcquaintance, Plus: 2, Card: true, Note: "bringt Kuchen mit"}
+	if !reflect.DeepEqual(people[0], want) || len(warnings) != 1 || !strings.Contains(warnings[0], "emu: fields are not in the form's order") {
+		t.Fatalf("got %+v warnings %v", people[0], warnings)
+	}
+	// Seven fields in the form's order with a typo are errors, not guesses.
+	if _, _, err = ParseSignup("anna; anna@x.de; Bekantschaft; 1; ja; mammut; Veganerin"); err == nil || !strings.Contains(err.Error(), `line 1: unknown status "Bekantschaft"`) {
+		t.Fatalf("got %v", err)
+	}
+	// Empty status and +N by position are fine; the pasted header line is skipped.
+	people, warnings, err = ParseSignup("Name; E-Mail; Status; +N; Kreditkarte; Kennt; Notiz\nxy; xy@example.org; ; ; nein; ; ")
+	if err != nil || len(warnings) != 0 || len(people) != 1 || !reflect.DeepEqual(people[0], Person{ID: "xy", Email: "xy@example.org"}) {
+		t.Fatalf("got %+v %v %v", people, warnings, err)
+	}
+	// By content: the first handle field is Kennt, a trailing comma is fine, later words are the note.
+	people, _, _ = ParseSignup("anna; Gast; panda, koala,; Veganerin")
+	if !reflect.DeepEqual(people[0].Knows, []string{"panda", "koala"}) || people[0].Note != "Veganerin" {
+		t.Fatalf("got %+v", people[0])
+	}
+	// Content mode without a status warns; "1" is a +N, not a card.
+	people, warnings, _ = ParseSignup("fox; 1")
+	if people[0].Plus != 1 || people[0].Card || len(warnings) != 1 || !strings.Contains(warnings[0], "counts as member") {
+		t.Fatalf("got %+v warnings %v", people[0], warnings)
+	}
+	// A second e-mail is neither the address nor a connection.
+	people, warnings, _ = ParseSignup("gnu; Gast; a@example.org; b@example.org")
+	if people[0].Email != "a@example.org" || people[0].Knows != nil || len(warnings) != 1 || !strings.Contains(warnings[0], `gnu: "b@example.org" ignored`) {
+		t.Fatalf("got %+v warnings %v", people[0], warnings)
+	}
+	// Errors name the line; blank lines do not count as people.
+	if _, _, err = ParseSignup("\n; nomail@example.org\n"); err == nil || !strings.Contains(err.Error(), "line 2: name missing") {
+		t.Fatalf("got %v", err)
+	}
+}

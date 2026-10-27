@@ -28,6 +28,10 @@ what to check.
   summary and overdue marks; status reports by mail. Rows in the sheet table
   can be ticked (header box: all visible rows) and set to one status in a
   single step; rows are tinted by status and a counter shows tickets bought.
+- Sign-up lines pasted by hand are read by content (e-mail at `@`, tier
+  word, number, ja/nein, handles, note) when they are not in the form's
+  order; roster and sign-up problems are reported under "Plan berechnen" or
+  the sign-up button, rejected cell names above the matrix.
 - Share links: admin, viewer, board (dashboard for everyone: progress, a
   tile per voucher, today and next, free slots, public sale), collect
   (sign-up form), personal viewer links; four-emoji fingerprint of the data

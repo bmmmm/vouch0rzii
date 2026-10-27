@@ -3,7 +3,8 @@
 //go:build js && wasm
 
 // vouch0rzii-wasm is the browser build. It exposes internal/plan to the page
-// as globalThis.vouch0rzii and stays resident; web/ holds the page and
+// as globalThis.vouch0rzii (plan, parseRoster, parseSignup, formatRoster,
+// encodeState, decodeState, version) and stays resident; web/ holds the page and
 // scripts/build-web.sh assembles both into web/dist. Every function returns a
 // plain object with ok, errors[] and warnings[], never throws, and passes
 // structured data as JSON strings so that the page and the CLI see byte-equal
@@ -13,6 +14,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"maps"
 	"runtime/debug"
 	"strings"
 	"syscall/js"
@@ -60,9 +62,7 @@ func fail(err error, warnings []string) any {
 
 func ok(warnings []string, fields map[string]any) any {
 	res := map[string]any{"ok": true, "errors": []any{}, "warnings": toAny(warnings)}
-	for k, v := range fields {
-		res[k] = v
-	}
+	maps.Copy(res, fields)
 	return js.ValueOf(res)
 }
 
@@ -97,6 +97,20 @@ func planFn(_ js.Value, args []js.Value) any {
 // parseRoster(tsv) → {ok, errors, warnings, peopleJson}
 func parseRoster(_ js.Value, args []js.Value) any {
 	people, warnings, err := plan.ParseRoster(strArg(args, 0))
+	if err != nil {
+		return fail(err, warnings)
+	}
+	b, err := json.Marshal(people)
+	if err != nil {
+		return fail(err, warnings)
+	}
+	return ok(warnings, map[string]any{"peopleJson": string(b)})
+}
+
+// parseSignup(text) → {ok, errors, warnings, peopleJson}: sign-up lines, by
+// position or by content (plan.ParseSignup).
+func parseSignup(_ js.Value, args []js.Value) any {
+	people, warnings, err := plan.ParseSignup(strArg(args, 0))
 	if err != nil {
 		return fail(err, warnings)
 	}
@@ -156,6 +170,7 @@ func main() {
 	js.Global().Set("vouch0rzii", js.ValueOf(map[string]any{
 		"plan":         guard(planFn),
 		"parseRoster":  guard(parseRoster),
+		"parseSignup":  guard(parseSignup),
 		"formatRoster": guard(formatRoster),
 		"encodeState":  guard(encodeState),
 		"decodeState":  guard(decodeState),

@@ -27,7 +27,6 @@
 
   const DEFAULT_EVENT = { name: '', vouchers: 7, start: '', weekends: false, plusMax: 2, seed: '', handover: '23:00', people: [] };
   const MODE_LABEL = { admin: 'Admin', view: 'Ansicht', board: 'Board', collect: 'Anmeldung' };
-  const COLLECT_HEADER = 'Name;E-Mail;Status;+N;Kreditkarte;Kennt;Notiz';
   const STATUS = ['open', 'received', 'bought', 'passed'];
   const STATUS_LABEL = { open: 'offen', received: 'Voucher da', bought: 'Ticket gekauft', passed: 'weitergegeben' };
 
@@ -94,11 +93,16 @@
   }
 
   // ---------- messages, clipboard, files
-  function showMessages(errors = [], warnings = []) {
+  // showMessages renders errors and warnings right after the control that
+  // caused them (anchor), where the admin is looking; without an anchor the
+  // box sits at the top of the page.
+  function showMessages(errors = [], warnings = [], anchor = null) {
     const box = $('#messages');
+    (anchor || $('#loading')).after(box);
     box.replaceChildren();
     if (errors.length) box.append(el('div', { class: 'error' }, el('strong', {}, 'Das geht so nicht:'), el('ul', {}, errors.map((e) => el('li', {}, e)))));
     if (warnings.length) box.append(el('div', { class: 'warning' }, el('strong', {}, 'Hinweise:'), el('ul', {}, warnings.map((w) => el('li', {}, w)))));
+    if (errors.length) box.scrollIntoView({ block: 'nearest' });
   }
   let toastTimer = 0;
   function toast(msg) {
@@ -198,7 +202,7 @@
   function rosterToPeople() {
     const r = bridge.parseRoster($('#roster').value);
     if (!r.ok) {
-      showMessages(r.errors, r.warnings);
+      showMessages(r.errors, r.warnings, $('#compute').parentElement);
       return null;
     }
     return { people: JSON.parse(r.peopleJson), warnings: r.warnings };
@@ -211,6 +215,7 @@
   // ---------- planning
   function computePlan({ fromForm } = { fromForm: true }) {
     let warnings = [];
+    const anchor = fromForm ? $('#compute').parentElement : null; // form problems show under "Plan berechnen"
     if (fromForm) {
       const f = readForm();
       const r = rosterToPeople();
@@ -220,13 +225,13 @@
     }
     const r = bridge.plan(JSON.stringify(state.event), JSON.stringify(state.pins));
     if (!r.ok) {
-      showMessages(r.errors, warnings.concat(r.warnings));
+      showMessages(r.errors, warnings.concat(r.warnings), anchor);
       plan = null;
       renderResult();
       return false;
     }
     plan = { ...JSON.parse(r.exportJson), exportJson: r.exportJson, markdown: r.markdown, csv: r.csv, svg: r.svg };
-    showMessages([], warnings.concat(plan.warnings));
+    showMessages([], warnings.concat(plan.warnings), anchor);
     renderResult();
     writeHash();
     return true;
@@ -281,7 +286,9 @@
     input.addEventListener('click', (e) => e.stopPropagation()); // not a second pick of the cell
     input.addEventListener('keydown', (e) => {
       e.stopPropagation();
-      if (e.key === 'Enter') { if (!input.value.trim() || !assignLabel(input.value.trim(), cell)) renderMatrix(); refocus(); } else if (e.key === 'Escape') { renderMatrix(); refocus(); }
+      const label = input.value.trim();
+      if (e.key === 'Enter' && label) { if (assignLabel(label, cell)) refocus(); else renderMatrix(); } // on failure the message keeps the scroll position
+      else if (e.key === 'Enter' || e.key === 'Escape') { renderMatrix(); refocus(); }
     });
     td.replaceChildren(input);
     input.focus();
@@ -302,7 +309,7 @@
     if (k) p.plus = Math.max(p.plus || 0, k);
     const pins = withPin(state.pins, k ? `${p.id}+${k}` : p.id, cell.day, cell.voucher);
     const trial = bridge.plan(JSON.stringify({ ...state.event, people }), JSON.stringify(pins));
-    if (!trial.ok) { showMessages(trial.errors, trial.warnings); return false; }
+    if (!trial.ok) { showMessages(trial.errors, trial.warnings, $('#r-pinhelp')); return false; }
     mutate(() => { state.event = { ...state.event, people }; state.pins = pins; });
     selected = null;
     peopleToRoster(people);
@@ -656,10 +663,10 @@
       download(`${f.event.name || 'event'}.json`, JSON.stringify({ ...f.event, people: r.people }, null, 2) + '\n', 'application/json');
     });
     $('#addInbox').addEventListener('click', () => {
-      const lines = $('#inbox').value.split('\n').map((l) => l.trim()).filter(Boolean);
-      if (!lines.length) return;
-      const r = bridge.parseRoster([COLLECT_HEADER, ...lines].join('\n'));
-      if (!r.ok) { showMessages(r.errors, r.warnings); return; }
+      const near = $('#addInbox').parentElement;
+      if (!$('#inbox').value.trim()) return;
+      const r = bridge.parseSignup($('#inbox').value);
+      if (!r.ok) { showMessages(r.errors, r.warnings, near); return; }
       let current = [];
       if ($('#roster').value.trim()) {
         const cur = rosterToPeople();
@@ -668,15 +675,17 @@
       }
       const have = new Set(current.map((p) => p.id.toLowerCase()));
       const skipped = [];
+      let added = 0;
       for (const p of JSON.parse(r.peopleJson)) {
         if (have.has(p.id.toLowerCase())) { skipped.push(p.id); continue; }
         have.add(p.id.toLowerCase());
         current.push(p);
+        added++;
       }
       peopleToRoster(current);
       $('#inbox').value = '';
-      showMessages([], skipped.length ? [`Schon vorhanden, übersprungen: ${skipped.join(', ')}`] : []);
-      toast(`${lines.length - skipped.length} Person(en) hinzugefügt`);
+      showMessages([], r.warnings.concat(skipped.length ? [`Schon vorhanden, übersprungen: ${skipped.join(', ')}`] : []), near);
+      toast(added ? `${added} Person(en) hinzugefügt, jetzt „Plan berechnen"` : 'Nichts Neues hinzugefügt');
     });
     $('#unpinAll').addEventListener('click', () => { mutate(() => { state.pins = []; }); selected = null; computePlan({ fromForm: false }); });
     $('#freezeToday').addEventListener('click', () => {

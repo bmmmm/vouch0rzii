@@ -53,6 +53,10 @@ const tsv = bridge.formatRoster(JSON.stringify(ev.people));
 const parsed = bridge.parseRoster(tsv.tsv);
 check('roster TSV round trip', parsed.ok && JSON.stringify(JSON.parse(parsed.peopleJson)) === JSON.stringify(ev.people), JSON.stringify(parsed.errors));
 
+const signup = bridge.parseSignup('bananaaa ; hallo@babna.com ; mitglied ; no ; panda ; nein\n');
+check('parseSignup reads a hand-typed line by content', signup.ok && JSON.stringify(JSON.parse(signup.peopleJson)) === '[{"id":"bananaaa","email":"hallo@babna.com","tier":"member","knows":["panda"]}]' && signup.warnings.length === 1, JSON.stringify(signup));
+check('parseSignup names the line in errors', !bridge.parseSignup('\n; x@example.org').ok && bridge.parseSignup('\n; x@example.org').errors[0].startsWith('line 2:'));
+
 const state = { v: 1, mode: 'view', event: ev, pins: JSON.parse(planned.exportJson).pins };
 const enc = bridge.encodeState(JSON.stringify(state));
 check('encodeState ok', enc.ok, JSON.stringify(enc.errors));

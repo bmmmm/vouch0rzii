@@ -108,7 +108,12 @@ so two people can tell at a glance whether they look at the same plan.
   It carries only the event settings and the organiser's address; the result
   is one line (`Name; E-Mail; Status; +N; Kreditkarte; Kennt; Notiz`) that is
   mailed or copied to the organiser, who pastes it into "Zeilen aus
-  Sammel-Mails hinzufügen".
+  Sammel-Mails hinzufügen". Lines typed by hand may put the fields after the
+  name in any order: the e-mail is the field with `@`, the status a tier
+  word, +N a number, the card ja/nein, connections comma-separated handles,
+  the rest becomes the note. Problems with the roster or with sign-up lines
+  are reported under "Plan berechnen" or under the sign-up button; a cell
+  name the planner rejects is reported above the matrix.
 
 ## Live status
 

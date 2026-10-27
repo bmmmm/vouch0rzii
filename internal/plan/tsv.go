@@ -165,11 +165,7 @@ func ParseRoster(text string) (people []Person, warnings []string, err error) {
 			case colEmail:
 				p.Email = f
 			case colKnows:
-				for _, id := range strings.Split(f, ",") {
-					if id = strings.TrimSpace(id); id != "" {
-						p.Knows = append(p.Knows, id)
-					}
-				}
+				p.Knows = append(p.Knows, splitHandles(f)...)
 			case colGroup:
 				p.Group = yn(row, "group", f)
 			case colOut:
@@ -224,4 +220,130 @@ func FormatRoster(people []Person) string {
 			num(p.Order), p.ID, yn[p.Card], tier, num(p.Plus), p.Email, strings.Join(p.Knows, ", "), yn[p.Group], yn[p.Out], p.Note)
 	}
 	return b.String()
+}
+
+// SignupFields is the order in which the sign-up form writes a line.
+const SignupFields = "Name; E-Mail; Status; +N; Kreditkarte; Kennt; Notiz"
+
+// ParseSignup reads sign-up lines, one person per line, fields separated by
+// ";". A line with the form's seven fields is read by position
+// (SignupFields). Hand-typed lines rarely keep that order, so any other field
+// count, or a seven-field line that does not parse by position, is read by
+// content: the first field is the handle, "@" marks the e-mail, a tier word
+// the status, a number the +N, ja/nein the credit card, handles separated by
+// commas the connections, anything else the note. Unknown handles in Kennt
+// are reported by Normalize.
+func ParseSignup(text string) (people []Person, warnings []string, err error) {
+	var errs []error
+	for n, line := range strings.Split(strings.ReplaceAll(text, "\r\n", "\n"), "\n") {
+		if strings.TrimSpace(line) == "" {
+			continue
+		}
+		row := n + 1
+		fields := strings.Split(line, ";")
+		for i := range fields {
+			fields[i] = strings.TrimSpace(fields[i])
+		}
+		if fields[0] == "" {
+			errs = append(errs, fmt.Errorf("line %d: name missing", row))
+			continue
+		}
+		if len(fields) > 1 && strings.EqualFold(fields[0], "Name") && strings.EqualFold(fields[1], "E-Mail") {
+			continue // the header line from the hint, pasted along
+		}
+		var ws []string
+		if len(fields) == 7 {
+			p, perrs := signupByPosition(row, fields)
+			if len(perrs) == 0 {
+				people = append(people, p)
+				continue
+			}
+			// Position 2 holding an address (or nothing) means the line is
+			// in the form's order after all: report its errors as such.
+			if fields[1] == "" || strings.Contains(fields[1], "@") {
+				errs = append(errs, perrs...)
+				continue
+			}
+			ws = append(ws, fmt.Sprintf("line %d: %s: fields are not in the form's order, read by content", row, fields[0]))
+		}
+		p, more := signupByContent(row, fields)
+		people = append(people, p)
+		warnings = append(warnings, append(ws, more...)...)
+	}
+	if len(errs) > 0 {
+		return nil, warnings, errors.Join(errs...)
+	}
+	return people, warnings, nil
+}
+
+func splitHandles(f string) (ids []string) {
+	for id := range strings.SplitSeq(f, ",") {
+		if id = strings.TrimSpace(id); id != "" {
+			ids = append(ids, id)
+		}
+	}
+	return ids
+}
+
+func signupByPosition(row int, f []string) (p Person, errs []error) {
+	p = Person{ID: f[0], Email: f[1], Knows: splitHandles(f[5]), Note: f[6]}
+	if f[2] != "" {
+		t, ok := ParseTier(f[2])
+		if !ok {
+			errs = append(errs, fmt.Errorf("line %d: unknown status %q", row, f[2]))
+		}
+		p.Tier = t
+	}
+	if f[3] != "" {
+		v, perr := strconv.Atoi(f[3]) // Atoi accepts "+2"
+		if perr != nil {
+			errs = append(errs, fmt.Errorf("line %d: +N %q is not a number", row, f[3]))
+		}
+		p.Plus = v
+	}
+	v, perr := ParseBool(f[4])
+	if perr != nil {
+		errs = append(errs, fmt.Errorf("line %d: card: %v", row, perr))
+	}
+	p.Card = v
+	return p, errs
+}
+
+func signupByContent(row int, f []string) (p Person, warnings []string) {
+	p = Person{ID: f[0]}
+	var tier, plus, card bool
+	isHandles := func(s string) bool {
+		for id := range strings.SplitSeq(s, ",") {
+			if id = strings.TrimSpace(id); id != "" && strings.ContainsAny(id, " +|") {
+				return false
+			}
+		}
+		return true
+	}
+	for _, v := range f[1:] {
+		t, isTier := ParseTier(v)
+		n, nerr := strconv.Atoi(v)
+		b, berr := ParseBool(v)
+		switch {
+		case v == "":
+		case strings.Contains(v, "@") && p.Email == "":
+			p.Email = v
+		case isTier && !tier:
+			p.Tier, tier = t, true
+		case nerr == nil && !plus:
+			p.Plus, plus = n, true
+		case berr == nil && !card:
+			p.Card, card = b, true
+		case strings.Contains(v, "@") || isTier || nerr == nil || berr == nil:
+			warnings = append(warnings, fmt.Sprintf("line %d: %s: %q ignored, that field is already set", row, p.ID, v))
+		case p.Knows == nil && isHandles(v):
+			p.Knows = splitHandles(v)
+		default:
+			p.Note = strings.TrimSpace(p.Note + " " + v)
+		}
+	}
+	if !tier {
+		warnings = append(warnings, fmt.Sprintf("line %d: %s: no status given, counts as member", row, p.ID))
+	}
+	return p, warnings
 }
