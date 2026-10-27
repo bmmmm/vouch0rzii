@@ -327,11 +327,12 @@
     $('#f-extra').value = (ev.extra || []).map((x) => `${x.date}:${x.count}`).join(', ');
     $('#f-collectTo').value = (state.collect && state.collect.to) || '';
   }
-  // rosterToPeople reads the textarea; null means errors were shown.
-  function rosterToPeople() {
+  // rosterToPeople reads the textarea; null means errors were shown, next to
+  // anchor.
+  function rosterToPeople(anchor = $('#compute').parentElement) {
     const r = bridge.parseRoster($('#roster').value);
     if (!r.ok) {
-      showMessages(r.errors, r.warnings, $('#compute').parentElement);
+      showMessages(r.errors, r.warnings, anchor);
       return null;
     }
     return { people: JSON.parse(r.peopleJson), warnings: r.warnings };
@@ -785,7 +786,7 @@
       if (!$('#inbox').value.trim()) return;
       let current = [];
       if ($('#roster').value.trim()) {
-        const cur = rosterToPeople();
+        const cur = rosterToPeople(near);
         if (!cur) return;
         current = cur.people;
       }

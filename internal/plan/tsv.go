@@ -228,11 +228,11 @@ const SignupFields = "Name; E-Mail; Status; +N; Kennt; Notiz"
 // in position 2), its errors stand, except when only leftover ja/nein words
 // of the former credit-card field are in the way. Any other line is read by
 // content: the first field is the handle, "@" marks the e-mail, a tier word
-// the status, a number the +N, handles separated by commas the connections,
-// anything else the note; ja/nein words are reported. A single word without
-// a comma is a connection only if it names a known handle (known, or a name
-// in text), else it is the note, with a warning. Unknown handles in Kennt
-// are reported by Normalize.
+// the status, a number the +N, the first list of handles separated by commas
+// and every single word that names another person's handle (known, or a name
+// in text) the connections, anything else the note; ja/nein words and single
+// words kept as note are reported. Unknown handles in a list are reported by
+// Normalize.
 func ParseSignup(text string, known []string) (people []Person, warnings []string, err error) {
 	lines := strings.Split(strings.ReplaceAll(text, "\r\n", "\n"), "\n")
 	handles := map[string]bool{}
@@ -240,8 +240,9 @@ func ParseSignup(text string, known []string) (people []Person, warnings []strin
 		handles[strings.ToLower(strings.TrimSpace(id))] = true
 	}
 	for _, line := range lines {
-		name, _, _ := strings.Cut(line, ";")
-		handles[strings.ToLower(strings.TrimSpace(name))] = true
+		if f := strings.Split(line, ";"); !isSignupHeader(f) {
+			handles[strings.ToLower(strings.TrimSpace(f[0]))] = true
+		}
 	}
 	var errs []error
 	for n, line := range lines {
@@ -257,7 +258,7 @@ func ParseSignup(text string, known []string) (people []Person, warnings []strin
 			errs = append(errs, fmt.Errorf("line %d: name missing", row))
 			continue
 		}
-		if len(fields) > 1 && strings.EqualFold(fields[0], "Name") && strings.EqualFold(fields[1], "E-Mail") {
+		if isSignupHeader(fields) {
 			continue // the header line from the hint, pasted along
 		}
 		if len(fields) == 7 {
@@ -294,6 +295,11 @@ func ParseSignup(text string, known []string) (people []Person, warnings []strin
 		return nil, warnings, errors.Join(errs...)
 	}
 	return people, warnings, nil
+}
+
+// isSignupHeader reports whether f is the header line from the hint.
+func isSignupHeader(f []string) bool {
+	return len(f) > 1 && strings.EqualFold(strings.TrimSpace(f[0]), "Name") && strings.EqualFold(strings.TrimSpace(f[1]), "E-Mail")
 }
 
 // ParseBoolOK reports whether ParseBool accepts s.
@@ -338,7 +344,8 @@ func signupByPosition(row int, f []string) (p Person, errs []error, bad []int) {
 // lower-cased.
 func signupByContent(row int, f []string, handles map[string]bool) (p Person, warnings []string) {
 	p = Person{ID: f[0]}
-	var tier, plus bool
+	var tier, plus, list bool
+	var loose []string
 	isHandles := func(s string) bool {
 		for id := range strings.SplitSeq(s, ",") {
 			if id = strings.TrimSpace(id); id != "" && strings.ContainsAny(id, " +|") {
@@ -351,6 +358,7 @@ func signupByContent(row int, f []string, handles map[string]bool) (p Person, wa
 		t, isTier := ParseTier(v)
 		n, nerr := strconv.Atoi(v)
 		_, berr := ParseBool(v)
+		single := !strings.Contains(v, ",")
 		switch {
 		case v == "":
 		case strings.Contains(v, "@") && p.Email == "":
@@ -363,14 +371,19 @@ func signupByContent(row int, f []string, handles map[string]bool) (p Person, wa
 			warnings = append(warnings, fmt.Sprintf("line %d: %s: %q ignored, that field is already set", row, p.ID, v))
 		case berr == nil:
 			warnings = append(warnings, fmt.Sprintf("line %d: %s: %q ignored, no field takes ja/nein", row, p.ID, v))
-		case p.Knows == nil && isHandles(v) && (strings.Contains(v, ",") || handles[strings.ToLower(v)]):
-			p.Knows = splitHandles(v)
-		case p.Knows == nil && isHandles(v):
-			warnings = append(warnings, fmt.Sprintf("line %d: %s: %q is no known handle, kept as note; Kennt takes handles with a comma", row, p.ID, v))
-			p.Note = strings.TrimSpace(p.Note + " " + v)
+		case isHandles(v) && single && handles[strings.ToLower(v)] && !strings.EqualFold(v, p.ID):
+			p.Knows = append(p.Knows, v)
+		case isHandles(v) && !single && !list:
+			p.Knows, list = append(p.Knows, splitHandles(v)...), true
+		case isHandles(v) && single:
+			loose = append(loose, strconv.Quote(v))
+			fallthrough
 		default:
 			p.Note = strings.TrimSpace(p.Note + " " + v)
 		}
+	}
+	if len(loose) > 0 {
+		warnings = append(warnings, fmt.Sprintf("line %d: %s: %s kept as note, not another person's handle; Kennt takes handles with a comma", row, p.ID, strings.Join(loose, ", ")))
 	}
 	if !tier {
 		warnings = append(warnings, fmt.Sprintf("line %d: %s: no status given, counts as member", row, p.ID))

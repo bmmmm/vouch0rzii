@@ -13,6 +13,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"maps"
 	"runtime/debug"
@@ -109,8 +110,11 @@ func parseRoster(_ js.Value, args []js.Value) any {
 
 // parseSignup(text, knownJson) → {ok, errors, warnings, peopleJson}: sign-up
 // lines, by position or by content (plan.ParseSignup); knownJson is an array
-// of the roster's handles.
+// of the roster's handles, as a string.
 func parseSignup(_ js.Value, args []js.Value) any {
+	if len(args) > 1 && args[1].Type() != js.TypeString {
+		return fail(errors.New("knownJson must be a JSON string"), nil)
+	}
 	var known []string
 	if s := strings.TrimSpace(strArg(args, 1)); s != "" {
 		if err := json.Unmarshal([]byte(s), &known); err != nil {

@@ -161,7 +161,7 @@ func TestParseSignupByContentAndPosition(t *testing.T) {
 	}
 	// Six reordered fields without any status word are still read by content.
 	people, warnings, err = ParseSignup("emu; 2; emu@example.org; alpha; ; Kuchen", []string{"alpha"})
-	if err != nil || !reflect.DeepEqual(people[0], Person{ID: "emu", Email: "emu@example.org", Plus: 2, Knows: []string{"alpha"}, Note: "Kuchen"}) || len(warnings) != 2 || !strings.Contains(warnings[1], "counts as member") {
+	if err != nil || !reflect.DeepEqual(people[0], Person{ID: "emu", Email: "emu@example.org", Plus: 2, Knows: []string{"alpha"}, Note: "Kuchen"}) || len(warnings) != 3 || !strings.Contains(warnings[2], "counts as member") {
 		t.Fatalf("got %+v %v %v", people, warnings, err)
 	}
 	// A seven-field line from the old form (card in position 5) is read by position without the card.
@@ -187,7 +187,19 @@ func TestParseSignupByContentAndPosition(t *testing.T) {
 	// A single word is a connection only if it names a known handle, here one
 	// from the same paste; any other single word is the note, with a warning.
 	people, warnings, _ = ParseSignup("anna; Gast; BOB; Veganerin\nBob ; Gast; Veganer", nil)
-	if !reflect.DeepEqual(people[0].Knows, []string{"BOB"}) || people[0].Note != "Veganerin" || people[1].Knows != nil || people[1].Note != "Veganer" || len(warnings) != 1 || !strings.Contains(warnings[0], `line 2: Bob: "Veganer" is no known handle, kept as note`) {
+	if !reflect.DeepEqual(people[0].Knows, []string{"BOB"}) || people[0].Note != "Veganerin" || people[1].Knows != nil || people[1].Note != "Veganer" || len(warnings) != 2 || !strings.Contains(warnings[0], `line 1: anna: "Veganerin" kept as note`) || !strings.Contains(warnings[1], `line 2: Bob: "Veganer" kept as note, not another person's handle`) {
+		t.Fatalf("got %+v warnings %v", people, warnings)
+	}
+	// Neither the pasted header nor the person's own handle is a connection,
+	// and all single words kept as note share one warning.
+	people, warnings, _ = ParseSignup(" Name ; E-Mail; Status\nanna; Gast; Name; ANNA", nil)
+	if people[0].Knows != nil || people[0].Note != "Name ANNA" || len(warnings) != 1 || !strings.Contains(warnings[0], `line 2: anna: "Name", "ANNA" kept as note`) {
+		t.Fatalf("got %+v warnings %v", people, warnings)
+	}
+	// Every known single word is a connection, before or after the list; only
+	// the first list counts.
+	people, warnings, _ = ParseSignup("anna; bob; panda, koala; carl; Kuchen,Salat; Gast; 1", []string{"bob", "carl"})
+	if !reflect.DeepEqual(people[0].Knows, []string{"bob", "panda", "koala", "carl"}) || people[0].Note != "Kuchen,Salat" || len(warnings) != 0 {
 		t.Fatalf("got %+v warnings %v", people, warnings)
 	}
 	// Content mode without a status warns; "1" is a +N.

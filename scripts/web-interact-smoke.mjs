@@ -195,6 +195,8 @@ try {
   check('inbox: a bad line is reported right under the button', (await msgAfter('addInbox')) && await js(`/line 1: name missing/.test(document.querySelector('#messages .error')?.textContent || '')`));
   await js(`document.getElementById('roster').value += '\\tbroken\\tMitglied\\tx\\t\\t\\t\\t\\t\\n'; document.getElementById('compute').click(); 0`);
   check('roster: a bad row is reported under "Plan berechnen"', (await msgAfter('compute')) && await js(`/not a number/.test(document.querySelector('#messages .error')?.textContent || '')`));
+  await js(`document.getElementById('inbox').value = 'zebra; Gast'; document.getElementById('addInbox').click(); 0`);
+  check('inbox: a bad roster row is reported under the clicked button', (await msgAfter('addInbox')) && await js(`/not a number/.test(document.querySelector('#messages .error')?.textContent || '')`));
   await js(`(() => { const r = document.getElementById('roster'); r.value = r.value.replace('\\tbroken\\tMitglied\\tx\\t', '\\tbroken\\tMitglied\\t3\\t'); document.getElementById('compute').click(); })(); 0`);
   check('roster: a rule violation (+3 without group) is reported under "Plan berechnen" too', (await msgAfter('compute')) && await js(`/exceeds the limit/.test(document.querySelector('#messages .error')?.textContent || '')`));
 } catch (e) {
