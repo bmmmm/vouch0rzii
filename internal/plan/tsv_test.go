@@ -76,7 +76,7 @@ func TestParseRosterErrors(t *testing.T) {
 func TestRosterRoundTrip(t *testing.T) {
 	in := []Person{
 		{ID: "alpha", Order: 1, Card: true, Tier: TierMember, Plus: 1, Email: "alpha@example.org", Knows: []string{"bravo"}, Note: "bringt Kuchen"},
-		{ID: "bravo", Tier: TierGuest},
+		{ID: "bravo", Tier: TierGuest, Out: true},
 		{ID: "mammut", Tier: TierAcquaintance, Plus: 10, Group: true},
 	}
 	out, warnings, err := ParseRoster(FormatRoster(in))

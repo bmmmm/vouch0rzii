@@ -50,7 +50,7 @@ func TestBuildSlotsTierOrder(t *testing.T) {
 	if _, err := Normalize(e); err != nil {
 		t.Fatal(err)
 	}
-	got := labels(buildSlots(e))
+	got := labels(buildSlots(e, nil))
 	if len(got) != 10 {
 		t.Fatalf("want 10 slots, got %d: %v", len(got), got)
 	}
@@ -86,18 +86,18 @@ func TestDrawIsSeededAndStable(t *testing.T) {
 	e2 := mkEvent(3, members(10)...)
 	_, _ = Normalize(e1)
 	_, _ = Normalize(e2)
-	a, b := labels(buildSlots(e1)), labels(buildSlots(e2))
+	a, b := labels(buildSlots(e1, nil)), labels(buildSlots(e2, nil))
 	if !reflect.DeepEqual(a, b) {
 		t.Fatalf("same seed, different draw: %v vs %v", a, b)
 	}
 	e2.Seed = "another"
-	if c := labels(buildSlots(e2)); reflect.DeepEqual(a, c) {
+	if c := labels(buildSlots(e2, nil)); reflect.DeepEqual(a, c) {
 		t.Fatalf("different seed, same draw: %v", a)
 	}
 	// Adding a guest must not reshuffle the members.
 	e3 := mkEvent(3, append(members(10), Person{ID: "g", Tier: TierGuest})...)
 	_, _ = Normalize(e3)
-	if d := labels(buildSlots(e3)); !reflect.DeepEqual(d[:10], a) || d[10] != "g" {
+	if d := labels(buildSlots(e3, nil)); !reflect.DeepEqual(d[:10], a) || d[10] != "g" {
 		t.Fatalf("guest reshuffled members: %v", d)
 	}
 }
@@ -108,7 +108,7 @@ func TestOrderOverridesLot(t *testing.T) {
 	ps[0].Order = 2
 	e := mkEvent(2, ps...)
 	_, _ = Normalize(e)
-	got := labels(buildSlots(e))
+	got := labels(buildSlots(e, nil))
 	if got[0] != "m05" || got[1] != "m00" {
 		t.Fatalf("manual order ignored: %v", got)
 	}
@@ -230,8 +230,71 @@ func TestMemberCountDoesNotReshuffleGuests(t *testing.T) {
 	e2 := mkEvent(3, append(members(11), guests(6)...)...)
 	_, _ = Normalize(e1)
 	_, _ = Normalize(e2)
-	a, b := labels(buildSlots(e1))[10:], labels(buildSlots(e2))[11:]
+	a, b := labels(buildSlots(e1, nil))[10:], labels(buildSlots(e2, nil))[11:]
 	if !reflect.DeepEqual(a, b) {
 		t.Fatalf("an extra member reshuffled the guests: %v vs %v", a, b)
+	}
+}
+
+func TestExtraVouchersStartLater(t *testing.T) {
+	e := mkEvent(1, members(6)...)
+	e.Extra = []Extra{{Date: "2026-11-03", Count: 1}} // Fr 30.10. = day 1, Mo 02.11. = day 2, Di 03.11. = day 3
+	p := mustCompute(t, e, nil)
+	if p.Stats.Days != 4 || !reflect.DeepEqual(p.From, []int{1, 3}) {
+		t.Fatalf("days %d from %v", p.Stats.Days, p.From)
+	}
+	if p.Grid[0][1] != nil || p.Grid[1][1] != nil || p.Grid[2][1] == nil || p.Grid[3][1] == nil {
+		t.Fatalf("extra voucher must be used from day 3 on only: %v", p.ToExport().Grid)
+	}
+	ex := p.ToExport()
+	if ex.Vouchers != 2 || !reflect.DeepEqual(ex.VoucherFrom, []int{1, 3}) {
+		t.Fatalf("export %d %v", ex.Vouchers, ex.VoucherFrom)
+	}
+	for _, sh := range ex.Sheets {
+		if sh.Voucher == 2 && sh.Day == 3 && sh.From != OrgaLabel {
+			t.Fatalf("first holder of the extra chain must receive from %s: %+v", OrgaLabel, sh)
+		}
+	}
+	p2 := mustCompute(t, mkEventExtra(), []Pin{{Label: "m00", Day: 1, Voucher: 2}})
+	if !strings.Contains(strings.Join(p2.Warnings, "\n"), "not yet available") {
+		t.Fatalf("pin on an unavailable cell must be dropped with a warning: %v", p2.Warnings)
+	}
+	far := mkEventExtra()
+	far.Extra[0].Date = "2030-01-01"
+	if _, err := Compute(far, nil); err == nil || !strings.Contains(err.Error(), "horizon") {
+		t.Fatalf("extra beyond the horizon must fail, got %v", err)
+	}
+}
+
+func mkEventExtra() *Event {
+	e := mkEvent(1, members(6)...)
+	e.Extra = []Extra{{Date: "2026-11-03", Count: 1}}
+	return e
+}
+
+func TestOutPersonKeepsOnlyPinnedSlots(t *testing.T) {
+	ps := ordered("a", "b", "c", "d")
+	ps[2].Out, ps[2].Plus = true, 1
+	p := mustCompute(t, mkEvent(2, ps...), nil)
+	if got := labels(p.Slots); !reflect.DeepEqual(got, []string{"a", "b", "d"}) {
+		t.Fatalf("unpinned slots of a person who left must vanish: %v", got)
+	}
+	p = mustCompute(t, mkEvent(2, ps...), []Pin{{Label: "c", Day: 1, Voucher: 1}})
+	if got := labels(p.Slots); !reflect.DeepEqual(got, []string{"a", "b", "c", "d"}) || cell(p, 1, 1) != "c" {
+		t.Fatalf("pinned slot of a person who left must stay: %v", got)
+	}
+	// Leaving does not reshuffle the others.
+	ms := members(10)
+	before := labels(mustCompute(t, mkEvent(3, ms...), nil).Slots)
+	ms[3].Out = true
+	after := labels(mustCompute(t, mkEvent(3, ms...), nil).Slots)
+	var want []string
+	for _, l := range before {
+		if l != "m03" {
+			want = append(want, l)
+		}
+	}
+	if !reflect.DeepEqual(after, want) {
+		t.Fatalf("others moved: %v vs %v", after, want)
 	}
 }

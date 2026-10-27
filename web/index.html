@@ -37,6 +37,7 @@
         <label title="Startwert der Losung innerhalb einer Stufe. Gleicher Seed, gleiche Reihenfolge. Anderer Seed, neue Losung. Leer = Event-Name.">Seed <input id="f-seed" placeholder="leer = Name"></label>
         <label title="Uhrzeit, zu der der Voucher abends weitergegeben wird. Reine Anzeige in Listen und Mails.">Übergabe um <input id="f-handover" value="23:00" placeholder="23:00"></label>
         <label title="E-Mail der Orga. Dorthin gehen Sammel-Zeilen und Statusmeldungen; steht im Sammel- und im Viewer-Link.">Orga-Adresse <input id="f-collectTo" type="email" placeholder="für Sammel-Link und Statusmeldungen"></label>
+        <label title="Vouchers, die später dazukommen: Datum:Anzahl, mit Komma getrennt. Diese Ketten starten an dem Tag frisch von der Orga.">Zusätzliche Vouchers <input id="f-extra" placeholder="2026-11-05:2, 2026-11-09:1"></label>
         <label class="check" title="Samstag und Sonntag als Kauftage nutzen."><input id="f-weekends" type="checkbox"> auch Sa/So planen</label>
       </div>
       <details class="help">
@@ -49,8 +50,11 @@
           <dt>Seed</dt><dd>Startwert der Losung. Innerhalb einer Stufe (Mitglieder, Gäste, Bekanntschaften) wird die Reihenfolge gelost; gleicher Seed heißt gleiche Reihenfolge, ein anderer Seed lost neu. Leer bedeutet Event-Name.</dd>
           <dt>Übergabe um</dt><dd>Uhrzeit der abendlichen Weitergabe. Nur Anzeige in Listen und Mails, rechnet nicht mit.</dd>
           <dt>Orga-Adresse</dt><dd>E-Mail der Orga. Dorthin schicken Interessierte ihre Sammel-Zeile und Teilnehmende ihre Statusmeldung. Steht im Sammel- und im Viewer-Link.</dd>
+          <dt>Zusätzliche Vouchers</dt><dd>Vouchers, die erst später verfügbar werden, oft gegen Ende. Eintrag <code>Datum:Anzahl</code>, mehrere mit Komma. Jede dieser Ketten beginnt am ersten Plantag ab dem Datum frisch von der Orga; davor sind die Zellen gesperrt.</dd>
           <dt>auch Sa/So planen</dt><dd>Wochenenden als Kauftage nutzen statt zu überspringen.</dd>
+          <dt>Ausgestiegen</dt><dd>Roster-Spalte. <code>ja</code>, wenn jemand anderswo einen Voucher bekommen hat und seine Plätze abgibt. Die Person bleibt in der Losung, damit niemand anderes verrutscht; nur ihre festgenagelten Slots bleiben stehen, alle anderen fallen weg und die Nachfolgenden rücken auf.</dd>
           <dt>Pins</dt><dd>Manuell festgenagelte Slots. Im Plan Zelle anklicken, dann Zielzelle: leer heißt festnageln, belegt heißt tauschen. Pins wandern mit dem Link.</dd>
+          <dt>Bis heute festnageln</dt><dd>Pinnt alle Slots bis einschließlich heute. Danach ändern Roster-Änderungen nur noch die Zukunft; die Vergangenheit bleibt, wie sie passiert ist.</dd>
           <dt>Kennung</dt><dd>Die vier Emojis im Kopf sind ein Fingerabdruck aus Einstellungen, Roster und Platzierung. Gleiche Emojis, gleicher Plan; so erkennen Admins veraltete Links.</dd>
         </dl>
       </details>
@@ -59,8 +63,8 @@
     <section class="card">
       <h2>Roster</h2>
       <p class="hint">Aus der Tabelle einfügen. Erste Zeile ist die Kopfzeile, Spalten in beliebiger Reihenfolge:
-        <code>Reihenfolge</code> <code>Name</code> <code>Kreditkarte</code> <code>Status</code> <code>+N</code> <code>E-Mail</code> <code>Kennt</code> <code>Gruppe</code> <code>Notiz</code>.
-        Status: Mitglied, Gast, Bekanntschaft. Gruppe = ja erlaubt mehr als +N max.</p>
+        <code>Reihenfolge</code> <code>Name</code> <code>Kreditkarte</code> <code>Status</code> <code>+N</code> <code>E-Mail</code> <code>Kennt</code> <code>Gruppe</code> <code>Ausgestiegen</code> <code>Notiz</code>.
+        Status: Mitglied, Gast, Bekanntschaft. Gruppe = ja erlaubt mehr als +N max. Ausgestiegen = ja gibt alle nicht festgenagelten Plätze frei.</p>
       <textarea id="roster" rows="12" spellcheck="false" placeholder="Reihenfolge	Name	Kreditkarte	Status	+N	E-Mail	Kennt	Gruppe	Notiz
 	alpha	nein	Mitglied	1	alpha@example.org	bravo, charlie	nein	"></textarea>
       <div class="row">
@@ -124,6 +128,7 @@
       </div>
       <p id="r-stats" class="stats"></p>
       <p id="r-pinhelp" class="hint" hidden>Zelle anklicken oder ziehen, dann Zielzelle: leer = festnageln, belegt = tauschen. Gepinnte Zellen sind fett, × löst den Pin.
+        <button type="button" id="freezeToday" class="small" title="Alle Slots bis heute pinnen, damit Änderungen nur die Zukunft treffen">Bis heute festnageln</button>
         <button type="button" id="unpinAll" class="small">Alle Pins lösen</button></p>
       <div class="scroll"><table id="matrix"></table></div>
       <p class="legend"><span class="sw known"></span> Buddies, kennen sich schon <span class="sw stranger"></span> neue Verbindung <span class="sw forbidden"></span> direkt an eigene Begleitung</p>

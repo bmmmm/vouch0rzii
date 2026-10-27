@@ -13,7 +13,8 @@ import (
 type Export struct {
 	Event       string           `json:"event"`
 	Fingerprint string           `json:"fingerprint"`
-	Vouchers    int              `json:"vouchers"`
+	Vouchers    int              `json:"vouchers"`    // total, including extras
+	VoucherFrom []int            `json:"voucherFrom"` // first day per voucher, 1-based
 	Handover    string           `json:"handover"`
 	Days        []DayExport      `json:"days"`
 	Grid        [][]string       `json:"grid"`
@@ -87,7 +88,8 @@ func (p *Plan) ToExport() *Export {
 	ex := &Export{
 		Event:       p.Event.Name,
 		Fingerprint: p.Fingerprint(),
-		Vouchers:    p.Event.Vouchers,
+		Vouchers:    len(p.From),
+		VoucherFrom: p.From,
 		Handover:    p.Event.HandoverOrDefault(),
 		Handovers:   []HandoverExport{},
 		Pins:        Freeze(p),
@@ -96,7 +98,7 @@ func (p *Plan) ToExport() *Export {
 	}
 	for d := range p.Grid {
 		ex.Days = append(ex.Days, DayExport{Day: d + 1, Date: p.Dates[d], Label: p.dayLabel(d + 1)})
-		row := make([]string, p.Event.Vouchers)
+		row := make([]string, len(p.From))
 		for v, s := range p.Grid[d] {
 			if s != nil {
 				row[v] = s.Label
@@ -147,13 +149,13 @@ func (p *Plan) JSON() ([]byte, error) {
 func (p *Plan) Markdown() string {
 	var b strings.Builder
 	s := p.Stats
-	fmt.Fprintf(&b, "# %s\n\n%d vouchers, %d days, %d slots, handover at %s. Version %s\n\n", p.Event.Name, p.Event.Vouchers, s.Days, s.Slots, p.Event.HandoverOrDefault(), p.Fingerprint())
+	fmt.Fprintf(&b, "# %s\n\n%d vouchers, %d days, %d slots, handover at %s. Version %s\n\n", p.Event.Name, len(p.From), s.Days, s.Slots, p.Event.HandoverOrDefault(), p.Fingerprint())
 	b.WriteString("| Voucher |")
 	for d := range p.Grid {
 		fmt.Fprintf(&b, " %s |", p.dayLabel(d+1))
 	}
 	b.WriteString("\n|---|" + strings.Repeat("---|", len(p.Grid)) + "\n")
-	for v := 1; v <= p.Event.Vouchers; v++ {
+	for v := 1; v <= len(p.From); v++ {
 		fmt.Fprintf(&b, "| %d |", v)
 		for d := range p.Grid {
 			cell := ""
@@ -205,7 +207,7 @@ func (p *Plan) CSV() string {
 		fmt.Fprintf(&b, ";%s %s", p.dayLabel(d+1), p.Dates[d])
 	}
 	b.WriteByte('\n')
-	for v := 1; v <= p.Event.Vouchers; v++ {
+	for v := 1; v <= len(p.From); v++ {
 		fmt.Fprint(&b, v)
 		for d := range p.Grid {
 			b.WriteByte(';')

@@ -34,7 +34,7 @@ func (p *Plan) SVG() string {
 		boxW, boxH   = 108, 30
 		padX, padY   = 48, 34
 	)
-	days, vouchers := len(p.Grid), p.Event.Vouchers
+	days, vouchers := len(p.Grid), len(p.From)
 	w, h := padX+days*cellW+8, padY+vouchers*cellH+8
 	box := func(d, v int) (x, y int) {
 		return padX + (d-1)*cellW + (cellW-boxW)/2, padY + (v-1)*cellH + (cellH-boxH)/2

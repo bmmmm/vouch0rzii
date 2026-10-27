@@ -31,8 +31,9 @@ func newRand(seed string) *rand.Rand {
 //
 // Each tier is drawn with its own generator (seed + tier name), so the lot of a
 // tier depends only on the seed and that tier's IDs: adding a guest never
-// reshuffles the members.
-func buildSlots(e *Event) []*Slot {
+// reshuffles the members. People who left (Out) still take part in the draw,
+// so nobody else moves, but only their pinned slots (keep) are emitted.
+func buildSlots(e *Event, keep map[string]bool) []*Slot {
 	var named []*Person
 	for tier := TierMember; tier <= TierAcquaintance; tier++ {
 		rng := newRand(e.SeedOrDefault() + "/" + tier.String())
@@ -62,7 +63,11 @@ func buildSlots(e *Event) []*Slot {
 
 	var slots []*Slot
 	add := func(p *Person, k int) {
-		slots = append(slots, &Slot{Label: SlotLabel(p.ID, k), PersonID: p.ID, K: k, rank: len(slots)})
+		label := SlotLabel(p.ID, k)
+		if p.Out && !keep[label] {
+			return
+		}
+		slots = append(slots, &Slot{Label: label, PersonID: p.ID, K: k, rank: len(slots)})
 	}
 	for _, p := range named {
 		add(p, 0)
@@ -83,27 +88,61 @@ func buildSlots(e *Event) []*Slot {
 	return slots
 }
 
+// voucherStarts returns, per voucher, the first plan day on which it exists:
+// 1 for the base vouchers, later days for the extras.
+func voucherStarts(e *Event) ([]int, error) {
+	from := make([]int, e.Vouchers)
+	for i := range from {
+		from[i] = 1
+	}
+	if len(e.Extra) == 0 {
+		return from, nil
+	}
+	start, _ := ParseDate(e.Start)
+	dates := Dates(start, MaxDays, e.Weekends)
+	for _, x := range e.Extra {
+		day := 0
+		for i, d := range dates {
+			if d.Format(DateLayout) >= x.Date {
+				day = i + 1
+				break
+			}
+		}
+		if day == 0 {
+			return nil, fmt.Errorf("extra vouchers on %s: beyond the plan horizon of %d days", x.Date, MaxDays)
+		}
+		for i := 0; i < x.Count; i++ {
+			from = append(from, day)
+		}
+	}
+	return from, nil
+}
+
 // placeSlots fixes pinned slots to their cells and fills the remaining cells
-// day by day with the unpinned slots in priority order. Vouchers of unpinned
-// slots stay 0 until assignChains runs. Returns the grid and warnings about
-// pins that could not be applied; conflicting pins are an error.
-func placeSlots(e *Event, slots []*Slot, pins []Pin) (grid [][]*Slot, warnings []string, err error) {
+// day by day with the unpinned slots in priority order, using every voucher
+// from its start day on. Vouchers of unpinned slots stay 0 until assignChains
+// runs. Returns the grid and warnings about pins that could not be applied;
+// conflicting pins are an error.
+func placeSlots(slots []*Slot, pins []Pin, from []int) (grid [][]*Slot, warnings []string, err error) {
+	total := len(from)
 	byLabel := make(map[string]*Slot, len(slots))
 	for _, s := range slots {
 		byLabel[s.Label] = s
 	}
-	v := e.Vouchers
-	days := (len(slots) + v - 1) / v
 	type cell struct{ d, v int }
 	taken := map[cell]string{}
+	maxPin := 0
 	for _, pin := range pins {
 		s, ok := byLabel[pin.Label]
 		switch {
 		case !ok:
 			warnings = append(warnings, fmt.Sprintf("pin %s: no such slot, dropped", pin.Label))
 			continue
-		case pin.Day < 1 || pin.Day > MaxDays || pin.Voucher < 1 || pin.Voucher > v:
+		case pin.Day < 1 || pin.Day > MaxDays || pin.Voucher < 1 || pin.Voucher > total:
 			warnings = append(warnings, fmt.Sprintf("pin %s: cell day %d / voucher %d outside the plan, dropped", pin.Label, pin.Day, pin.Voucher))
+			continue
+		case from[pin.Voucher-1] > pin.Day:
+			warnings = append(warnings, fmt.Sprintf("pin %s: voucher %d is not yet available on day %d, dropped", pin.Label, pin.Voucher, pin.Day))
 			continue
 		case s.Pinned:
 			return nil, nil, fmt.Errorf("pin %s: slot pinned twice", pin.Label)
@@ -113,41 +152,53 @@ func placeSlots(e *Event, slots []*Slot, pins []Pin) (grid [][]*Slot, warnings [
 		}
 		taken[cell{pin.Day, pin.Voucher}] = pin.Label
 		s.Pinned, s.Day, s.Voucher = true, pin.Day, pin.Voucher
-		if pin.Day > days {
-			days = pin.Day
+		if pin.Day > maxPin {
+			maxPin = pin.Day
 		}
 	}
-	if days > MaxDays {
-		return nil, nil, fmt.Errorf("plan would need %d days, more than %d", days, MaxDays)
-	}
-	if minDays := (len(slots) + v - 1) / v; days > minDays {
-		warnings = append(warnings, fmt.Sprintf("pins stretch the plan to %d days, %d would do", days, minDays))
-	}
 
-	grid = make([][]*Slot, days)
-	for d := range grid {
-		grid[d] = make([]*Slot, v)
+	row := func(d int) []*Slot {
+		for len(grid) < d {
+			grid = append(grid, make([]*Slot, total))
+		}
+		return grid[d-1]
 	}
 	for _, s := range slots {
 		if s.Pinned {
-			grid[s.Day-1][s.Voucher-1] = s
+			row(s.Day)[s.Voucher-1] = s
 		}
 	}
 	next := 0
-	for d := 1; d <= days; d++ {
+	skipPinned := func() {
+		for next < len(slots) && slots[next].Pinned {
+			next++
+		}
+	}
+	skipPinned()
+	lastFill := 0
+	for d := 1; next < len(slots); d++ {
+		if d > MaxDays {
+			return nil, nil, fmt.Errorf("plan would need more than %d days", MaxDays)
+		}
+		r := row(d)
 		free := 0
-		for _, c := range grid[d-1] {
-			if c == nil {
+		for v := 1; v <= total; v++ {
+			if from[v-1] <= d && r[v-1] == nil {
 				free++
 			}
 		}
-		for ; free > 0 && next < len(slots); next++ {
-			if slots[next].Pinned {
-				continue
-			}
+		for ; free > 0 && next < len(slots); free-- {
 			slots[next].Day = d
-			free--
+			lastFill = d
+			next++
+			skipPinned()
 		}
+	}
+	days := max(lastFill, maxPin, 1)
+	row(days)
+	grid = grid[:days]
+	if lastFill > 0 && maxPin > lastFill {
+		warnings = append(warnings, fmt.Sprintf("pins stretch the plan to %d days, %d would do", days, lastFill))
 	}
 	return grid, warnings, nil
 }

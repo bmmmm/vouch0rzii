@@ -80,14 +80,23 @@ type Person struct {
 	Group bool     `json:"group,omitempty"` // represents a larger group: Plus may exceed PlusMax, own +k may follow each other
 	Order int      `json:"order,omitempty"` // manual position within the tier; 0 = drawn by lot
 	Knows []string `json:"knows,omitempty"` // IDs of people this person knows; made symmetric on load
+	Out   bool     `json:"out,omitempty"`   // left the plan: still drawn (nobody else moves), but only pinned slots remain
 	Note  string   `json:"note,omitempty"`  // free text from the sign-up form; never in viewer links
+}
+
+// Extra adds vouchers that become available later: Count more chains from
+// the first plan day on or after Date.
+type Extra struct {
+	Date  string `json:"date"`
+	Count int    `json:"count"`
 }
 
 // Event is the per-event configuration plus the roster. It is the canonical
 // file format (events/<name>.json).
 type Event struct {
 	Name     string   `json:"name"`
-	Vouchers int      `json:"vouchers"`
+	Vouchers int      `json:"vouchers"`           // chains available from day 1
+	Extra    []Extra  `json:"extra,omitempty"`    // chains that start later
 	Start    string   `json:"start"`              // date of day 1, YYYY-MM-DD
 	Weekends bool     `json:"weekends,omitempty"` // plan on Saturdays and Sundays too
 	PlusMax  int      `json:"plusMax,omitempty"`  // 0 = DefaultPlusMax
@@ -180,9 +189,11 @@ type Stats struct {
 }
 
 // Plan is the computed result. Grid[d-1][v-1] is the slot of voucher v on day
-// d, or nil when the voucher idles or the chain has ended.
+// d, or nil when the voucher is not yet available, idles, or its chain has
+// ended. From[v-1] is the first day voucher v exists.
 type Plan struct {
 	Event     *Event
+	From      []int    // start day per voucher, 1-based; len(From) is the total voucher count
 	Dates     []string // YYYY-MM-DD per day
 	Slots     []*Slot  // in priority order
 	Grid      [][]*Slot

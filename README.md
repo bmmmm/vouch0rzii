@@ -39,6 +39,12 @@ data, and your browser history keeps it like any other link.
    with another slot. Pins are kept in the link and respected before the
    automatic placement fills the rest. A voucher may idle for a day; the
    handover then goes to the next holder and says on which day they buy.
+7. **Mid-run changes.** "Bis heute festnageln" pins every slot up to today,
+   so roster edits only change the future. Someone who got a voucher
+   elsewhere is marked `Ausgestiegen`/`out`: they stay in the draw (nobody
+   else moves), their pinned slots remain, their other slots vanish and the
+   people behind move up. Vouchers that arrive later go into `extra`
+   (`date:count`); those chains start fresh from the organisers on that day.
 
 ## Roster columns
 
@@ -55,6 +61,7 @@ English, in any order:
 | `E-Mail` | email, mail | contact for the handover |
 | `Kennt` | knows | handles, comma separated |
 | `Gruppe` | group | ja = may exceed +N max, block allowed |
+| `Ausgestiegen` | out, raus, left | ja = gives up all slots that are not pinned |
 | `Notiz` | note | free text, never part of viewer links |
 
 ## Links and modes

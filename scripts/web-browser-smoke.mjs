@@ -62,6 +62,7 @@ check('admin: matrix editable and shows the group slot', admin.includes('<table 
 check('admin: one sheet row per slot', (admin.match(/data-who=/g) || []).length === 47);
 check('admin: live status lists every voucher', (admin.match(/<li class="live"/g) || []).length === 7);
 check('admin: status buttons on every sheet row', (admin.match(/<button type="button" class="badge st-open"/g) || []).length === 47);
+check('admin: freeze and extra-voucher controls present', admin.includes('id="freezeToday"') && admin.includes('id="f-extra"'));
 check('admin: share buttons visible', admin.includes('<nav id="sharebar">'));
 check('admin: no error box', noError(admin));
 const fp = (html) => (html.match(/id="fingerprint"[^>]*>([^<]*)</) || [])[1] || '';

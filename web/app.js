@@ -129,6 +129,11 @@
     ev.plusMax = Number($('#f-plusMax').value) || 0;
     ev.seed = $('#f-seed').value.trim();
     ev.handover = $('#f-handover').value.trim();
+    const extra = $('#f-extra').value.split(/[,\s]+/).filter(Boolean).map((tok) => {
+      const m = tok.match(/^(\d{4}-\d{2}-\d{2})(?::(\d+))?$/);
+      return m ? { date: m[1], count: Number(m[2] || 1) } : { date: tok, count: 1 }; // Go rejects a bad date
+    });
+    if (extra.length) ev.extra = extra; else delete ev.extra;
     state.collect = { to: $('#f-collectTo').value.trim() };
   }
   function eventToForm() {
@@ -140,6 +145,7 @@
     $('#f-plusMax').value = ev.plusMax || 2;
     $('#f-seed').value = ev.seed || '';
     $('#f-handover').value = ev.handover || '23:00';
+    $('#f-extra').value = (ev.extra || []).map((x) => `${x.date}:${x.count}`).join(', ');
     $('#f-collectTo').value = (state.collect && state.collect.to) || '';
   }
   // rosterToPeople reads the textarea; null means errors were shown.
@@ -307,6 +313,8 @@
     for (let v = 1; v <= plan.vouchers; v++) {
       const tds = days.map((d) => {
         const label = d.extra ? '' : (plan.grid[d.day - 1][v - 1] || '');
+        const na = !d.extra && plan.voucherFrom[v - 1] > d.day; // voucher does not exist yet
+        if (na) return el('td', { class: 'cell na', title: 'Voucher noch nicht verfügbar' });
         const cell = { label, day: d.day, voucher: v };
         const h = incoming.get(`${d.day}-${v}`);
         const cls = ['cell'];
@@ -476,6 +484,16 @@
       toast(`${lines.length - skipped.length} Person(en) hinzugefügt`);
     });
     $('#unpinAll').addEventListener('click', () => { state.pins = []; selected = null; computePlan({ fromForm: false }); });
+    $('#freezeToday').addEventListener('click', () => {
+      if (!plan) return;
+      const now = today();
+      const past = plan.sheets.filter((s) => s.date <= now);
+      if (!past.length) { toast('Noch kein Tag vergangen, nichts festzunageln'); return; }
+      for (const s of past) setPin(s.label, s.day, s.voucher);
+      selected = null;
+      computePlan({ fromForm: false });
+      toast(`${past.length} Slot(s) bis heute festgenagelt`);
+    });
 
     $('#copyAdmin').addEventListener('click', () => { if (computePlan()) copy(linkFor('admin', {}), `Admin-Link, Stand ${plan.fingerprint},`); });
     $('#copyView').addEventListener('click', () => { if (computePlan()) copy(linkFor('view', { pins: plan.pins }), `Viewer-Link, Stand ${plan.fingerprint},`); });

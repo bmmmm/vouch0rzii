@@ -17,22 +17,30 @@ func Compute(e *Event, pins []Pin) (*Plan, error) {
 		return nil, err
 	}
 	start, _ := ParseDate(e.Start)
-	slots := buildSlots(e)
-	grid, pinWarnings, err := placeSlots(e, slots, pins)
+	from, err := voucherStarts(e)
+	if err != nil {
+		return nil, err
+	}
+	keep := make(map[string]bool, len(pins))
+	for _, pin := range pins {
+		keep[pin.Label] = true
+	}
+	slots := buildSlots(e, keep)
+	grid, pinWarnings, err := placeSlots(slots, pins, from)
 	if err != nil {
 		return nil, err
 	}
 	warnings = append(warnings, pinWarnings...)
-	assignChains(e, slots, grid)
+	assignChains(e, slots, grid, from)
 
-	p := &Plan{Event: e, Slots: slots, Grid: grid, Warnings: warnings}
+	p := &Plan{Event: e, From: from, Slots: slots, Grid: grid, Warnings: warnings}
 	for _, t := range Dates(start, len(grid), e.Weekends) {
 		p.Dates = append(p.Dates, t.Format(DateLayout))
 	}
 	// Every holder except the first of a chain receives the voucher from the
 	// previous holder, even across days on which the voucher idles.
 	for d := 1; d <= len(grid); d++ {
-		for v := 1; v <= e.Vouchers; v++ {
+		for v := 1; v <= len(from); v++ {
 			to := grid[d-1][v-1]
 			if to == nil {
 				continue

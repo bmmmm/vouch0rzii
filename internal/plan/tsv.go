@@ -22,6 +22,7 @@ const (
 	colEmail
 	colKnows
 	colGroup
+	colOut
 	colNote
 )
 
@@ -34,6 +35,7 @@ var columnAliases = map[string]int{
 	"e-mail": colEmail, "email": colEmail, "mail": colEmail,
 	"kennt": colKnows, "knows": colKnows,
 	"gruppe": colGroup, "group": colGroup,
+	"ausgestiegen": colOut, "raus": colOut, "out": colOut, "left": colOut,
 	"notiz": colNote, "note": colNote,
 }
 
@@ -110,6 +112,13 @@ func ParseRoster(text string) (people []Person, warnings []string, err error) {
 	}
 
 	var errs []error
+	yn := func(row int, what, f string) bool {
+		v, perr := ParseBool(f)
+		if perr != nil {
+			errs = append(errs, fmt.Errorf("row %d: %s: %v", row, what, perr))
+		}
+		return v
+	}
 	for n, rec := range records[1:] {
 		row := n + 2
 		var p Person
@@ -134,11 +143,7 @@ func ParseRoster(text string) (people []Person, warnings []string, err error) {
 			case colName:
 				p.ID = f
 			case colCard:
-				v, perr := ParseBool(f)
-				if perr != nil {
-					errs = append(errs, fmt.Errorf("row %d: card: %v", row, perr))
-				}
-				p.Card = v
+				p.Card = yn(row, "card", f)
 			case colTier:
 				t, ok := ParseTier(f)
 				if !ok {
@@ -160,11 +165,9 @@ func ParseRoster(text string) (people []Person, warnings []string, err error) {
 					}
 				}
 			case colGroup:
-				v, perr := ParseBool(f)
-				if perr != nil {
-					errs = append(errs, fmt.Errorf("row %d: group: %v", row, perr))
-				}
-				p.Group = v
+				p.Group = yn(row, "group", f)
+			case colOut:
+				p.Out = yn(row, "out", f)
 			case colNote:
 				p.Note = f
 			}
@@ -190,7 +193,7 @@ func ParseRoster(text string) (people []Person, warnings []string, err error) {
 var tierGerman = [...]string{"Mitglied", "Gast", "Bekanntschaft"}
 
 // RosterHeader is the header row FormatRoster writes; ParseRoster reads it back.
-const RosterHeader = "Reihenfolge\tName\tKreditkarte\tStatus\t+N\tE-Mail\tKennt\tGruppe\tNotiz"
+const RosterHeader = "Reihenfolge\tName\tKreditkarte\tStatus\t+N\tE-Mail\tKennt\tGruppe\tAusgestiegen\tNotiz"
 
 // FormatRoster renders people as TSV with German labels, the shape the page
 // shows for editing. ParseRoster(FormatRoster(p)) yields p again as long as no
@@ -211,8 +214,8 @@ func FormatRoster(people []Person) string {
 		if p.Tier >= 0 && int(p.Tier) < len(tierGerman) {
 			tier = tierGerman[p.Tier]
 		}
-		fmt.Fprintf(&b, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
-			num(p.Order), p.ID, yn[p.Card], tier, num(p.Plus), p.Email, strings.Join(p.Knows, ", "), yn[p.Group], p.Note)
+		fmt.Fprintf(&b, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
+			num(p.Order), p.ID, yn[p.Card], tier, num(p.Plus), p.Email, strings.Join(p.Knows, ", "), yn[p.Group], yn[p.Out], p.Note)
 	}
 	return b.String()
 }

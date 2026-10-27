@@ -56,11 +56,11 @@ func nextHolder(grid [][]*Slot, d, v int) *Slot {
 // Pins and chain ends break that, so a 2-opt pass follows: swap two unpinned
 // slots within a day whenever that lowers the cost of the edges around them,
 // until nothing improves.
-func assignChains(e *Event, slots []*Slot, grid [][]*Slot) {
+func assignChains(e *Event, slots []*Slot, grid [][]*Slot, from []int) {
 	for d := 1; d <= len(grid); d++ {
 		var free []int
-		for v := 1; v <= e.Vouchers; v++ {
-			if grid[d-1][v-1] == nil {
+		for v := 1; v <= len(from); v++ {
+			if from[v-1] <= d && grid[d-1][v-1] == nil {
 				free = append(free, v)
 			}
 		}
