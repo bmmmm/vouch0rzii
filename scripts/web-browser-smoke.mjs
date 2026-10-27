@@ -71,6 +71,7 @@ check('admin: matrix editable and shows the group slot', admin.includes('<table 
 check('admin: one sheet row per slot', (admin.match(/data-who=/g) || []).length === 47);
 check('admin: live status lists every voucher', (admin.match(/<li class="live/g) || []).length === 7);
 check('admin: status buttons on every sheet row', (admin.match(/<button type="button" class="badge st-open"/g) || []).length === 47);
+check('admin: a pick box per row, bulk bar shown, bought counter', (admin.match(/<input type="checkbox" class="pick"/g) || []).length === 47 && admin.includes('<div id="bulk" class="row">') && admin.includes('<span id="sheets-count" class="stats">0 von 47 Tickets gekauft</span>'));
 check('admin: freeze and extra-voucher controls present', admin.includes('id="freezeToday"') && admin.includes('id="f-extra"'));
 check('admin: matrix cells keyboard-focusable', (admin.match(/tabindex="0"/g) || []).length >= 47);
 check('admin: intro hidden once a plan exists', admin.includes('<p id="intro" class="intro" hidden=""'));
@@ -86,6 +87,7 @@ const view = dom(link('view'));
 check('view: plan rendered, matrix not editable', planned(view) && !view.includes('class="editable"'));
 check('view: frozen (47 pinned)', view.includes('47 gepinnt'));
 check('view: status badges, not buttons', (view.match(/<span class="badge st-open"/g) || []).length === 47 && !view.includes('class="badge st-open" title'));
+check('view: no pick boxes, bulk bar hidden, counter shown', !view.includes('class="pick"') && view.includes('<div id="bulk" class="row" hidden="">') && view.includes('0 von 47 Tickets gekauft'));
 check('view: editor and share buttons hidden', view.includes('<section id="editor" hidden=""') && view.includes('<nav id="sharebar" hidden=""'));
 check('view: no error box', noError(view));
 check('view: same fingerprint as admin', fp(view) === fp(admin));

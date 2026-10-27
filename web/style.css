@@ -91,6 +91,11 @@ th small { display: block; color: var(--muted); font-weight: 400; }
 #handovers .mark { display: inline-block; width: 1.1rem; text-align: center; }
 .known-text { color: var(--known); } .forbidden-text { color: var(--forbidden); }
 #sheets tr.me { background: var(--pin); }
+#sheets tr.st-received { background: #e3effa; } /* status tints win over the personal highlight */
+#sheets tr.st-bought { background: #e2f3e9; }
+#sheets tr.st-passed td { color: var(--muted); }
+#bulk { margin: .2rem 0 .6rem; }
+#bulk button.badge:disabled { opacity: .5; cursor: default; }
 #sheets tr.hidden { display: none; }
 #sheets td a { color: var(--accent); }
 
@@ -112,8 +117,8 @@ button.badge { cursor: pointer; font: inherit; font-size: .8rem; }
 #liveList li { margin: .15rem 0; }
 #liveList li.overdue { color: var(--forbidden); }
 @media (prefers-color-scheme: dark) {
-  #matrix td.cell.st-received { background: #1f3447; }
-  #matrix td.cell.st-bought { background: #1f3b2c; }
+  #matrix td.cell.st-received, #sheets tr.st-received { background: #1f3447; }
+  #matrix td.cell.st-bought, #sheets tr.st-bought { background: #1f3b2c; }
 }
 #board .head { display: flex; flex-wrap: wrap; align-items: baseline; gap: .3rem 1rem; }
 #board h2 { font-size: 1.6rem; margin: 0; }
@@ -134,7 +139,7 @@ button.badge { cursor: pointer; font: inherit; font-size: .8rem; }
 #matrix td.cell:focus { outline: 3px solid var(--select); outline-offset: -3px; }
 @media print {
   html { font-size: 10.5px; background: #fff; color: #000; }
-  header nav, #editor, #collect, #r-pinhelp, button, .button, #toast, p.hint, label.inline, #matrix .extra, footer { display: none !important; }
+  header nav, #editor, #collect, #r-pinhelp, button, .button, #toast, p.hint, label.inline, #matrix .extra, #bulk, #sheets td:has(> input.pick), #sheets th:has(> #pickAll), footer { display: none !important; }
   .card { border: none; padding: 0; margin: 0 0 1rem; break-inside: avoid; }
   #sheets-card { break-before: page; }
   a { color: inherit; text-decoration: none; }

@@ -25,7 +25,9 @@ what to check.
   marked *frei* and counted (`free`).
 - Live status per slot (offen → Voucher da → Ticket gekauft →
   weitergegeben), curated by admins, carried in the link, with per-voucher
-  summary and overdue marks; status reports by mail.
+  summary and overdue marks; status reports by mail. Rows in the sheet table
+  can be ticked (header box: all visible rows) and set to one status in a
+  single step; rows are tinted by status and a counter shows tickets bought.
 - Share links: admin, viewer, board (dashboard for everyone: progress, a
   tile per voucher, today and next, free slots, public sale), collect
   (sign-up form), personal viewer links; four-emoji fingerprint of the data

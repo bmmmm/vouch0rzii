@@ -234,6 +234,7 @@
   function loadEvent(ev) {
     mutate(() => { state = { ...emptyState(), event: { ...DEFAULT_EVENT, ...ev } }; });
     selected = null;
+    picked.clear();
     eventToForm();
     peopleToRoster(state.event.people);
     computePlan({ fromForm: false });
@@ -311,15 +312,22 @@
 
   // ---------- live status (curated by admins, carried in the link)
   const statusOf = (label) => (STATUS.includes(state.status[label]) ? state.status[label] : 'open');
-  function cycleStatus(label) {
-    const next = STATUS[(STATUS.indexOf(statusOf(label)) + 1) % STATUS.length];
+  // setStatus sets one status for several slots in a single undo step; a
+  // click that changes nothing records nothing.
+  function setStatus(labels, st) {
+    labels = labels.filter((l) => statusOf(l) !== st);
+    if (!labels.length) return;
     mutate(() => {
-      if (next === 'open') delete state.status[label]; else state.status[label] = next;
+      for (const l of labels) { if (st === 'open') delete state.status[l]; else state.status[l] = st; }
       state.statusAt = new Date().toISOString();
     });
     writeHash();
     renderResult();
   }
+  const boughtCount = () => plan.sheets.filter((s) => ['bought', 'passed'].includes(statusOf(s.label))).length;
+  const boughtText = () => `${boughtCount()} von ${plan.sheets.length} Tickets gekauft`;
+  const cycleStatus = (label) => setStatus([label], STATUS[(STATUS.indexOf(statusOf(label)) + 1) % STATUS.length]);
+  const picked = new Set(); // slot labels ticked in the sheet table for a bulk status action
   function reportMail(sheet) {
     const to = state.collect && state.collect.to;
     if (!to) return null;
@@ -400,11 +408,10 @@
         : `Tag ${planDay(now)} von ${total}` + (plan.end.day ? ` · Ende ${plan.end.label}` : '');
     const states = [];
     for (let v = 1; v <= plan.vouchers; v++) states.push(voucherState(v, now, track));
-    const bought = sheets.filter((s) => ['bought', 'passed'].includes(statusOf(s.label))).length;
     const bar = $('#b-bar');
     bar.max = sheets.length || 1;
-    bar.value = bought;
-    $('#b-progress').textContent = `${bought} von ${sheets.length} Tickets gekauft`;
+    bar.value = boughtCount();
+    $('#b-progress').textContent = boughtText();
     $('#b-kpis').replaceChildren(...[
       ['Voucher unterwegs', states.filter((s) => s.kind === 'moving').length],
       ['Ketten abgeschlossen', states.filter((s) => s.kind === 'done').length],
@@ -553,7 +560,16 @@
   function renderSheets() {
     const table = $('#sheets');
     const admin = state.mode === 'admin';
-    const head = el('tr', {}, ['Slot', 'Kontakt', 'Tag', 'Voucher', 'bekommt von', 'gibt weiter an', 'Status', ''].map((h) => el('th', {}, h)));
+    const labels = new Set(plan.sheets.map((s) => s.label));
+    for (const l of picked) if (!labels.has(l)) picked.delete(l);
+    $('#sheets-count').textContent = boughtText();
+    const pickAll = admin && el('input', { type: 'checkbox', id: 'pickAll', title: 'Alle sichtbaren Zeilen auswählen', onchange: () => {
+      const visible = [...table.querySelectorAll('tbody tr:not(.hidden)')].map((tr) => tr.dataset.label);
+      if (visible.every((l) => picked.has(l))) for (const l of visible) picked.delete(l); else for (const l of visible) picked.add(l);
+      renderSheets();
+      $('#pickAll').focus();
+    } });
+    const head = el('tr', {}, admin && el('th', {}, pickAll), ['Slot', 'Kontakt', 'Tag', 'Voucher', 'bekommt von', 'gibt weiter an', 'Status', ''].map((h) => el('th', {}, h)));
     const rows = plan.sheets.map((s) => {
       const mail = mailFor(s);
       const st = statusOf(s.label);
@@ -561,7 +577,8 @@
         ? el('button', { type: 'button', class: `badge st-${st}`, title: 'Klick: nächster Status', onclick: () => cycleStatus(s.label) }, STATUS_LABEL[st])
         : el('span', { class: `badge st-${st}` }, STATUS_LABEL[st]);
       const report = !admin && reportMail(s);
-      return el('tr', { dataset: { who: `${s.label} ${s.person} ${s.email || ''}`.toLowerCase(), person: s.person.toLowerCase() } },
+      return el('tr', { class: `st-${st}`, dataset: { label: s.label, who: `${s.label} ${s.person} ${s.email || ''}`.toLowerCase(), person: s.person.toLowerCase() } },
+        admin && el('td', {}, el('input', { type: 'checkbox', class: 'pick', 'aria-label': `${s.label} auswählen`, checked: picked.has(s.label), onchange: (e) => { if (e.target.checked) picked.add(s.label); else picked.delete(s.label); renderBulk(); } })),
         el('td', {}, s.label, s.pinned ? ' 📌' : ''),
         el('td', {}, s.person, s.email && el('small', {}, el('br'), s.email), s.card ? el('small', { title: 'Kreditkarte für den Notfall' }, ' 💳') : ''),
         el('td', {}, plan.days[s.day - 1].label, el('small', {}, el('br'), s.date)),
@@ -575,6 +592,19 @@
     });
     table.replaceChildren(el('thead', {}, head), el('tbody', {}, rows));
     filterSheets();
+    renderBulk();
+  }
+  function renderBulk() {
+    const bar = $('#bulk');
+    bar.hidden = state.mode !== 'admin';
+    const visible = [...$('#sheets').querySelectorAll('tbody tr:not(.hidden)')];
+    const hidden = picked.size - visible.filter((tr) => picked.has(tr.dataset.label)).length;
+    $('#pickCount').textContent = picked.size
+      ? `${picked.size} ausgewählt${hidden ? `, davon ${hidden} vom Filter ausgeblendet` : ''}, Status setzen:`
+      : 'Zeilen ankreuzen, dann Status für alle setzen:';
+    for (const b of bar.querySelectorAll('button')) b.disabled = !picked.size;
+    const all = $('#pickAll');
+    if (all) all.checked = visible.length > 0 && visible.every((tr) => picked.has(tr.dataset.label));
   }
   function filterSheets() {
     const q = $('#who').value.trim().toLowerCase();
@@ -661,8 +691,10 @@
     });
     $('#undo').addEventListener('click', undo);
     $('#redo').addEventListener('click', redo);
+    for (const b of $('#bulk').querySelectorAll('button[data-st]')) b.addEventListener('click', () => setStatus([...picked], b.dataset.st));
+    $('#pickNone').addEventListener('click', () => { picked.clear(); renderSheets(); });
     document.addEventListener('keydown', (e) => { // Ctrl/Cmd+Z, Ctrl/Cmd+Shift+Z or Ctrl/Cmd+Y outside of inputs
-      if (state.mode !== 'admin' || !(e.ctrlKey || e.metaKey) || e.altKey || (e.target instanceof Element && e.target.matches('input, textarea, select'))) return;
+      if (state.mode !== 'admin' || !(e.ctrlKey || e.metaKey) || e.altKey || (e.target instanceof Element && e.target.matches('input:not([type=checkbox]), textarea, select'))) return;
       const k = e.key.toLowerCase();
       if (k === 'z') { e.preventDefault(); if (e.shiftKey) redo(); else undo(); } else if (k === 'y') { e.preventDefault(); redo(); }
     });
@@ -683,7 +715,7 @@
     $('#dlCsv').addEventListener('click', () => plan && download(`${plan.event}-plan.csv`, plan.csv, 'text/csv'));
     $('#dlJson').addEventListener('click', () => plan && download(`${plan.event}-plan.json`, plan.exportJson, 'application/json'));
     $('#dlSvg').addEventListener('click', () => plan && download(`${plan.event}-plan.svg`, plan.svg, 'image/svg+xml'));
-    $('#who').addEventListener('input', filterSheets);
+    $('#who').addEventListener('input', () => { filterSheets(); renderBulk(); });
   }
 
   function wireCollect() {
@@ -727,6 +759,7 @@
       }
       selected = null;
       plan = null;
+      picked.clear();
       past.length = future.length = 0; // a new link is a new baseline
       applyMode();
     };

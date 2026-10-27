@@ -140,6 +140,39 @@ try {
   check('free cell: handles match case-insensitively (fills the last free cell)', (await nameFreeCell('KIWI+2')) === 'ok' && (await stats()).includes('49 Slots') && /\tkiwi\t[^\t]*\t[^\t]*\t2\t/.test(await roster()) && !/\tKIWI\t/.test(await roster()));
   await key('z', false, "document.getElementById('roster')");
   check('Ctrl+Z inside the roster textarea is left to the browser', (await stats()).includes('49 Slots'));
+
+  // Bulk status: tick two rows, set "Ticket gekauft" in one step, undo both at once.
+  const count = () => js(`document.getElementById('sheets-count').textContent`);
+  const badges = (st) => js(`document.querySelectorAll('#sheets tbody tr.st-${st}').length`);
+  await js(`[...document.querySelectorAll('#sheets input.pick')].slice(0, 2).forEach((c) => c.click()); 0`);
+  check('bulk: two ticked rows are counted', await js(`document.getElementById('pickCount').textContent.startsWith('2 ausgewählt') && !document.querySelector('#bulk button[data-st="bought"]').disabled`));
+  await js(`document.querySelector('#bulk button[data-st="bought"]').click(); 0`);
+  check('bulk: "Ticket gekauft" set on both, rows tinted, count updated', (await badges('bought')) === 2 && (await count()) === '2 von 49 Tickets gekauft' && await js(`document.querySelectorAll('#matrix td.cell.st-bought').length === 2`));
+  await key('z');
+  check('bulk: one undo step takes both back', (await badges('bought')) === 0 && (await count()) === '0 von 49 Tickets gekauft');
+  check('bulk: the selection survives the undo', await js(`document.querySelectorAll('#sheets input.pick:checked').length === 2`));
+  await js(`(() => { document.getElementById('pickNone').click(); const w = document.getElementById('who'); w.value = 'mammut'; w.dispatchEvent(new Event('input')); document.getElementById('pickAll').click(); })(); 0`);
+  check('bulk: header checkbox picks the visible (filtered) rows only', await js(`document.getElementById('pickCount').textContent.startsWith('11 ausgewählt')`), // mammut and mammut+1 … +10
+    await js(`document.getElementById('pickCount').textContent + ' / visible ' + document.querySelectorAll('#sheets tbody tr:not(.hidden)').length`));
+  await js(`document.querySelector('#bulk button[data-st="passed"]').click(); 0`);
+  check('bulk: status for the filtered selection, others untouched, passed counts as bought', (await badges('passed')) === 11 && (await badges('open')) === 38 && (await count()) === '11 von 49 Tickets gekauft');
+  await js(`document.querySelector('#bulk button[data-st="passed"]').click(); 0`);
+  await key('z');
+  check('bulk: a click that changes nothing is no undo step', (await badges('passed')) === 0 && (await badges('open')) === 49);
+  await js(`(() => { const w = document.getElementById('who'); w.value = 'kiwi'; w.dispatchEvent(new Event('input')); })(); 0`);
+  check('bulk: filter change updates the header box and names hidden picks', await js(`!document.getElementById('pickAll').checked && document.getElementById('pickCount').textContent.includes('11 ausgewählt, davon 11 vom Filter ausgeblendet')`));
+  await js(`document.getElementById('pickNone').click(); 0`);
+  check('bulk: selection cleared, buttons disabled', await js(`document.querySelectorAll('#sheets input.pick:checked').length === 0 && document.querySelector('#bulk button[data-st="open"]').disabled`));
+  await js(`document.getElementById('who').value = ''; document.getElementById('who').dispatchEvent(new Event('input')); document.querySelector('#sheets tr[data-label="tapir"] input.pick').click(); 0`);
+  await js(`(() => { const r = document.getElementById('roster'); r.value = r.value.split('\\n').filter((l) => !l.includes('\\ttapir\\t')).join('\\n'); document.getElementById('compute').click(); })(); 0`);
+  check('bulk: a pick whose slot left the plan is dropped', (await stats()).includes('48 Slots') && await js(`document.getElementById('pickCount').textContent.startsWith('Zeilen ankreuzen')`));
+  await key('z');
+  check('bulk: the person is back, unticked', (await stats()).includes('49 Slots') && await js(`!document.querySelector('#sheets tr[data-label="tapir"] input.pick').checked`));
+  await js(`document.querySelector('#sheets tr[data-label="tapir"] input.pick').click(); 0`);
+  const other = execFileSync(cli, ['-event', join(root, 'events', 'congress2026.json'), '-share', 'admin', '-base', page, '-seed', 'other']).toString().trim();
+  await js(`location.hash = ${JSON.stringify(other.slice(other.indexOf('#')))}; 0`);
+  for (let i = 0; i < 100 && (await js(`document.querySelectorAll('#sheets input.pick').length`)) !== 47; i++) await sleep(50);
+  check('new link in the same tab: selection cleared', await js(`document.querySelectorAll('#sheets input.pick:checked').length === 0 && document.getElementById('pickCount').textContent.startsWith('Zeilen ankreuzen')`));
 } catch (e) {
   check(`no exception: ${e.message}`, false);
 } finally {

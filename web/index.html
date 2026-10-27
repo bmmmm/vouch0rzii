@@ -63,7 +63,7 @@
           <dt>Rückgängig</dt><dd><kbd>Strg</kbd>+<kbd>Z</kbd> und <kbd>Strg</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd> (am Mac mit Cmd) oder die Knöpfe über dem Plan nehmen Züge, Pins, Status und Roster-Änderungen zurück, solange der Tab offen ist. Noch nicht berechnete Eingaben im Formular werden dabei erst übernommen und dann als eigener Schritt zurückgenommen; im Roster-Textfeld selbst gilt das Rückgängig des Browsers. Der Link trägt immer den aktuellen Stand.</dd>
           <dt>Bis heute festnageln</dt><dd>Pinnt alle Slots bis einschließlich heute. Danach ändern Roster-Änderungen nur noch die Zukunft; die Vergangenheit bleibt, wie sie passiert ist.</dd>
           <dt>Kennung</dt><dd>Die vier Emojis im Kopf sind ein Fingerabdruck aus Einstellungen, Roster und Platzierung. Gleiche Emojis, gleicher Plan; so erkennen Admins veraltete Links. Status, Zeitstempel und Orga-Adresse zählen nicht hinein, dafür steht der Status-Stand in der Live-Karte.</dd>
-          <dt>Status</dt><dd>Hängt am Slot-Namen. Wer einen Handle umbenennt, setzt dessen Status zurück.</dd>
+          <dt>Status</dt><dd>Hängt am Slot-Namen. Wer einen Handle umbenennt, setzt dessen Status zurück. In der Tabelle unten klickt der Status-Knopf eine Stufe weiter; mehrere Zeilen ankreuzen (Kopf-Checkbox: alle sichtbaren, auch gefiltert mit „Ich bin"; angekreuzt bleibt, was der Filter später ausblendet, die Leiste zählt es mit) und mit der Leiste darüber einen Status für alle setzen, ein Schritt für Rückgängig. Zeilen sind nach Status getönt, der Zähler im Kopf zeigt gekaufte Tickets.</dd>
           <dt>Link je Person</dt><dd>In der Tabelle unten kopiert „Link" einen Viewer-Link, der die Zeilen dieser Person sofort hervorhebt.</dd>
           <dt>Board</dt><dd>Dashboard zum Mitfiebern für alle: Fortschritt, eine Kachel je Voucher, wer heute und morgen kauft. „Board" im Plan öffnet es als Admin in einem neuen Tab, „Board-Link kopieren" oben gibt den Link zum Teilen; er enthält dieselben Daten wie der Viewer-Link.</dd>
         </dl>
@@ -177,8 +177,17 @@
     <div class="card" id="sheets-card">
       <div class="row">
         <h2>Wer, wann, von wem, an wen</h2>
+        <span id="sheets-count" class="stats"></span>
         <span class="spacer"></span>
         <label class="inline">Ich bin <input id="who" placeholder="Handle"></label>
+      </div>
+      <div id="bulk" class="row" hidden>
+        <span id="pickCount" class="hint"></span>
+        <button type="button" class="small badge st-open" data-st="open">offen</button>
+        <button type="button" class="small badge st-received" data-st="received">Voucher da</button>
+        <button type="button" class="small badge st-bought" data-st="bought">Ticket gekauft</button>
+        <button type="button" class="small badge st-passed" data-st="passed">weitergegeben</button>
+        <button type="button" class="small" id="pickNone">Auswahl aufheben</button>
       </div>
       <div class="scroll"><table id="sheets"></table></div>
     </div>

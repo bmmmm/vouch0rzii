@@ -114,7 +114,10 @@ so two people can tell at a glance whether they look at the same plan.
 
 There is no server, so the status is curated: admins click a slot's status
 through *offen → Voucher da → Ticket gekauft → weitergegeben* in the sheet
-table, the status and its timestamp travel in the link, and a re-shared
+table, or tick several rows (the header box takes every visible row, so the
+"Ich bin" filter selects a person's slots) and set one status for all of
+them in a single undo step. Rows are tinted by status and the table header
+counts tickets bought. The status and its timestamp travel in the link, and a re-shared
 viewer link shows everyone where each voucher is, who is next, and what is
 overdue (date before today, status not advanced; marked only once the first
 status has been set, so an untouched plan is never "overdue"). Participants report their
