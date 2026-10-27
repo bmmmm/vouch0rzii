@@ -82,7 +82,7 @@ func TestNormalizeKnowsSymmetricAndCleaned(t *testing.T) {
 	if !reflect.DeepEqual(e.People[0].Knows, []string{"b"}) || !reflect.DeepEqual(e.People[1].Knows, []string{"a"}) {
 		t.Fatalf("knows not symmetric/clean: %v / %v", e.People[0].Knows, e.People[1].Knows)
 	}
-	if len(warnings) != 1 || !strings.Contains(warnings[0], "ghost") {
+	if len(warnings) != 2 || !strings.Contains(warnings[0], `a: knows own handle "a"`) || !strings.Contains(warnings[1], "ghost") {
 		t.Fatalf("warnings %v", warnings)
 	}
 	if !e.Knows("a", "b") || !e.Knows("b", "a") || e.Knows("a", "ghost") {

@@ -56,6 +56,16 @@ func TestKnowsSplitsOnCommaOnly(t *testing.T) {
 	}
 }
 
+func TestKnowsListsEachHandleOnce(t *testing.T) {
+	people, _, err := ParseRoster("Name\tKnows\nalpha\tbravo, BRAVO, charlie, Bravo\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(people[0].Knows, []string{"bravo", "charlie"}) {
+		t.Fatalf("knows %v", people[0].Knows)
+	}
+}
+
 func TestParseRosterErrors(t *testing.T) {
 	cases := []struct{ in, want string }{
 		{"", "empty"},
@@ -213,6 +223,16 @@ func TestParseSignupByContentAndPosition(t *testing.T) {
 	// A known handle with a space is a connection; an unknown one is the note.
 	people, warnings, _ = ParseSignup("bob; Gast; Anna Lena; Lena Anna", []string{"anna lena"})
 	if !reflect.DeepEqual(people[0].Knows, []string{"Anna Lena"}) || people[0].Note != "Lena Anna" || len(warnings) != 0 {
+		t.Fatalf("got %+v warnings %v", people, warnings)
+	}
+	// An empty list takes no slot; a first list that only passes as known
+	// handles (one has a space) is the first list all the same.
+	people, warnings, _ = ParseSignup("anna; ,; panda, koala; Gast", nil)
+	if !reflect.DeepEqual(people[0].Knows, []string{"panda", "koala"}) || people[0].Note != "" || len(warnings) != 0 {
+		t.Fatalf("got %+v warnings %v", people, warnings)
+	}
+	people, warnings, _ = ParseSignup("anna; Gast; Anna Lena, bob; panda, koala", []string{"anna lena", "bob"})
+	if !reflect.DeepEqual(people[0].Knows, []string{"Anna Lena", "bob"}) || people[0].Note != "panda, koala" || len(warnings) != 1 || !strings.HasSuffix(warnings[0], `"panda, koala" kept as note, not handles of other people`) {
 		t.Fatalf("got %+v warnings %v", people, warnings)
 	}
 	// A list with an entry that is no handle is the note, without a warning.
