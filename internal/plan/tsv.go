@@ -229,11 +229,22 @@ const SignupFields = "Name; E-Mail; Status; +N; Kennt; Notiz"
 // of the former credit-card field are in the way. Any other line is read by
 // content: the first field is the handle, "@" marks the e-mail, a tier word
 // the status, a number the +N, handles separated by commas the connections,
-// anything else the note; ja/nein words are reported. Unknown handles in
-// Kennt are reported by Normalize.
-func ParseSignup(text string) (people []Person, warnings []string, err error) {
+// anything else the note; ja/nein words are reported. A single word without
+// a comma is a connection only if it names a known handle (known, or a name
+// in text), else it is the note, with a warning. Unknown handles in Kennt
+// are reported by Normalize.
+func ParseSignup(text string, known []string) (people []Person, warnings []string, err error) {
+	lines := strings.Split(strings.ReplaceAll(text, "\r\n", "\n"), "\n")
+	handles := map[string]bool{}
+	for _, id := range known {
+		handles[strings.ToLower(strings.TrimSpace(id))] = true
+	}
+	for _, line := range lines {
+		name, _, _ := strings.Cut(line, ";")
+		handles[strings.ToLower(strings.TrimSpace(name))] = true
+	}
 	var errs []error
-	for n, line := range strings.Split(strings.ReplaceAll(text, "\r\n", "\n"), "\n") {
+	for n, line := range lines {
 		if strings.TrimSpace(line) == "" {
 			continue
 		}
@@ -275,7 +286,7 @@ func ParseSignup(text string) (people []Person, warnings []string, err error) {
 			}
 			warnings = append(warnings, fmt.Sprintf("line %d: %s: fields are not in the form's order, read by content", row, fields[0]))
 		}
-		p, more := signupByContent(row, fields)
+		p, more := signupByContent(row, fields, handles)
 		people = append(people, p)
 		warnings = append(warnings, more...)
 	}
@@ -323,8 +334,9 @@ func signupByPosition(row int, f []string) (p Person, errs []error, bad []int) {
 	return p, errs, bad
 }
 
-// signupByContent reads a line by content.
-func signupByContent(row int, f []string) (p Person, warnings []string) {
+// signupByContent reads a line by content; handles holds the known handles,
+// lower-cased.
+func signupByContent(row int, f []string, handles map[string]bool) (p Person, warnings []string) {
 	p = Person{ID: f[0]}
 	var tier, plus bool
 	isHandles := func(s string) bool {
@@ -351,8 +363,11 @@ func signupByContent(row int, f []string) (p Person, warnings []string) {
 			warnings = append(warnings, fmt.Sprintf("line %d: %s: %q ignored, that field is already set", row, p.ID, v))
 		case berr == nil:
 			warnings = append(warnings, fmt.Sprintf("line %d: %s: %q ignored, no field takes ja/nein", row, p.ID, v))
-		case p.Knows == nil && isHandles(v):
+		case p.Knows == nil && isHandles(v) && (strings.Contains(v, ",") || handles[strings.ToLower(v)]):
 			p.Knows = splitHandles(v)
+		case p.Knows == nil && isHandles(v):
+			warnings = append(warnings, fmt.Sprintf("line %d: %s: %q is no known handle, kept as note; Kennt takes handles with a comma", row, p.ID, v))
+			p.Note = strings.TrimSpace(p.Note + " " + v)
 		default:
 			p.Note = strings.TrimSpace(p.Note + " " + v)
 		}
