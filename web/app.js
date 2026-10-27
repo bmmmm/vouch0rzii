@@ -360,9 +360,9 @@
   async function loadExamples() {
     try {
       const names = await (await fetch('events/index.json')).json();
-      $('#examples').replaceChildren(names.map((n) => el('option', { value: n }, n)));
+      $('#examples').replaceChildren(...names.map((n) => el('option', { value: n }, n)));
     } catch {
-      $('#examples').replaceChildren(el('option', { value: '' }, 'keine Beispiele'));
+      $('#examples').replaceChildren(el('option', { value: '' }, 'keine Beispiele (Seite über http öffnen, nicht file://)'));
     }
   }
 
@@ -371,7 +371,7 @@
     $('#settings').addEventListener('submit', (e) => { e.preventDefault(); computePlan(); });
     $('#loadExample').addEventListener('click', async () => {
       const name = $('#examples').value;
-      if (!name) return;
+      if (!name) { showMessages(['Kein Beispiel verfügbar: die Seite muss über http laufen, nicht über file://.']); return; }
       try {
         loadEvent(await (await fetch(`events/${name}.json`)).json());
       } catch (e) {

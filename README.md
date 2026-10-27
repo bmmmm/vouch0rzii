@@ -100,10 +100,13 @@ Exit status 2 means the input was rejected; the reasons are on stderr.
 ```
 go test ./... && go vet ./... && GOOS=js GOARCH=wasm go vet ./cmd/vouch0rzii-wasm
 go build -o vouch0rzii . && scripts/build-web.sh && node scripts/web-smoke.mjs
-cd web/dist && python3 -m http.server 8077     # then open http://localhost:8077/
+node scripts/web-browser-smoke.mjs             # headless Chrome over web/dist, all three modes
+cd web/dist && python3 -m http.server 8077     # then open http://localhost:8077/ (file:// cannot fetch)
 ```
 
-`scripts/web-smoke.mjs` proves the wasm build plans byte-equal to the CLI.
+`scripts/web-smoke.mjs` proves the wasm build plans byte-equal to the CLI;
+`scripts/web-browser-smoke.mjs` loads the page in headless Chrome and checks
+the DOM of the empty page and of an admin, a viewer and a collect link.
 Layout: `internal/plan` (model, codecs, scheduling, assignment, rendering,
 share state), `main.go` (CLI), `cmd/vouch0rzii-wasm` (browser bridge),
 `web/` (page), `events/` (examples).

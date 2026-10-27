@@ -31,3 +31,4 @@ jobs:
           GOOS=js GOARCH=wasm go vet ./cmd/vouch0rzii-wasm
           scripts/build-web.sh
           node scripts/web-smoke.mjs
+          node scripts/web-browser-smoke.mjs
