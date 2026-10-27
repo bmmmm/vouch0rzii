@@ -217,3 +217,21 @@ func TestFreezeReproducesPlanUnderAnotherSeed(t *testing.T) {
 		t.Fatalf("all slots should be pinned, got %d of %d", p2.Stats.Pinned, p2.Stats.Slots)
 	}
 }
+
+func TestMemberCountDoesNotReshuffleGuests(t *testing.T) {
+	guests := func(n int) []Person {
+		var out []Person
+		for i := 0; i < n; i++ {
+			out = append(out, Person{ID: fmt.Sprintf("g%02d", i), Tier: TierGuest})
+		}
+		return out
+	}
+	e1 := mkEvent(3, append(members(10), guests(6)...)...)
+	e2 := mkEvent(3, append(members(11), guests(6)...)...)
+	_, _ = Normalize(e1)
+	_, _ = Normalize(e2)
+	a, b := labels(buildSlots(e1))[10:], labels(buildSlots(e2))[11:]
+	if !reflect.DeepEqual(a, b) {
+		t.Fatalf("an extra member reshuffled the guests: %v vs %v", a, b)
+	}
+}
