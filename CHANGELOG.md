@@ -8,48 +8,6 @@ what to check.
 
 ## [Unreleased]
 
-### Added
-
-- The page in German and English: it follows the browser's language, a
-  header button switches; the choice is not part of the link.
-- The draw made visible: the first plan, every roll and the demo shuffle the
-  matrix before the real plan locks in day by day (a click skips; off with
-  reduced motion). Before the start, without pins or status, admins can
-  roll a new seed (🎲) or collect one from pointer movement (🖱️ super
-  random); a roll is one undo step. "How random?" explains seed, hashes,
-  generator and the number of possible results of the draw.
-- Start page and demo: the demo link only shows on the untouched start page;
-  the demo page says it is the demo in a banner, also after edits and
-  reloads; the title and "＋ New event" lead back to an empty start page.
-- JSON export: `draw` with the seed, per tier the people drawn and fixed and
-  the number of orders (`n!`), and all lineups together, as exact decimals.
-
-### Changed
-
-- Everything the planner writes is English: day labels (`Fri 30/10`), the
-  roster text (`Order Name Status +N Email Knows Group Out Note`, `member`,
-  `yes`/`no`), the sign-up line (`Name; Email; Status; +N; Knows; Note`) and
-  `from` of a chain's first holder (`organisers` instead of `Orga`). German
-  headers and values are still read. Check: scripts that match day labels,
-  the old roster header or `from` = `Orga`.
-- The wasm call `parseSignup` takes the roster's handles as a second
-  argument, a JSON string (`'["bob"]'`); an array is rejected.
-
-### Fixed
-
-- Sign-up lines typed by hand: a single word that names nobody known stays
-  the note instead of being dropped as an unknown handle; known names count
-  anywhere on the line, alone or as a further list, each handle once. Words
-  kept as note are reported in one warning per line.
-- Someone who knows their own handle gets a warning, as the docs said.
-- Contrast in the light and the dark scheme: links and native controls
-  follow the dark scheme instead of staying dark blue on grey; text and
-  placeholders reach WCAG AA (4.5:1) on the landing page, the sign-up form,
-  the admin view (statuses, help, messages, a drag target), the board and
-  the viewer, which the browser gate measures; field borders, the selection
-  ring, the stranger mark and the diagram's lines are set to 3:1. Printing
-  from a dark-mode browser uses the light colours.
-
 ## [0.1.0] - 2026-10-27
 
 ### Added
@@ -83,5 +41,33 @@ what to check.
   version.
 - Outputs: Markdown, CSV, JSON, SVG flow diagram; handover mails.
 - CLI (`-format md|csv|json|svg|event`, `-share`), wasm page, demo link.
+- The page in German and English: it follows the browser's language, a
+  header button switches; the choice is not part of the link. Everything the
+  planner writes is English (day labels `Fri 30/10`, roster text, sign-up
+  line `Name; Email; Status; +N; Knows; Note`, `organisers`); German headers
+  and values are still read.
+- The draw made visible: the first plan, every roll and the demo shuffle the
+  matrix before the real plan locks in day by day (a click skips; off with
+  reduced motion). Before the start, without pins or status, admins can
+  roll a new seed (🎲) or collect one from pointer movement (🖱️ super
+  random); a roll is one undo step. "How random?" explains seed, hashes,
+  generator and the number of possible results of the draw; the JSON export
+  carries them in `draw`, as exact decimals.
+- Start page and demo: the demo link only shows on the untouched start page;
+  the demo page says it is the demo in a banner, also after edits and
+  reloads; the title and "＋ New event" lead back to an empty start page.
+- Sign-up lines typed by hand: a single word that names nobody known stays
+  the note; known names count anywhere on the line, alone or as a further
+  list, each handle once; words kept as note are reported in one warning
+  per line. Someone who knows their own handle gets a warning.
+- Contrast in the light and the dark scheme: text and placeholders reach
+  WCAG AA (4.5:1) on the start page, the sign-up form, the admin view, the
+  board and the viewer, measured by the browser gate; field borders, the
+  selection ring, the stranger mark and the diagram's lines are set to 3:1.
+  Printing uses the light colours.
 - Gates: Go tests, CLI == wasm smoke with privacy contract, headless-Chrome
-  DOM gate, DevTools interaction gate for the admin matrix.
+  DOM gate, DevTools interaction gate (clicks, keys, pointer moves,
+  contrast in both schemes).
+
+[Unreleased]: https://github.com/bmmmm/vouch0rzii/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/bmmmm/vouch0rzii/releases/tag/v0.1.0
