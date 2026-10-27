@@ -364,9 +364,10 @@
       ? `Voucher-Phase bis ${plan.end.label} (${plan.end.day} Tage) · ${s.free} Slots frei`
       : `Kein Ende der Voucher-Phase gesetzt · ${s.free} Slots frei im Plan`;
     publicBox($('#r-public'));
-    const toBoard = $('#toBoard'); // admins copy the board link instead; switching would drop unsaved edits
-    toBoard.hidden = state.mode === 'admin';
-    if (!toBoard.hidden) toBoard.href = linkFor('board', { pins: plan.pins });
+    const toBoard = $('#toBoard');
+    toBoard.href = linkFor('board', { pins: plan.pins });
+    if (state.mode === 'admin') toBoard.target = '_blank'; // keep the admin tab and its unsaved edits
+    else toBoard.removeAttribute('target');
     $('#r-pinhelp').hidden = state.mode !== 'admin';
     renderLive();
     renderMatrix();

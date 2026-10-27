@@ -95,8 +95,9 @@ so two people can tell at a glance whether they look at the same plan.
 - **Board**: the viewer's data as a dashboard for everyone who wants to
   follow along: progress bar of tickets bought, a tile per voucher (where it
   is, who is next, overdue), today's and the next day's buyers, free slots,
-  the public-sale list, and a link to the full plan. Admins copy it with
-  "Board-Link kopieren"; a viewer link switches with "Board".
+  the public-sale list, and a link to the full plan. "Board" in the plan
+  opens it (admins in a new tab, so their edits stay); "Board-Link kopieren"
+  gives admins the link to share.
 - **Sammeln / collect**: a sign-up form for people interested in a voucher.
   It carries only the event settings and the organiser's address; the result
   is one line (`Name; E-Mail; Status; +N; Kreditkarte; Kennt; Notiz`) that is

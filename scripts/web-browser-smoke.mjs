@@ -77,7 +77,7 @@ check('admin: intro hidden once a plan exists', admin.includes('<p id="intro" cl
 check('admin: voucher phase summary, free cells marked, nothing for the public sale', admin.includes('Voucher-Phase bis Fr 13.11. (11 Tage) · 30 Slots frei') && (admin.match(/>frei<\/td>/g) || []).length === 2 && admin.includes('<div id="r-public" class="warning" hidden="">'));
 check('admin: "+ Tag" column offered while the phase has room', admin.includes('>+ Tag<'));
 check('admin: share buttons visible', admin.includes('<nav id="sharebar">'));
-check('admin: board hidden, board switch hidden (admins copy the link)', admin.includes('<section id="board" class="card" hidden="">') && /id="toBoard" class="button" href="#" title="[^"]*" hidden=""/.test(admin));
+check('admin: board hidden, "Board" opens a board state in a new tab', admin.includes('<section id="board" class="card" hidden="">') && /id="toBoard" class="button" href="[^"]+" title="[^"]*" rel="noopener" target="_blank"/.test(admin) && decode(hrefOf(admin, 'toBoard')).mode === 'board');
 check('admin: no error box', noError(admin));
 const fp = (html) => (html.match(/id="fingerprint"[^>]*>([^<]*)</) || [])[1] || '';
 check('admin: four-emoji fingerprint shown', [...fp(admin)].length === 4);
@@ -89,7 +89,7 @@ check('view: status badges, not buttons', (view.match(/<span class="badge st-ope
 check('view: editor and share buttons hidden', view.includes('<section id="editor" hidden=""') && view.includes('<nav id="sharebar" hidden=""'));
 check('view: no error box', noError(view));
 check('view: same fingerprint as admin', fp(view) === fp(admin));
-check('view: board hidden, switch leads to a board state of the same plan', view.includes('<section id="board" class="card" hidden="">') && (() => { const st = decode(hrefOf(view, 'toBoard')); return st.mode === 'board' && st.pins.length === 47; })());
+check('view: board hidden, switch leads to a board state of the same plan in this tab', view.includes('<section id="board" class="card" hidden="">') && !/id="toBoard"[^>]*target=/.test(view) && (() => { const st = decode(hrefOf(view, 'toBoard')); return st.mode === 'board' && st.pins.length === 47; })());
 
 const board = dom(link('board'));
 check('board: dashboard shown, plan and editor hidden', board.includes('<section id="board" class="card">') && board.includes('<section id="result" hidden="">') && board.includes('<section id="editor" hidden=""'));
