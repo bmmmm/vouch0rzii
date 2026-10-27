@@ -12,6 +12,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"runtime/debug"
 	"strings"
 	"syscall/js"
@@ -20,6 +21,19 @@ import (
 )
 
 var version = "dev"
+
+// guard turns a panic inside f into an ok:false result, so one bad input
+// cannot end the resident Go program and break every later call.
+func guard(f func(js.Value, []js.Value) any) js.Func {
+	return js.FuncOf(func(this js.Value, args []js.Value) (res any) {
+		defer func() {
+			if r := recover(); r != nil {
+				res = fail(fmt.Errorf("internal error: %v", r), nil)
+			}
+		}()
+		return f(this, args)
+	})
+}
 
 func strArg(args []js.Value, i int) string {
 	if i < len(args) && args[i].Type() == js.TypeString {
@@ -52,7 +66,7 @@ func ok(warnings []string, fields map[string]any) any {
 	return js.ValueOf(res)
 }
 
-// planFn(eventJSON, pinsJSON) → {ok, errors, warnings, exportJson, text, markdown, csv}
+// planFn(eventJSON, pinsJSON) → {ok, errors, warnings, exportJson, markdown, csv}
 func planFn(_ js.Value, args []js.Value) any {
 	e, err := plan.ParseEvent([]byte(strArg(args, 0)))
 	if err != nil {
@@ -74,7 +88,6 @@ func planFn(_ js.Value, args []js.Value) any {
 	}
 	return ok(p.Warnings, map[string]any{
 		"exportJson": string(js),
-		"text":       p.Text(),
 		"markdown":   p.Markdown(),
 		"csv":        p.CSV(),
 	})
@@ -140,11 +153,11 @@ func versionString() string {
 
 func main() {
 	js.Global().Set("vouch0rzii", js.ValueOf(map[string]any{
-		"plan":         js.FuncOf(planFn),
-		"parseRoster":  js.FuncOf(parseRoster),
-		"formatRoster": js.FuncOf(formatRoster),
-		"encodeState":  js.FuncOf(encodeState),
-		"decodeState":  js.FuncOf(decodeState),
+		"plan":         guard(planFn),
+		"parseRoster":  guard(parseRoster),
+		"formatRoster": guard(formatRoster),
+		"encodeState":  guard(encodeState),
+		"decodeState":  guard(decodeState),
 		"version":      versionString(),
 	}))
 	select {}

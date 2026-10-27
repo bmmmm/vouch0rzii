@@ -28,9 +28,9 @@
   const MODE_LABEL = { admin: 'Admin', view: 'Ansicht', collect: 'Anmeldung' };
   const COLLECT_HEADER = 'Name;E-Mail;Status;+N;Kreditkarte;Kennt;Notiz';
 
-  let api = null;
+  let bridge = null;
   let state = { v: 1, mode: 'admin', event: { ...DEFAULT_EVENT }, pins: [], collect: { to: '' } };
-  let plan = null;      // last export (+ text/markdown/csv)
+  let plan = null;      // last export plus exportJson/markdown/csv
   let selected = null;  // cell chosen as move source: {label, day, voucher}
 
   // ---------- wasm
@@ -69,12 +69,7 @@
       await navigator.clipboard.writeText(text);
       toast(`${what} kopiert`);
     } catch {
-      const ta = el('textarea', {}, text);
-      document.body.append(ta);
-      ta.select();
-      const ok = document.execCommand('copy');
-      ta.remove();
-      toast(ok ? `${what} kopiert` : 'Kopieren fehlgeschlagen');
+      toast('Kopieren fehlgeschlagen');
     }
   }
   function download(name, text, type) {
@@ -83,18 +78,20 @@
     a.click();
     a.remove();
   }
+  function mailto(to, subject, body) {
+    return `mailto:${to}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  }
 
   // ---------- state <-> URL
-  function baseURL() { return location.href.split('#')[0]; }
   function encodeState(st) {
-    const r = api.encodeState(JSON.stringify(st));
+    const r = bridge.encodeState(JSON.stringify(st));
     if (!r.ok) throw new Error(r.errors.join('; '));
     return r.encoded;
   }
   function readHash() {
     const m = location.hash.match(/^#s=([A-Za-z0-9_-]+)$/);
     if (!m) return null;
-    const r = api.decodeState(m[1]);
+    const r = bridge.decodeState(m[1]);
     if (!r.ok) {
       showMessages(['Der Link konnte nicht gelesen werden: ' + r.errors.join('; ')]);
       return null;
@@ -106,7 +103,7 @@
     try { history.replaceState(null, '', '#s=' + encodeState(state)); } catch (e) { showMessages([String(e)]); }
   }
   function linkFor(mode, extra) {
-    return baseURL() + '#s=' + encodeState({ ...state, mode, ...extra });
+    return location.href.split('#')[0] + '#s=' + encodeState({ ...state, mode, ...extra });
   }
 
   // ---------- form <-> state.event
@@ -132,40 +129,50 @@
     $('#f-handover').value = ev.handover || '23:00';
     $('#f-collectTo').value = (state.collect && state.collect.to) || '';
   }
+  // rosterToPeople reads the textarea; null means errors were shown.
   function rosterToPeople() {
-    const r = api.parseRoster($('#roster').value);
+    const r = bridge.parseRoster($('#roster').value);
     if (!r.ok) {
       showMessages(r.errors, r.warnings);
       return null;
     }
-    if (r.warnings.length) showMessages([], r.warnings);
-    return JSON.parse(r.peopleJson);
+    return { people: JSON.parse(r.peopleJson), warnings: r.warnings };
   }
   function peopleToRoster(people) {
-    const r = api.formatRoster(JSON.stringify(people || []));
+    const r = bridge.formatRoster(JSON.stringify(people || []));
     $('#roster').value = r.ok ? r.tsv : '';
   }
 
   // ---------- planning
   function computePlan({ fromForm } = { fromForm: true }) {
+    let warnings = [];
     if (fromForm) {
       formToEvent();
-      const people = rosterToPeople();
-      if (!people) return false;
-      state.event.people = people;
+      const r = rosterToPeople();
+      if (!r) return false;
+      state.event.people = r.people;
+      warnings = r.warnings;
     }
-    const r = api.plan(JSON.stringify(state.event), JSON.stringify(state.pins));
+    const r = bridge.plan(JSON.stringify(state.event), JSON.stringify(state.pins));
     if (!r.ok) {
-      showMessages(r.errors, r.warnings);
+      showMessages(r.errors, warnings.concat(r.warnings));
       plan = null;
       renderResult();
       return false;
     }
-    plan = { ...JSON.parse(r.exportJson), text: r.text, markdown: r.markdown, csv: r.csv };
-    showMessages([], plan.warnings);
+    plan = { ...JSON.parse(r.exportJson), exportJson: r.exportJson, markdown: r.markdown, csv: r.csv };
+    showMessages([], warnings.concat(plan.warnings));
     renderResult();
     writeHash();
     return true;
+  }
+  function loadEvent(ev) {
+    state.event = { ...DEFAULT_EVENT, ...ev };
+    state.pins = [];
+    selected = null;
+    eventToForm();
+    peopleToRoster(state.event.people);
+    computePlan({ fromForm: false });
   }
 
   // ---------- pins (manual moves)
@@ -179,23 +186,20 @@
     selected = null;
     computePlan({ fromForm: false });
   }
-  function cellOf(label) {
-    for (let d = 0; d < plan.grid.length; d++) {
-      const v = plan.grid[d].indexOf(label);
-      if (v >= 0) return { label, day: d + 1, voucher: v + 1 };
-    }
-    return null;
+  function positions() {
+    const pos = new Map();
+    plan.grid.forEach((row, d) => row.forEach((l, v) => { if (l) pos.set(l, { label: l, day: d + 1, voucher: v + 1 }); }));
+    return pos;
   }
   function moveSlot(label, target) {
-    const src = cellOf(label);
-    if (!src || (src.day === target.day && src.voucher === target.voucher)) { selected = null; renderResult(); return; }
+    const src = positions().get(label);
+    if (!src || (src.day === target.day && src.voucher === target.voucher)) { selected = null; renderMatrix(); return; }
     if (target.label && target.label !== label) setPin(target.label, src.day, src.voucher);
     setPin(label, target.day, target.voucher);
     selected = null;
     computePlan({ fromForm: false });
   }
   function onCellPick(cell) {
-    if (state.mode !== 'admin' || !plan) return;
     if (!selected) {
       if (!cell.label) return;
       selected = cell;
@@ -208,9 +212,8 @@
 
   // ---------- rendering
   function renderResult() {
-    const show = !!plan;
-    $('#result').hidden = !show;
-    if (!show) return;
+    $('#result').hidden = !plan;
+    if (!plan) return;
     const s = plan.stats;
     $('#r-title').textContent = `Plan ${plan.event}`;
     $('#r-stats').textContent =
@@ -226,9 +229,10 @@
     const table = $('#matrix');
     const editable = state.mode === 'admin';
     table.classList.toggle('editable', editable);
+    const pos = positions();
     const incoming = new Map(); // "day-voucher" of the receiving cell → handover
-    for (const h of plan.handovers) incoming.set(`${h.day + 1}-${h.voucher}`, h);
-    const pinned = new Set(plan.pins.filter((p) => state.pins.some((q) => q.label === p.label)).map((p) => p.label));
+    for (const h of plan.handovers) incoming.set(`${pos.get(h.to).day}-${h.voucher}`, h);
+    const pinned = new Set(state.pins.map((p) => p.label));
     const days = plan.days.slice();
     if (editable) days.push({ day: days.length + 1, date: '', label: '+ Tag', extra: true });
 
@@ -244,13 +248,14 @@
         if (d.extra) cls.push('extra');
         if (h) cls.push(h.forbidden ? 'forbidden' : h.known ? 'known' : 'stranger');
         if (label && pinned.has(label)) cls.push('pinned');
-        if (selected && selected.label === label && label) cls.push('selected');
-        const td = el('td', { class: cls.join(' '), draggable: editable && !!label, title: h ? `${h.from} → ${h.to}` : (label ? 'bekommt den Voucher von der Orga' : '') },
+        if (selected && label && selected.label === label) cls.push('selected');
+        const td = el('td', { class: cls.join(' '), draggable: editable && label ? 'true' : null, title: h ? `${h.from} → ${h.to}` : (label ? 'bekommt den Voucher von der Orga' : '') },
           label || (editable ? '·' : ''));
         if (editable) {
           td.addEventListener('click', () => onCellPick(cell));
           if (label) {
             td.addEventListener('dragstart', (e) => { selected = cell; e.dataTransfer.setData('text/plain', label); e.dataTransfer.effectAllowed = 'move'; });
+            td.addEventListener('dragend', () => { if (selected) { selected = null; renderMatrix(); } });
             if (pinned.has(label)) {
               td.append(el('button', { class: 'unpin', type: 'button', title: 'Pin lösen', onclick: (e) => { e.stopPropagation(); unpin(label); } }, '×'));
             }
@@ -259,7 +264,6 @@
           td.addEventListener('dragleave', () => td.classList.remove('dragover'));
           td.addEventListener('drop', (e) => {
             e.preventDefault();
-            td.classList.remove('dragover');
             const label = e.dataTransfer.getData('text/plain');
             if (label) moveSlot(label, cell);
           });
@@ -274,6 +278,7 @@
   function renderHandovers() {
     const box = $('#handovers');
     box.replaceChildren();
+    const pos = positions();
     let day = 0, list = null;
     for (const h of plan.handovers) {
       if (h.day !== day) {
@@ -283,16 +288,15 @@
         box.append(list);
       }
       const mark = h.forbidden ? el('span', { class: 'mark forbidden-text', title: 'direkt an eigene +N' }, '!') : h.known ? el('span', { class: 'mark known-text', title: 'kennen sich' }, '✓') : el('span', { class: 'mark' }, '·');
-      list.append(el('li', {}, mark, ` Voucher ${h.voucher}: ${h.from} → ${h.to}`, h.toEmail && el('span', { class: 'muted' }, ` <${h.toEmail}>`)));
+      const toDay = pos.get(h.to).day;
+      list.append(el('li', {}, mark, ` Voucher ${h.voucher}: ${h.from} → ${h.to}`, h.toEmail && ` <${h.toEmail}>`, toDay !== h.day + 1 && `, kauft am ${plan.days[toDay - 1].label}`));
     }
     if (!plan.handovers.length) box.append(el('p', { class: 'hint' }, 'Nur ein Tag, keine Übergaben.'));
   }
 
-  function mailtoFor(sheet) {
-    if (!sheet.to) return null;
-    const next = plan.sheets.find((s) => s.label === sheet.to);
+  function mailFor(sheet) {
+    const next = sheet.to && plan.sheets.find((s) => s.label === sheet.to);
     if (!next || !next.email) return null;
-    const subject = `Voucher ${sheet.voucher} für ${plan.event}`;
     const body = [
       `Hallo ${next.person}${next.label !== next.person ? ` (für ${next.label})` : ''},`,
       '',
@@ -305,18 +309,18 @@
       '',
       `Viele Grüße, ${sheet.person}`,
     ].join('\n');
-    return `mailto:${encodeURIComponent(next.email)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    return mailto(next.email, `Voucher ${sheet.voucher} für ${plan.event}`, body);
   }
 
   function renderSheets() {
     const table = $('#sheets');
     const head = el('tr', {}, ['Slot', 'Kontakt', 'Tag', 'Voucher', 'bekommt von', 'gibt weiter an', ''].map((h) => el('th', {}, h)));
     const rows = plan.sheets.map((s) => {
-      const mail = mailtoFor(s);
+      const mail = mailFor(s);
       return el('tr', { dataset: { who: `${s.label} ${s.person} ${s.email || ''}`.toLowerCase() } },
         el('td', {}, s.label, s.pinned ? ' 📌' : ''),
         el('td', {}, s.person, s.email && el('small', {}, el('br'), s.email), s.card ? el('small', { title: 'Kreditkarte für den Notfall' }, ' 💳') : ''),
-        el('td', {}, `${plan.days[s.day - 1].label}`, el('small', {}, el('br'), s.date)),
+        el('td', {}, plan.days[s.day - 1].label, el('small', {}, el('br'), s.date)),
         el('td', {}, s.voucher),
         el('td', {}, s.from, s.fromEmail && el('small', {}, el('br'), s.fromEmail)),
         el('td', {}, s.to || '— Kette endet', s.toEmail && el('small', {}, el('br'), s.toEmail)),
@@ -369,12 +373,7 @@
       const name = $('#examples').value;
       if (!name) return;
       try {
-        const ev = await (await fetch(`events/${name}.json`)).json();
-        state.event = { ...DEFAULT_EVENT, ...ev };
-        state.pins = [];
-        eventToForm();
-        peopleToRoster(state.event.people);
-        computePlan({ fromForm: false });
+        loadEvent(await (await fetch(`events/${name}.json`)).json());
       } catch (e) {
         showMessages([`Beispiel ${name} konnte nicht geladen werden: ${e}`]);
       }
@@ -383,12 +382,7 @@
       const f = e.target.files[0];
       if (!f) return;
       try {
-        const ev = JSON.parse(await f.text());
-        state.event = { ...DEFAULT_EVENT, ...ev };
-        state.pins = [];
-        eventToForm();
-        peopleToRoster(state.event.people);
-        computePlan({ fromForm: false });
+        loadEvent(JSON.parse(await f.text()));
       } catch (err) {
         showMessages([`Datei nicht lesbar: ${err}`]);
       }
@@ -396,18 +390,22 @@
     });
     $('#saveFile').addEventListener('click', () => {
       formToEvent();
-      const people = rosterToPeople();
-      if (!people) return;
-      state.event.people = people;
+      const r = rosterToPeople();
+      if (!r) return;
+      state.event.people = r.people;
       download(`${state.event.name || 'event'}.json`, JSON.stringify(state.event, null, 2) + '\n', 'application/json');
     });
     $('#addInbox').addEventListener('click', () => {
       const lines = $('#inbox').value.split('\n').map((l) => l.trim()).filter(Boolean);
       if (!lines.length) return;
-      const r = api.parseRoster([COLLECT_HEADER, ...lines].join('\n'));
+      const r = bridge.parseRoster([COLLECT_HEADER, ...lines].join('\n'));
       if (!r.ok) { showMessages(r.errors, r.warnings); return; }
-      const current = $('#roster').value.trim() ? rosterToPeople() : [];
-      if (!current) return;
+      let current = [];
+      if ($('#roster').value.trim()) {
+        const cur = rosterToPeople();
+        if (!cur) return;
+        current = cur.people;
+      }
       const have = new Set(current.map((p) => p.id.toLowerCase()));
       const skipped = [];
       for (const p of JSON.parse(r.peopleJson)) {
@@ -434,9 +432,8 @@
 
   function wireResult() {
     $('#copyMd').addEventListener('click', () => plan && copy(plan.markdown, 'Markdown'));
-    $('#copyText').addEventListener('click', () => plan && copy(plan.text, 'Text'));
     $('#dlCsv').addEventListener('click', () => plan && download(`${plan.event}-plan.csv`, plan.csv, 'text/csv'));
-    $('#dlJson').addEventListener('click', () => plan && download(`${plan.event}-plan.json`, plan.exportJson || JSON.stringify(plan, null, 2), 'application/json'));
+    $('#dlJson').addEventListener('click', () => plan && download(`${plan.event}-plan.json`, plan.exportJson, 'application/json'));
     $('#who').addEventListener('input', filterSheets);
   }
 
@@ -444,34 +441,30 @@
     $('#collectForm').addEventListener('submit', (e) => {
       e.preventDefault();
       const clean = (s) => s.replace(/[;\n\r\t]/g, ' ').trim();
+      const handle = clean($('#c-handle').value);
       const line = [
-        clean($('#c-handle').value), clean($('#c-email').value), $('#c-tier').value, String(Number($('#c-plus').value) || 0),
+        handle, clean($('#c-email').value), $('#c-tier').value, String(Number($('#c-plus').value) || 0),
         $('#c-card').checked ? 'ja' : 'nein', clean($('#c-knows').value), clean($('#c-note').value),
       ].join('; ');
       $('#c-line').value = line;
       $('#collectOut').hidden = false;
       const to = (state.collect && state.collect.to) || '';
-      const subject = `vouch0rzii ${state.event.name || ''}: ${clean($('#c-handle').value)}`.trim();
       const a = $('#c-mail');
-      if (to) {
-        a.href = `mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(line + '\n')}`;
-        a.hidden = false;
-      } else {
-        a.hidden = true;
-      }
+      a.hidden = !to;
+      if (to) a.href = mailto(to, `vouch0rzii ${state.event.name || ''}: ${handle}`.trim(), line + '\n');
     });
     $('#c-copy').addEventListener('click', () => copy($('#c-line').value, 'Zeile'));
   }
 
   async function main() {
     try {
-      api = await loadWasm();
+      bridge = await loadWasm();
     } catch (e) {
       $('#loading').textContent = 'Der Planer konnte nicht geladen werden. Der Browser braucht WebAssembly. ' + e;
       return;
     }
     $('#loading').hidden = true;
-    $('#version').textContent = 'Version ' + api.version;
+    $('#version').textContent = 'Version ' + bridge.version;
     wireAdmin();
     wireResult();
     wireCollect();

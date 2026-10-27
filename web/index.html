@@ -33,7 +33,7 @@
         <label>Name <input id="f-name" required placeholder="congress2026"></label>
         <label>Vouchers <input id="f-vouchers" type="number" min="1" max="99" value="7" required></label>
         <label>Tag 1 <input id="f-start" type="date" required></label>
-        <label>+N max <input id="f-plusMax" type="number" min="0" max="20" value="2"></label>
+        <label>+N max <input id="f-plusMax" type="number" min="1" max="20" value="2"></label>
         <label>Seed <input id="f-seed" placeholder="leer = Name"></label>
         <label>Übergabe um <input id="f-handover" value="23:00" placeholder="23:00"></label>
         <label>Orga-Adresse <input id="f-collectTo" type="email" placeholder="für den Sammel-Link"></label>
@@ -99,7 +99,6 @@
         <h2 id="r-title">Plan</h2>
         <span class="spacer"></span>
         <button type="button" id="copyMd">Markdown kopieren</button>
-        <button type="button" id="copyText">Text kopieren</button>
         <button type="button" id="dlCsv">CSV</button>
         <button type="button" id="dlJson">JSON</button>
       </div>
@@ -125,7 +124,7 @@
 </main>
 
 <footer>
-  <p>Alles bleibt im Browser, nichts wird gesendet oder gespeichert. Der Link enthält die Daten: wer ihn hat, hat das Roster.
+  <p>Nichts wird an einen Server gesendet. Der Link ist die Datenbank: wer ihn hat, hat das Roster, und der Browserverlauf merkt sich den Link.
     <span id="version"></span> · <a href="https://github.com/bmmmm/vouch0rzii">Quelltext</a> · GPL-3.0-or-later</p>
 </footer>
 
