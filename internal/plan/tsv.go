@@ -5,6 +5,7 @@ package plan
 import (
 	"errors"
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 )
@@ -223,10 +224,10 @@ const SignupFields = "Name; Email; Status; +N; Knows; Note"
 // of the former credit-card field are in the way. Any other line is read by
 // content: the first field is the handle, "@" marks the e-mail, a tier word
 // the status, a number the +N, the first list of handles separated by commas
-// and every single word that names another person's handle (known, or a name
-// in text) the connections, anything else the note; yes/no words and single
-// words kept as note are reported. Unknown handles in a list are reported by
-// Normalize.
+// and every later word or list that names only other people's handles (known,
+// or a name in text) the connections, anything else the note; yes/no words
+// and words or lists kept as note are reported. Unknown handles in the first
+// list are reported by Normalize.
 func ParseSignup(text string, known []string) (people []Person, warnings []string, err error) {
 	lines := strings.Split(strings.ReplaceAll(text, "\r\n", "\n"), "\n")
 	handles := map[string]bool{}
@@ -310,11 +311,17 @@ func ParseBoolOK(s string) bool {
 
 func splitHandles(f string) (ids []string) {
 	for id := range strings.SplitSeq(f, ",") {
-		if id = strings.TrimSpace(id); id != "" {
-			ids = append(ids, id)
-		}
+		ids = addHandle(ids, strings.TrimSpace(id))
 	}
 	return ids
+}
+
+// addHandle appends id unless it is empty or already in ids, in any case.
+func addHandle(ids []string, id string) []string {
+	if id == "" || slices.ContainsFunc(ids, func(s string) bool { return strings.EqualFold(s, id) }) {
+		return ids
+	}
+	return append(ids, id)
 }
 
 // signupByPosition reads the form's six fields; bad lists the indexes of the
@@ -346,6 +353,7 @@ func signupByContent(row int, f []string, handles map[string]bool) (p Person, wa
 	p = Person{ID: f[0]}
 	var tier, plus, list bool
 	var loose []string
+	at := -1 // where the warning about loose goes, to keep field order
 	isHandles := func(s string) bool {
 		for id := range strings.SplitSeq(s, ",") {
 			if id = strings.TrimSpace(id); id != "" && strings.ContainsAny(id, " +|") {
@@ -371,11 +379,19 @@ func signupByContent(row int, f []string, handles map[string]bool) (p Person, wa
 			warnings = append(warnings, fmt.Sprintf("line %d: %s: %q ignored, that field is already set", row, p.ID, v))
 		case berr == nil:
 			warnings = append(warnings, fmt.Sprintf("line %d: %s: %q ignored, no field takes yes/no", row, p.ID, v))
-		case isHandles(v) && single && handles[strings.ToLower(v)] && !strings.EqualFold(v, p.ID):
-			p.Knows = append(p.Knows, v)
 		case isHandles(v) && !single && !list:
-			p.Knows, list = append(p.Knows, splitHandles(v)...), true
-		case isHandles(v) && single:
+			for _, id := range splitHandles(v) {
+				p.Knows = addHandle(p.Knows, id)
+			}
+			list = true
+		case !slices.ContainsFunc(splitHandles(v), func(id string) bool { return !handles[strings.ToLower(id)] || strings.EqualFold(id, p.ID) }):
+			for _, id := range splitHandles(v) {
+				p.Knows = addHandle(p.Knows, id)
+			}
+		case isHandles(v):
+			if at < 0 {
+				at = len(warnings)
+			}
 			loose = append(loose, strconv.Quote(v))
 			fallthrough
 		default:
@@ -383,7 +399,11 @@ func signupByContent(row int, f []string, handles map[string]bool) (p Person, wa
 		}
 	}
 	if len(loose) > 0 {
-		warnings = append(warnings, fmt.Sprintf("line %d: %s: %s kept as note, not another person's handle; Knows takes handles with a comma", row, p.ID, strings.Join(loose, ", ")))
+		w := fmt.Sprintf("line %d: %s: %s kept as note, not handles of other people", row, p.ID, strings.Join(loose, ", "))
+		if !list {
+			w += "; Knows takes handles with a comma"
+		}
+		warnings = slices.Insert(warnings, at, w)
 	}
 	if !tier {
 		warnings = append(warnings, fmt.Sprintf("line %d: %s: no status given, counts as member", row, p.ID))
