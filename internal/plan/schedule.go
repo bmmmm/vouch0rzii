@@ -331,8 +331,8 @@ func placeSlots(slots []*Slot, pins []Pin, from, until []int, frozen, horizon in
 // as placeSlots does. A group (person with the group flag) starts its chain
 // on the day its first slot comes up or its first pin sits, whichever is
 // earlier: at the end of that day, groups in priority order, its other
-// slots take target days from that day on, one per day while one chain
-// suffices, otherwise the first chain from that day and further chains
+// slots take target days from the next day on, one per day while one chain
+// suffices, otherwise the first chain from the next day and further chains
 // ending on the last day. A pinned slot takes the target of its day, a day
 // without a free cell is skipped, and a slot left without a target waits
 // for its turn like everybody else's: a group chains only once, so pinning
@@ -447,7 +447,7 @@ func chainGroups(e *Event, slots []*Slot, grid [][]*Slot, from, until []int, fro
 				due[id] = true
 			}
 			if due[id] && !started[id] && d >= membersDay {
-				chain(id, max(d, membersDay+1))
+				chain(id, max(d+1, membersDay+1))
 			}
 		}
 	}

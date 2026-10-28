@@ -65,9 +65,35 @@ func TestGroupStartsOnItsDay(t *testing.T) {
 	ps[4].Plus, ps[4].Group = 4, true
 	p := mustCompute(t, mkEvent(2, ps...), nil)
 	days, _ := daysOf(p, "e")
-	want := map[string]int{"a": 1, "b": 1, "c": 2, "d": 2, "e": 3, "e+1": 3, "e+2": 4, "e+3": 4, "e+4": 5}
+	want := map[string]int{"a": 1, "b": 1, "c": 2, "d": 2, "e": 3, "e+1": 3, "e+2": 4, "e+3": 5, "e+4": 5}
 	if !reflect.DeepEqual(days, want) || p.Stats.Kept != 3 {
 		t.Fatalf("days %v, stats %+v", days, p.Stats)
+	}
+}
+
+// The first day is already full when the chain starts. Its placed slots
+// must not consume targets needed by the remaining slots (n > span).
+func TestGroupChainTargetsAfterFullStartDay(t *testing.T) {
+	for _, mode := range []string{"default", "one chain", "members first"} {
+		t.Run(mode, func(t *testing.T) {
+			p := keepsThePast(t, mode, func() *Event {
+				ps := ordered("g")
+				ps[0].Group, ps[0].Plus = true, 4
+				e := mkEvent(2, ps...)
+				if mode == "one chain" {
+					e.OneChain, e.End = true, "2026-11-03" // three buying days
+				}
+				if mode == "members first" {
+					e.MembersFirst = true
+					e.People[0].Tier = TierGuest
+				}
+				return e
+			}, nil)
+			want := [][]string{{"g", "g+1"}, {"g+2", ""}, {"g+3", "g+4"}}
+			if got := p.ToExport().Grid; !reflect.DeepEqual(got, want) {
+				t.Fatalf("grid %v, want %v", got, want)
+			}
+		})
 	}
 }
 
