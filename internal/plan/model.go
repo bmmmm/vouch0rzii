@@ -72,15 +72,14 @@ func (t *Tier) UnmarshalText(b []byte) error {
 // must not contain '+' (slot label suffix), ';' and ',' (roster delimiters)
 // or '|' (Markdown tables).
 type Person struct {
-	ID    string   `json:"id"`
-	Email string   `json:"email,omitempty"`
-	Tier  Tier     `json:"tier"`
-	Plus  int      `json:"plus,omitempty"`  // additional people brought along (+N)
-	Group bool     `json:"group,omitempty"` // represents a larger group: Plus may exceed PlusMax, own +k may follow each other
-	Order int      `json:"order,omitempty"` // manual position within the tier; 0 = drawn by lot
-	Knows []string `json:"knows,omitempty"` // IDs of people this person knows; made symmetric on load
-	Out   bool     `json:"out,omitempty"`   // left the plan: still drawn (nobody else moves), but only pinned slots remain
-	Note  string   `json:"note,omitempty"`  // free text from the sign-up form; never in viewer links
+	ID    string `json:"id"`
+	Email string `json:"email,omitempty"`
+	Tier  Tier   `json:"tier"`
+	Plus  int    `json:"plus,omitempty"`  // additional people brought along (+N)
+	Group bool   `json:"group,omitempty"` // represents a larger group: Plus may exceed PlusMax, the group keeps its voucher
+	Order int    `json:"order,omitempty"` // manual position within the tier; 0 = drawn by lot
+	Out   bool   `json:"out,omitempty"`   // left the plan: still drawn (nobody else moves), but only pinned slots remain
+	Note  string `json:"note,omitempty"`  // free text from the sign-up form; never in viewer links
 }
 
 // Extra adds vouchers that become available later: Count more chains from
@@ -99,6 +98,7 @@ type Event struct {
 	Start    string   `json:"start"`              // date of day 1, YYYY-MM-DD
 	End      string   `json:"end,omitempty"`      // last day of the voucher phase, YYYY-MM-DD; "" = until everyone is placed
 	Weekends bool     `json:"weekends,omitempty"` // plan on Saturdays and Sundays too
+	OneChain bool     `json:"oneChain,omitempty"` // a group keeps one voucher for all its slots, even if the plan grows; false = as few vouchers as the shortest plan allows
 	PlusMax  int      `json:"plusMax,omitempty"`  // 0 = DefaultPlusMax
 	Seed     string   `json:"seed,omitempty"`     // "" = Name; a different seed is a new draw
 	Handover string   `json:"handover,omitempty"` // display only, "" = DefaultHandover
@@ -177,7 +177,7 @@ type Handover struct {
 	Day       int
 	Voucher   int
 	From, To  *Slot
-	Known     bool // the two know each other
+	Kept      bool // the voucher stays with a group: from one of its slots to the next
 	Forbidden bool // sponsor→own +k without group flag; only used when unavoidable
 }
 
@@ -186,8 +186,7 @@ type Stats struct {
 	Days      int `json:"days"`
 	Slots     int `json:"slots"`
 	Handovers int `json:"handovers"`
-	Known     int `json:"known"`
-	Unknown   int `json:"unknown"`
+	Kept      int `json:"kept"` // handovers within a group
 	Forbidden int `json:"forbidden"`
 	Pinned    int `json:"pinned"`
 	Free      int `json:"free"` // voucher days nobody is placed on: until End, or within the grid

@@ -8,18 +8,18 @@ import (
 	"strings"
 )
 
-// edgeKinds colours handovers green = know each other, grey = strangers,
-// red = direct to own +N; one colour each that reaches 3:1 on both the light
-// and the dark card of the page (TestEdgeColoursContrast).
+// edgeKinds colours handovers green = the group keeps the voucher, grey =
+// passed on, red = direct to own +N; one colour each that reaches 3:1 on both
+// the light and the dark card of the page (TestEdgeColoursContrast).
 var edgeKinds = [...]struct{ name, color string }{
-	{"known", "#2f8f5b"}, {"stranger", "#8c8c8c"}, {"forbidden", "#e04a4a"},
+	{"kept", "#2f8f5b"}, {"pass", "#8c8c8c"}, {"forbidden", "#e04a4a"},
 }
 
 func kindOf(h Handover) int {
 	switch {
 	case h.Forbidden:
 		return 2
-	case h.Known:
+	case h.Kept:
 		return 0
 	}
 	return 1

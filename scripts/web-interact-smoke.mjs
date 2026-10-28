@@ -175,6 +175,13 @@ try {
   for (let i = 0; i < 100 && (await js(`document.querySelectorAll('#sheets input.pick').length`)) !== 47; i++) await sleep(50);
   check('new link in the same tab: selection cleared', await js(`document.querySelectorAll('#sheets input.pick:checked').length === 0 && document.getElementById('pickCount').textContent.startsWith('Zeilen ankreuzen')`));
 
+  // One voucher per group: the box reaches the event, mammut keeps voucher 4
+  // from day 2 to the end of the phase; Ctrl+Z restores box and plan.
+  await js(`document.getElementById('f-oneChain').click(); document.getElementById('compute').click(); 0`);
+  check('groups: one voucher per group stretches the plan to the end of the phase', (await stats()).startsWith('7 Vouchers · 11 Tage · 47 Slots · 40 Übergaben, davon 9 innerhalb einer Gruppe') && await js(`document.querySelectorAll('#matrix td.cell.kept').length === 9`), await stats());
+  await key('z');
+  check('groups: Ctrl+Z restores the box and the shortest plan', (await stats()).startsWith('7 Vouchers · 7 Tage') && await js(`!document.getElementById('f-oneChain').checked`), await stats());
+
   // Language switch: re-renders in place, keeps pending input, and switching
   // back restores the German text and attributes.
   await js(`document.getElementById('roster').value += 'pending'; 0`);
@@ -189,7 +196,7 @@ try {
   // messages appear under the button that was clicked, not at the top.
   const msgAfter = (id) => js(`document.getElementById('messages').previousElementSibling === document.getElementById('${id}').parentElement`);
   await js(`document.getElementById('inbox').value = 'bananaaa ; hallo@babna.com ; mitglied ; no ; panda ; nein'; document.getElementById('addInbox').click(); 0`);
-  check('inbox: hand-typed line added with e-mail, status and connection', /\tbananaaa\tmember\t\thallo@babna\.com\tpanda\t/.test(await roster()) && (await msgAfter('addInbox')) && await js(`document.querySelector('#messages .warning')?.textContent.includes('"no" ignored')`));
+  check('inbox: hand-typed line added with e-mail, status and note', /\tbananaaa\tmember\t\thallo@babna\.com\tno\tno\tpanda\n/.test(await roster()) && (await msgAfter('addInbox')) && await js(`document.querySelector('#messages .warning')?.textContent.includes('"no" ignored')`));
   await js(`document.getElementById('compute').click(); 0`);
   check('inbox: "Plan berechnen" places the new person', (await stats()).includes('48 Slots'));
   await js(`document.getElementById('inbox').value = '; nomail@example.org'; document.getElementById('addInbox').click(); 0`);
@@ -217,11 +224,11 @@ try {
   for (let i = 0; i < 100 && (await js(`document.getElementById('collect').hidden`)); i++) await sleep(50);
   const line = await js(`(() => {
     const set = (id, v) => { document.getElementById(id).value = v; };
-    set('c-handle', 'yak'); set('c-email', 'yak@example.org'); set('c-tier', 'guest'); set('c-plus', '1'); set('c-knows', 'panda'); set('c-note', 'late');
+    set('c-handle', 'yak'); set('c-email', 'yak@example.org'); set('c-tier', 'guest'); set('c-plus', '1'); set('c-note', 'late');
     document.getElementById('collectForm').requestSubmit();
     return document.getElementById('c-line').value;
   })()`);
-  check('collect: the German page writes the canonical line', line === 'yak; yak@example.org; guest; 1; panda; late', line);
+  check('collect: the German page writes the canonical line', line === 'yak; yak@example.org; guest; 1; late', line);
 
   // Contrast: every visible text and form field against the background it
   // actually sits on, in light and dark, in every mode. WCAG AA: 4.5:1, 3:1

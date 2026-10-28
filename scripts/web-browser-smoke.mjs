@@ -77,6 +77,7 @@ check('admin: matrix cells keyboard-focusable', (admin.match(/tabindex="0"/g) ||
 check('admin: intro hidden once a plan exists', admin.includes('<p id="intro" class="intro" hidden=""'));
 check('admin: voucher phase summary, free cells marked, nothing for the public sale', admin.includes('Voucher-Phase bis Fr 13.11. (11 Tage) · 30 Slots frei') && (admin.match(/>frei<\/td>/g) || []).length === 2 && admin.includes('<div id="r-public" class="warning" hidden="">'));
 check('admin: "+ Tag" column offered while the phase has room', admin.includes('>+ Tag<'));
+check('admin: mammut keeps its vouchers, marked and named in the legend', admin.includes('7 Vouchers · 7 Tage · 47 Slots · 40 Übergaben, davon 9 innerhalb einer Gruppe') && (admin.match(/class="cell[^"]*\bkept\b/g) || []).length === 9 && admin.includes('<span class="sw kept"></span> Gruppe behält den Voucher</p>'));
 check('admin: the draw is explained with the seed', admin.includes('entscheidet das Los mit Seed „congress2026"'));
 check('admin: share buttons visible', admin.includes('<nav id="sharebar">'));
 check('admin: board hidden, "Board" opens a board state in a new tab', admin.includes('<section id="board" class="card" hidden="">') && /id="toBoard" class="button" href="[^"]+"[^>]* rel="noopener"[^>]* target="_blank"/.test(admin) && decode(hrefOf(admin, 'toBoard')).mode === 'board');

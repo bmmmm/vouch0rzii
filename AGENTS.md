@@ -8,8 +8,9 @@ Voucher chain planner for event presales: a Go core, a CLI, and a static page
 - `internal/plan` — everything that computes:
   `model.go` types and limits · `event.go` JSON format and `Normalize` ·
   `tsv.go` roster paste codec · `schedule.go` draw per tier, voucher start
-  days, phase horizon (`end`), placement with pins · `hungarian.go` + `assign.go` per-day
-  assignment and the 2-opt pass · `plan.go` `Compute`, handovers across idle
+  days, phase horizon (`end`), placement with pins, group chains
+  (`chainGroups`) · `hungarian.go` + `assign.go` per-day assignment and the
+  2-opt pass · `plan.go` `Compute`, handovers across idle
   days, `Freeze` · `render.go` `Export`/JSON/Markdown/CSV · `svg.go` flow
   diagram · `fingerprint.go` four-emoji data version · `share.go` link state
   codec and modes (admin, view, board, collect).

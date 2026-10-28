@@ -203,8 +203,8 @@ func TestFreezeReproducesPlanUnderAnotherSeed(t *testing.T) {
 	ps := members(11)
 	ps[3].Plus = 2
 	ps[7].Plus = 1
+	ps[3].Group = true
 	e := mkEvent(3, ps...)
-	e.People[0].Knows = []string{"m07"}
 	p1 := mustCompute(t, e, nil)
 	pins := Freeze(p1)
 	e2 := mkEvent(3, ps...)
@@ -300,11 +300,11 @@ func TestOutPersonKeepsOnlyPinnedSlots(t *testing.T) {
 }
 
 func TestHandoversSortedByDayThenVoucher(t *testing.T) {
-	// b knows d, so d takes voucher 2 on day 2; voucher 1 idles on day 2 and
-	// continues with the pinned c on day 3. Both handovers happen on the
+	// b's group keeps voucher 2 for b+1 on day 2; voucher 1 idles on day 2
+	// and continues with the pinned c on day 3. Both handovers happen on the
 	// evening of day 1 and must be listed voucher 1 first.
-	ps := ordered("a", "b", "c", "d")
-	ps[1].Knows = []string{"d"}
+	ps := ordered("a", "b", "c")
+	ps[1].Plus, ps[1].Group = 1, true
 	p := mustCompute(t, mkEvent(2, ps...), []Pin{{Label: "c", Day: 3, Voucher: 1}})
 	if len(p.Handovers) != 2 || p.Handovers[0].Day != 1 || p.Handovers[0].Voucher != 1 || p.Handovers[0].To.Label != "c" || p.Handovers[1].Voucher != 2 {
 		t.Fatalf("handovers %+v %+v", p.Handovers[0], p.Handovers[1])

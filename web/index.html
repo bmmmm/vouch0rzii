@@ -49,6 +49,7 @@
         <label title="E-Mail der Orga. Dorthin gehen Sammel-Zeilen und Statusmeldungen; steht im Sammel- und im Viewer-Link." data-en-title="E-mail of the organisers. Sign-up lines and status reports go there; it is part of the sign-up and the viewer link."><span lang="de">Orga-Adresse</span><span lang="en">Organiser address</span> <input id="f-collectTo" type="email" placeholder="für Sammel-Link und Statusmeldungen" data-en-placeholder="for the sign-up link and status reports"></label>
         <label title="Vouchers, die später dazukommen: Datum:Anzahl, mit Komma getrennt. Diese Ketten starten an dem Tag frisch von der Orga." data-en-title="Vouchers that come later: date:count, separated by commas. These chains start fresh from the organisers on that day."><span lang="de">Zusätzliche Vouchers</span><span lang="en">Extra vouchers</span> <input id="f-extra" placeholder="2026-11-05:2, 2026-11-09:1"></label>
         <label class="check" title="Samstag und Sonntag als Kauftage nutzen." data-en-title="Use Saturday and Sunday as buying days."><input id="f-weekends" type="checkbox"> <span lang="de">auch Sa/So planen</span><span lang="en">plan Sat/Sun too</span></label>
+        <label class="check" title="Eine Gruppe (Group = yes) behält einen einzigen Voucher für alle ihre Plätze, auch wenn der Plan dadurch länger wird. Ohne Häkchen: so wenige Voucher, wie der kürzeste Plan zulässt." data-en-title="A group (Group = yes) keeps one single voucher for all its places, even if the plan gets longer. Unticked: as few vouchers as the shortest plan allows."><input id="f-oneChain" type="checkbox"> <span lang="de">ein Voucher je Gruppe</span><span lang="en">one voucher per group</span></label>
       </div>
       <details class="help">
         <summary><span lang="de">Was bedeuten die Felder?</span><span lang="en">What do the fields mean?</span></summary>
@@ -63,6 +64,7 @@
           <dt>Orga-Adresse</dt><dd>E-Mail der Orga. Dorthin schicken Interessierte ihre Sammel-Zeile und Teilnehmende ihre Statusmeldung. Steht im Sammel- und im Viewer-Link.</dd>
           <dt>Zusätzliche Vouchers</dt><dd>Vouchers, die erst später verfügbar werden, oft gegen Ende. Eintrag <code>Datum:Anzahl</code>, mehrere mit Komma. Jede dieser Ketten beginnt am ersten Plantag ab dem Datum frisch von der Orga; davor sind die Zellen gesperrt.</dd>
           <dt>auch Sa/So planen</dt><dd>Wochenenden als Kauftage nutzen statt zu überspringen.</dd>
+          <dt>ein Voucher je Gruppe</dt><dd>Eine Gruppe (<code>Group = yes</code>) behält ihren Voucher: ab ihrem ersten Tag kauft sie Tag für Tag selbst, bis ihre Plätze verbraucht sind. Ohne Häkchen bekommt sie so wenige Voucher, wie der kürzeste Plan zulässt, und der Plan bleibt so kurz wie möglich. Mit Häkchen bekommt sie einen einzigen Voucher (es sei denn, sonst ginge ein Voucher direkt an eine eigene Begleitung), und der Plan wird so lang, wie sie Plätze hat, höchstens bis zum Ende der Voucher-Phase. Wer überhaupt in den Plan kommt, entscheidet in beiden Fällen die Reihenfolge.</dd>
           <dt>Out</dt><dd>Roster-Spalte (Ausgestiegen). <code>yes</code>, wenn jemand anderswo einen Voucher bekommen hat und seine Plätze abgibt. Die Person bleibt in der Losung, damit niemand anderes verrutscht; nur ihre festgenagelten Slots bleiben stehen, alle anderen fallen weg und die Nachfolgenden rücken auf.</dd>
           <dt>Pins</dt><dd>Manuell festgenagelte Slots. Im Plan Zelle anklicken, dann Zielzelle: leer heißt festnageln, belegt heißt tauschen. Pins wandern mit dem Link.</dd>
           <dt>Freie Zelle</dt><dd>Eine Zelle mit „frei" anklicken und einen Handle tippen, Enter. Ein vorhandener Slot wandert dorthin, <code>handle+2</code> hebt das +N der Person auf mindestens 2 und pinnt diesen Slot, ein unbekannter Handle kommt als Bekanntschaft ins Roster und sitzt festgenagelt in der Zelle. Was im Roster noch nicht übernommen war, wird dabei zuerst übernommen. Status und E-Mail trägst du danach im Roster nach.</dd>
@@ -85,6 +87,7 @@
           <dt>Organiser address</dt><dd>E-mail of the organisers. People who want in send their sign-up line there, participants their status report. It is part of the sign-up and the viewer link.</dd>
           <dt>Extra vouchers</dt><dd>Vouchers that only become available later, often towards the end. Enter <code>date:count</code>, several separated by commas. Each of these chains starts fresh from the organisers on the first plan day from that date on; the cells before are locked.</dd>
           <dt>plan Sat/Sun too</dt><dd>Use weekends as buying days instead of skipping them.</dd>
+          <dt>one voucher per group</dt><dd>A group (<code>Group = yes</code>) keeps its voucher: from its first day on it buys day after day itself until its places are used up. Unticked, it gets as few vouchers as the shortest plan allows, and the plan stays as short as possible. Ticked, it gets a single voucher (unless a voucher would otherwise go straight to someone's own companion), and the plan gets as long as it has places, at most until the end of the voucher phase. Who gets into the plan at all is decided by the order either way.</dd>
           <dt>Out</dt><dd>Roster column. <code>yes</code> when someone got a voucher elsewhere and gives up their places. The person stays in the draw so nobody else shifts; only their pinned slots stay, all others go and the people after them move up.</dd>
           <dt>Pins</dt><dd>Slots fixed by hand. Click a cell in the plan, then the target cell: empty means pin, taken means swap. Pins travel with the link.</dd>
           <dt>Free cell</dt><dd>Click a cell marked "free", type a handle, Enter. An existing slot moves there, <code>handle+2</code> raises the person's +N to at least 2 and pins that slot, an unknown handle joins the roster as an acquaintance, pinned to the cell. Pending roster edits are applied first. Add status and e-mail in the roster afterwards.</dd>
@@ -102,15 +105,15 @@
     <section class="card">
       <h2>Roster</h2>
       <p class="hint" lang="de">Aus der Tabelle einfügen. Erste Zeile ist die Kopfzeile, Spalten in beliebiger Reihenfolge:
-        <code>Order</code> <code>Name</code> <code>Status</code> <code>+N</code> <code>Email</code> <code>Knows</code> <code>Group</code> <code>Out</code> <code>Note</code> (deutsche Kopfzeilen wie Reihenfolge, Kennt, Gruppe, Ausgestiegen, Notiz gehen auch); andere Spalten werden ignoriert.
-        Status: member, guest, acquaintance (oder Mitglied, Gast, Bekanntschaft). Group = yes erlaubt mehr als +N max. Out = yes gibt alle nicht festgenagelten Plätze frei.
+        <code>Order</code> <code>Name</code> <code>Status</code> <code>+N</code> <code>Email</code> <code>Group</code> <code>Out</code> <code>Note</code> (deutsche Kopfzeilen wie Reihenfolge, Gruppe, Ausgestiegen, Notiz gehen auch); andere Spalten werden ignoriert.
+        Status: member, guest, acquaintance (oder Mitglied, Gast, Bekanntschaft). Group = yes erlaubt mehr als +N max, die Gruppe behält ihren Voucher. Out = yes gibt alle nicht festgenagelten Plätze frei.
         Innerhalb jeder Stufe (Mitglieder, Gäste, Bekanntschaften) wird die Reihenfolge gelost (Seed), eine Zahl in „Order" überstimmt das Los.</p>
       <p class="hint" lang="en">Paste from your sheet. The first line is the header, columns in any order:
-        <code>Order</code> <code>Name</code> <code>Status</code> <code>+N</code> <code>Email</code> <code>Knows</code> <code>Group</code> <code>Out</code> <code>Note</code> (German headers work too, e.g. Reihenfolge, Kennt, Gruppe, Ausgestiegen, Notiz); other columns are ignored.
-        Status: member, guest, acquaintance. Group = yes allows more than +N max. Out = yes frees every place that is not pinned.
+        <code>Order</code> <code>Name</code> <code>Status</code> <code>+N</code> <code>Email</code> <code>Group</code> <code>Out</code> <code>Note</code> (German headers work too, e.g. Reihenfolge, Gruppe, Ausgestiegen, Notiz); other columns are ignored.
+        Status: member, guest, acquaintance. Group = yes allows more than +N max, the group keeps its voucher. Out = yes frees every place that is not pinned.
         Within each tier (members, guests, acquaintances) the order is drawn (seed), a number in "Order" overrides the draw.</p>
-      <textarea id="roster" rows="12" spellcheck="false" placeholder="Order	Name	Status	+N	Email	Knows	Group	Note
-	alpha	member	1	alpha@example.org	bravo, charlie	no	"></textarea>
+      <textarea id="roster" rows="12" spellcheck="false" placeholder="Order	Name	Status	+N	Email	Group	Note
+	alpha	member	1	alpha@example.org	no	"></textarea>
       <div class="row">
         <button type="button" id="compute" class="primary"><span lang="de">Plan berechnen</span><span lang="en">Compute plan</span></button>
         <span class="spacer"></span>
@@ -120,8 +123,8 @@
       <p class="hint demo-link"><span lang="de">Zum Ausprobieren: <a href="__DEMO__">Demo öffnen</a>, ein pseudonymes Tier-Roster in dieser Ansicht.</span><span lang="en">To try it out: <a href="__DEMO__">open the demo</a>, a pseudonymous animal roster in this view.</span></p>
       <details>
         <summary><span lang="de">Zeilen aus Sammel-Mails hinzufügen</span><span lang="en">Add lines from sign-up mails</span></summary>
-        <p class="hint" lang="de">Eine Zeile pro Person, so wie der Sammel-Link sie erzeugt: <code>Name; Email; Status; +N; Knows; Note</code>. Von Hand getippt darf nach dem Namen alles in beliebiger Reihenfolge kommen: E-Mail am @, Status am Wort, +N als Zahl, Knows als erste Liste von Handles mit Komma (dazu jeder bekannte Name, einzeln oder in einer weiteren Liste aus nur bekannten Namen), Doppeltes und ja/nein wird mit Warnung ignoriert, der Rest wird Notiz. Vorhandene Handles werden übersprungen; danach „Plan berechnen".</p>
-        <p class="hint" lang="en">One line per person, as the sign-up link writes it: <code>Name; Email; Status; +N; Knows; Note</code>. Typed by hand, anything may follow the name in any order: the e-mail by its @, the status by its word, +N as a number, knows as the first list of handles with commas (plus every known name, alone or in a further list of known names only), duplicates and yes/no are ignored with a warning, the rest becomes the note. Handles already in the roster are skipped; then "Compute plan".</p>
+        <p class="hint" lang="de">Eine Zeile pro Person, so wie der Sammel-Link sie erzeugt: <code>Name; Email; Status; +N; Note</code>. Von Hand getippt darf nach dem Namen alles in beliebiger Reihenfolge kommen: E-Mail am @, Status am Wort, +N als Zahl, Doppeltes und ja/nein wird mit Warnung ignoriert, der Rest wird Notiz. Vorhandene Handles werden übersprungen; danach „Plan berechnen".</p>
+        <p class="hint" lang="en">One line per person, as the sign-up link writes it: <code>Name; Email; Status; +N; Note</code>. Typed by hand, anything may follow the name in any order: the e-mail by its @, the status by its word, +N as a number, duplicates and yes/no are ignored with a warning, the rest becomes the note. Handles already in the roster are skipped; then "Compute plan".</p>
         <textarea id="inbox" rows="4" spellcheck="false"></textarea>
         <div class="row"><button type="button" id="addInbox"><span lang="de">Zum Roster hinzufügen</span><span lang="en">Add to roster</span></button></div>
       </details>
@@ -140,7 +143,6 @@
           <select id="c-tier"><option value="member" data-en-text="member">Mitglied</option><option value="guest" data-en-text="frequent guest">häufiger Gast</option><option value="acquaintance" data-en-text="acquaintance">Bekanntschaft</option></select>
         </label>
         <label><span lang="de">+N (zusätzliche Personen)</span><span lang="en">+N (extra people)</span> <input id="c-plus" type="number" min="0" max="20" value="0"></label>
-        <label><span lang="de">Kennt (Handles, mit Komma)</span><span lang="en">Knows (handles, with commas)</span> <input id="c-knows" placeholder="alpha, bravo"></label>
         <label><span lang="de">Notiz</span><span lang="en">Note</span> <input id="c-note"></label>
       </div>
       <div class="row">
@@ -190,7 +192,7 @@
       <p id="r-stats" class="stats"></p>
       <p id="r-phase" class="stats"></p>
       <p id="r-order" class="hint"></p>
-      <p id="r-demo" class="intro" hidden><span lang="de">Demo: Das Los hat die Reihenfolge gezogen, danach wurde jeder Tag nach Bekanntschaften optimiert. Probier <b>🎲</b> Neu würfeln oder <b>🖱️</b> Super-Zufall, und unter „Wie zufällig?" steht die Mathematik.</span><span lang="en">Demo: the lot drew the order, then every day was optimised for people who know each other. Try <b>🎲</b> roll again or <b>🖱️</b> super random; "How random?" has the maths.</span></p>
+      <p id="r-demo" class="intro" hidden><span lang="de">Demo: Das Los hat die Reihenfolge gezogen, danach behält die Gruppe (mammut) ihre Voucher. Probier <b>🎲</b> Neu würfeln oder <b>🖱️</b> Super-Zufall, und unter „Wie zufällig?" steht die Mathematik.</span><span lang="en">Demo: the lot drew the order, then the group (mammut) keeps its vouchers. Try <b>🎲</b> roll again or <b>🖱️</b> super random; "How random?" has the maths.</span></p>
       <div id="r-random" class="row">
         <button type="button" id="roll" class="small"><span class="dice" aria-hidden="true">🎲</span> <span lang="de">Neu würfeln</span><span lang="en">Roll again</span></button>
         <button type="button" id="superRandom" class="small" aria-controls="entropy" aria-expanded="false"><span aria-hidden="true">🖱️</span> <span lang="de">Super-Zufall</span><span lang="en">Super random</span></button>
@@ -213,8 +215,8 @@
         <button type="button" id="freezeToday" class="small" title="Alle Slots bis heute pinnen, damit Änderungen nur die Zukunft treffen" data-en-title="Pin every slot up to today so changes only affect the future"><span lang="de">Bis heute festnageln</span><span lang="en">Pin until today</span></button>
         <button type="button" id="unpinAll" class="small"><span lang="de">Alle Pins lösen</span><span lang="en">Release all pins</span></button></p>
       <div class="scroll"><table id="matrix"></table></div>
-      <p class="legend" lang="de"><span class="sw known"></span> Buddies, kennen sich schon <span class="sw stranger"></span> neue Verbindung <span class="sw forbidden"></span> direkt an eigene Begleitung <span class="sw free"></span> frei, Voucher verfügbar</p>
-      <p class="legend" lang="en"><span class="sw known"></span> buddies, already know each other <span class="sw stranger"></span> new connection <span class="sw forbidden"></span> straight to one's own companion <span class="sw free"></span> free, voucher available</p>
+      <p class="legend" lang="de"><span class="sw kept"></span> Gruppe behält den Voucher</p>
+      <p class="legend" lang="en"><span class="sw kept"></span> group keeps the voucher</p>
     </div>
     <div class="card">
       <div class="row">

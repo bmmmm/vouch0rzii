@@ -1,6 +1,6 @@
 :root {
   /* Text pairs keep WCAG AA (4.5:1) in both schemes, field borders, the
-     selection ring and the stranger mark 3:1; color-scheme gives native
+     selection ring and the tile border (--stranger) 3:1; color-scheme gives native
      controls, scrollbars and defaults the matching theme. */
   color-scheme: light dark;
   --bg: #f6f4ee;
@@ -83,8 +83,7 @@ th, td { border: 1px solid var(--line); padding: .35rem .5rem; text-align: left;
 th { background: var(--bg); font-weight: 600; }
 th small { display: block; color: var(--muted); font-weight: 400; }
 #matrix td.cell { position: relative; min-width: 6.5rem; height: 2.4rem; border-left: 4px solid transparent; }
-#matrix td.cell.known { border-left-color: var(--known); }
-#matrix td.cell.stranger { border-left-color: var(--stranger); }
+#matrix td.cell.kept { border-left-color: var(--known); }
 #matrix td.cell.forbidden { border-left-color: var(--forbidden); }
 #matrix td.cell.pinned { background: var(--pin); font-weight: 700; }
 #matrix td.cell.selected { outline: 3px solid var(--select); outline-offset: -3px; }
@@ -98,8 +97,7 @@ th small { display: block; color: var(--muted); font-weight: 400; }
 #matrix td.cell button.unpin:hover { color: var(--forbidden); }
 .legend { color: var(--muted); font-size: .85rem; margin: .5rem 0 0; }
 .sw { display: inline-block; width: .9rem; height: .9rem; vertical-align: -0.1rem; border-radius: 2px; margin: 0 .2rem 0 .6rem; }
-.sw.known { background: var(--known); } .sw.stranger { background: var(--stranger); } .sw.forbidden { background: var(--forbidden); }
-.sw.free { border: 1px dashed var(--muted); }
+.sw.kept { background: var(--known); }
 
 #handovers h3 { font-size: .95rem; margin: .8rem 0 .3rem; }
 #handovers ul { margin: 0; padding-left: .2rem; list-style: none; }

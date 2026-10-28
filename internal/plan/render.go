@@ -44,7 +44,7 @@ type HandoverExport struct {
 	FromEmail string `json:"fromEmail,omitempty"`
 	To        string `json:"to"`
 	ToEmail   string `json:"toEmail,omitempty"`
-	Known     bool   `json:"known"`
+	Kept      bool   `json:"kept,omitempty"`
 	Forbidden bool   `json:"forbidden,omitempty"`
 }
 
@@ -126,7 +126,7 @@ func (p *Plan) ToExport() *Export {
 			Day: h.Day, Date: p.Dates[h.Day-1], Voucher: h.Voucher,
 			From: h.From.Label, FromEmail: p.email(h.From),
 			To: h.To.Label, ToEmail: p.email(h.To),
-			Known: h.Known, Forbidden: h.Forbidden,
+			Kept: h.Kept, Forbidden: h.Forbidden,
 		})
 	}
 	for d := range p.Grid {
@@ -207,7 +207,7 @@ func (p *Plan) Markdown() string {
 		if h.To.Day != h.Day+1 {
 			fmt.Fprintf(&b, ", buys on %s", p.dayLabel(h.To.Day))
 		}
-		if h.Known {
+		if h.Kept {
 			b.WriteString(" ✓")
 		}
 		if h.Forbidden {
@@ -215,7 +215,7 @@ func (p *Plan) Markdown() string {
 		}
 		b.WriteByte('\n')
 	}
-	fmt.Fprintf(&b, "\n%d handovers, %d between buddies, %d new connections.\n", s.Handovers, s.Known, s.Unknown)
+	fmt.Fprintf(&b, "\n%d handovers, %d of them stay within a group (✓).\n", s.Handovers, s.Kept)
 	for _, w := range p.Warnings {
 		fmt.Fprintf(&b, "\n> ⚠ %s\n", w)
 	}

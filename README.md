@@ -5,8 +5,8 @@ Voucher chain planner for event presales (Congress, Easterhegg, Camp, …).
 A group holds a handful of vouchers. Each voucher buys one ticket per day and
 is handed on by e-mail in the evening, so every voucher is a chain of people.
 vouch0rzii turns a roster into that plan: who holds which voucher on which day
-and hands it to whom, with as few days as possible and as many handovers as
-possible between people who already know each other.
+and hands it to whom, with as few days as possible, and groups keep their
+voucher.
 
 Everything runs in the browser (Go compiled to WebAssembly) or on the command
 line with the same code. Nothing is sent to a server: the share link *is* the
@@ -16,8 +16,9 @@ data, and your browser history keeps it like any other link.
 
 1. **As few days as possible.** With `V` vouchers from day 1 and `N` ticket
    slots the plan has `ceil(N / V)` days; extra vouchers, pins, people who
-   leave and the end of the voucher phase (rule 7) change that, the grid
-   shows the result. Weekends are skipped unless the event says otherwise.
+   leave, one voucher per group (rule 4) and the end of the voucher phase
+   (rule 7) change that, the grid shows the result. Weekends are skipped
+   unless the event says otherwise.
 2. **Tiers.** Named people first — members, then frequent guests, then
    acquaintances. After all named people come everybody's +1, then everybody's
    +2, each round ordered by the sponsor's position. Within a tier the order is
@@ -33,15 +34,20 @@ data, and your browser history keeps it like any other link.
 3. **+N is capped at 2** unless the person carries the group flag (they
    represent a larger group). Their surplus (+3, +4, …) comes last. A person
    never hands the voucher directly to their own +N — unless they have the
-   group flag, then their block may run back to back. If such a handover
-   cannot be avoided (one voucher, one person with +1) it is used and reported
-   as a warning.
-4. **Connections.** For each day the assignment person → voucher is chosen so
-   that as many handovers as possible happen between people who know each
-   other (`Knows`). +N slots stand in for their sponsor. Without manual
-   pins this day-by-day optimum is already the global optimum; with pins a
-   2-opt pass cleans up around them. The page calls these handovers
-   *buddies*, all others *new connection*.
+   group flag (rule 4). If such a handover cannot be avoided (one voucher,
+   one person with +1) it is used and reported as a warning.
+4. **Groups keep their voucher.** +N slots stand in for their sponsor and
+   share the sponsor's address, so a voucher that stays with a group needs
+   no handover. From a group's first day its slots run day after day on as
+   few vouchers as the plan's length allows: one chain from that day,
+   further chains ending on the last day; the plan keeps its length. With
+   `oneChain` ("one voucher per group" on the page) a group keeps a single
+   voucher and the plan may grow, up to the end of the voucher phase. Who
+   gets into the plan at all still follows rules 2 and 3; only the days
+   move. For each day the assignment person → voucher keeps every group on
+   the voucher it holds, unless a voucher would otherwise go straight to
+   someone's own +N (rule 3); a 2-opt pass cleans up around pins and idle
+   days. The page marks these cells *group keeps the voucher*.
 5. **Pins.** In the admin view a slot can be moved to another cell or swapped
    with another slot. Pins are kept in the link and respected before the
    automatic placement fills the rest. A voucher may idle for a day; the
@@ -80,8 +86,7 @@ read too, so a German sheet can be pasted as it is:
 | `Status` | tier, Mitglied, "Mitglied / (Häufiger) Gast / Bekanntschaft" | member, guest, acquaintance (Mitglied, Gast, Bekanntschaft) |
 | `+N` | plus | number of extra people |
 | `Email` | E-Mail, mail | contact for the handover |
-| `Knows` | Kennt | handles, comma separated |
-| `Group` | Gruppe | yes = may exceed +N max, block allowed (yes/no, ja/nein, x, 1/0) |
+| `Group` | Gruppe | yes = may exceed +N max, keeps its voucher (yes/no, ja/nein, x, 1/0) |
 | `Out` | Ausgestiegen, raus, left | yes = gives up all slots that are not pinned (yes/no, ja/nein, x, 1/0) |
 | `Note` | Notiz | free text, never part of viewer links |
 
@@ -111,14 +116,12 @@ so two people can tell at a glance whether they look at the same plan.
   gives admins the link to share.
 - **Sign-up (collect)**: a sign-up form for people interested in a voucher.
   It carries only the event settings and the organiser's address; the result
-  is one line (`Name; Email; Status; +N; Knows; Note`, status as member,
-  guest or acquaintance) that is mailed or copied to the organiser, who
-  pastes it into "Add lines from sign-up mails". Lines typed by hand may put the fields after the
-  name in any order: the e-mail is the field with `@`, the status a tier
-  word, +N a number, connections the first comma-separated list of handles
-  plus every known name, alone or in a further list of known names only;
-  a second e-mail, status or number and yes/no words are ignored with a
-  warning, the rest becomes the note. Problems with the roster or with sign-up lines
+  is one line (`Name; Email; Status; +N; Note`, status as member, guest or
+  acquaintance) that is mailed or copied to the organiser, who pastes it
+  into "Add lines from sign-up mails". Lines typed by hand may put the
+  fields after the name in any order: the e-mail is the field with `@`, the
+  status a tier word, +N a number; a second e-mail, status or number and
+  yes/no words are ignored with a warning, the rest becomes the note. Problems with the roster or with sign-up lines
   are reported under "Compute plan" or under the sign-up button; a cell
   name the planner rejects is reported above the matrix.
 
@@ -140,8 +143,7 @@ fingerprint and status timestamp to see who holds the newer link.
 
 `events/congress2026.json` is a pseudonymised real roster (25 animals, 22
 extra slots, 7 vouchers → 7 days, voucher phase of 11 days with 30 slots
-free). Status, e-mail and
-connections are **placeholders**; the real values live only in your own links
+free). Status and e-mail are **placeholders**; the real values live only in your own links
 and files. The page's demo link is an admin link of this roster,
 generated at build time; the file itself is not part of the site. It is
 offered only on the untouched start page, so nobody works in the demo by

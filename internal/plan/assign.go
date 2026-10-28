@@ -4,27 +4,44 @@ package plan
 
 // Edge costs between the holder of a voucher and the next person in the chain.
 const (
-	costKnown     = 0   // the two know each other (or group block)
-	costUnknown   = 1   // strangers
-	costForbidden = 100 // sponsor → own +k (or +j → +k) without the group flag
+	costKeep      = 0   // the voucher stays with a group: one of its slots to the next
+	costStart     = 1   // a voucher fresh from the organisers: dearer than keeping one
+	costPass      = 2   // handed to someone else
+	costForbidden = 200 // sponsor → own +k (or +j → +k) without the group flag
 )
 
 // edgeCost prices one handover. +k slots stand in for their sponsor: they share
-// the sponsor's connections and contact address.
+// the sponsor's contact address. A chain that ends costs nothing.
 func edgeCost(e *Event, from, to *Slot) int {
-	if from == nil || to == nil {
+	switch {
+	case to == nil:
 		return 0
+	case from == nil:
+		return costStart
 	}
-	if from.PersonID == to.PersonID {
-		if p := e.Person(from.PersonID); p != nil && p.Group {
-			return costKnown
-		}
-		return costForbidden
+	if from.PersonID != to.PersonID {
+		return costPass
 	}
-	if e.Knows(from.PersonID, to.PersonID) {
-		return costKnown
+	if p := e.Person(from.PersonID); p != nil && p.Group {
+		return costKeep
 	}
-	return costUnknown
+	return costForbidden
+}
+
+// idleTie scales edgeCost so that one more unit breaks ties: a handover
+// across an idle day costs that unit, so between equal plans the one where
+// a voucher does not idle wins (it otherwise ties with the look at
+// tomorrow's pin). Larger than the idle edges compared at once: two per
+// voucher and day (TestIdleTieOnlyBreaksTies).
+const idleTie = 1024
+
+// assignCost is edgeCost with the idle tie-break, for the assignment.
+func assignCost(e *Event, from, to *Slot) int {
+	c := edgeCost(e, from, to) * idleTie
+	if from != nil && to != nil && to.Day > from.Day+1 {
+		c++
+	}
+	return c
 }
 
 // prevHolder returns the last slot in chain v before day d (1-based), or nil.
@@ -51,11 +68,11 @@ func nextHolder(grid [][]*Slot, d, v int) *Slot {
 // vouchers are matched to the day's unpinned slots with minimal handover cost
 // against the previous holders (Hungarian); day 1 takes priority order.
 //
-// Without pins this is already the global optimum: the next day can be
-// permuted freely, so its best cost does not depend on today's arrangement.
-// Pins and chain ends break that, so a 2-opt pass follows: swap two unpinned
-// slots within a day whenever that lowers the cost of the edges around them,
-// until nothing improves.
+// Without pins and idle days this is already the global optimum: the next
+// day can be permuted freely, so its best cost does not depend on today's
+// arrangement. Pins, idle days and chain ends break that, so a 2-opt pass
+// follows: swap two unpinned slots within a day whenever that lowers the
+// cost of the edges around them, until nothing improves.
 func assignChains(e *Event, slots []*Slot, grid [][]*Slot, from []int) {
 	for d := 1; d <= len(grid); d++ {
 		var free []int
@@ -78,10 +95,16 @@ func assignChains(e *Event, slots []*Slot, grid [][]*Slot, from []int) {
 		for i, v := range free {
 			cost[i] = make([]int, n)
 			prev := prevHolder(grid, d, v)
-			for j := range todo {
-				cost[i][j] = edgeCost(e, prev, todo[j])
+			var next *Slot // a pin tomorrow is the next holder for sure
+			if d < len(grid) {
+				next = grid[d][v-1]
 			}
-			// columns beyond len(todo) are dummies: the chain ends, cost 0
+			for j := range todo {
+				cost[i][j] = assignCost(e, prev, todo[j]) + assignCost(e, todo[j], next)
+			}
+			for j := len(todo); j < n; j++ { // dummies: nobody today, a pin tomorrow receives from prev
+				cost[i][j] = assignCost(e, prev, next)
+			}
 		}
 		var match []int
 		if d == 1 {
@@ -116,8 +139,8 @@ func improve(e *Event, grid [][]*Slot) {
 					}
 					pa, pb := prevHolder(grid, d, a+1), prevHolder(grid, d, b+1)
 					na, nb := nextHolder(grid, d, a+1), nextHolder(grid, d, b+1)
-					before := edgeCost(e, pa, sa) + edgeCost(e, pb, sb) + edgeCost(e, sa, na) + edgeCost(e, sb, nb)
-					after := edgeCost(e, pa, sb) + edgeCost(e, pb, sa) + edgeCost(e, sb, na) + edgeCost(e, sa, nb)
+					before := assignCost(e, pa, sa) + assignCost(e, pb, sb) + assignCost(e, sa, na) + assignCost(e, sb, nb)
+					after := assignCost(e, pa, sb) + assignCost(e, pb, sa) + assignCost(e, sb, na) + assignCost(e, sa, nb)
 					if after < before {
 						row[a], row[b] = sb, sa
 						sa.Voucher, sb.Voucher = b+1, a+1

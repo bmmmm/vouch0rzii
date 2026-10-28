@@ -28,7 +28,7 @@ func TestMarkdownAndCSV(t *testing.T) {
 		"**Fri 30/10, 23:00**",
 		"- Voucher 1: a → c (c@example.org)\n",
 		"- Voucher 2: b → a+1 (a@example.org)\n",
-		"2 handovers, 0 between buddies, 2 new connections.",
+		"2 handovers, 0 of them stay within a group (✓).",
 		"handover at 23:00. Version " + p.Fingerprint(),
 	} {
 		if !strings.Contains(md, want) {

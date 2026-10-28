@@ -50,7 +50,7 @@ func TestExampleJSONRespectsTiersAndCounts(t *testing.T) {
 			case l == "":
 			case strings.Contains(l, "+"):
 				plus++
-				if d+1 < minPlusDay {
+				if d+1 < minPlusDay && !strings.HasPrefix(l, "mammut+") { // the group keeps its voucher
 					minPlusDay = d + 1
 				}
 			default:
@@ -77,8 +77,24 @@ func TestExampleJSONRespectsTiersAndCounts(t *testing.T) {
 			t.Errorf("forbidden handover %s → %s", h.From, h.To)
 		}
 	}
-	if ex.Stats.Known == 0 {
-		t.Error("the example has connections; some handovers should be between people who know each other")
+	// mammut (+10, group) keeps two vouchers for its eleven slots in seven
+	// days and passes no voucher on: one handover in, the rest stay within.
+	vouchers := map[int]bool{}
+	for _, row := range ex.Grid {
+		for v, l := range row {
+			if l == "mammut" || strings.HasPrefix(l, "mammut+") {
+				vouchers[v] = true
+			}
+		}
+	}
+	outside := 0
+	for _, h := range ex.Handovers {
+		if strings.HasPrefix(h.From, "mammut") != strings.HasPrefix(h.To, "mammut") {
+			outside++
+		}
+	}
+	if len(vouchers) != 2 || outside != 1 || ex.Stats.Kept != 9 {
+		t.Errorf("mammut on %d vouchers, %d handovers with others, %d kept", len(vouchers), outside, ex.Stats.Kept)
 	}
 }
 

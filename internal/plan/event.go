@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"sort"
 	"strings"
 )
 
@@ -50,10 +49,8 @@ func MarshalEvent(e *Event) ([]byte, error) {
 	return append(b, '\n'), nil
 }
 
-// Normalize validates an event in place: trims IDs, makes Knows symmetric and
-// deduplicated, drops unknown or self references from Knows (warning). All
-// hard problems are collected into one joined error so a form can show them at
-// once.
+// Normalize validates an event in place and trims IDs. All hard problems are
+// collected into one joined error so a form can show them at once.
 func Normalize(e *Event) (warnings []string, err error) {
 	var errs []error
 	if strings.TrimSpace(e.Name) == "" {
@@ -138,53 +135,5 @@ func Normalize(e *Event) (warnings []string, err error) {
 		e.index[e.People[i].ID] = &e.People[i]
 	}
 
-	// Knows: resolve case-insensitively to canonical IDs, drop unknown and
-	// self (warning), then close symmetrically.
-	known := make([]map[string]bool, len(e.People))
-	for i := range known {
-		known[i] = map[string]bool{}
-	}
-	for i := range e.People {
-		p := &e.People[i]
-		for _, raw := range p.Knows {
-			id := strings.TrimSpace(raw)
-			if id == "" {
-				continue
-			}
-			j, ok := seen[strings.ToLower(id)]
-			if !ok {
-				warnings = append(warnings, fmt.Sprintf("%s: knows unknown handle %q, dropped", p.ID, id))
-				continue
-			}
-			if j == i {
-				warnings = append(warnings, fmt.Sprintf("%s: knows own handle %q, dropped", p.ID, id))
-				continue
-			}
-			known[i][e.People[j].ID] = true
-			known[j][p.ID] = true
-		}
-	}
-	for i := range e.People {
-		ids := make([]string, 0, len(known[i]))
-		for id := range known[i] {
-			ids = append(ids, id)
-		}
-		sort.Strings(ids)
-		e.People[i].Knows = ids
-	}
 	return warnings, nil
-}
-
-// Knows reports whether a and b know each other after Normalize.
-func (e *Event) Knows(a, b string) bool {
-	p := e.Person(a)
-	if p == nil {
-		return false
-	}
-	for _, id := range p.Knows {
-		if id == b {
-			return true
-		}
-	}
-	return false
 }

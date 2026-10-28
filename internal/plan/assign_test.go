@@ -90,20 +90,6 @@ func cell(p *Plan, day, voucher int) string {
 	return ""
 }
 
-func TestAssignPrefersKnownPairs(t *testing.T) {
-	ps := ordered("a", "b", "c", "d")
-	ps[2].Tier, ps[3].Tier = TierGuest, TierGuest
-	ps[0].Knows = []string{"d"}
-	ps[1].Knows = []string{"c"}
-	p := mustCompute(t, mkEvent(2, ps...), nil)
-	if cell(p, 2, 1) != "d" || cell(p, 2, 2) != "c" {
-		t.Fatalf("day 2: got %s/%s want d/c", cell(p, 2, 1), cell(p, 2, 2))
-	}
-	if p.Stats.Known != 2 || p.Stats.Unknown != 0 {
-		t.Fatalf("stats %+v", p.Stats)
-	}
-}
-
 func TestForbiddenEdgeAvoidedWhenPossible(t *testing.T) {
 	ps := ordered("a", "b")
 	ps[0].Plus, ps[1].Plus = 1, 1
@@ -116,17 +102,17 @@ func TestForbiddenEdgeAvoidedWhenPossible(t *testing.T) {
 	}
 }
 
-func TestGroupBlockIsKnownNotForbidden(t *testing.T) {
+func TestGroupKeepsItsVoucher(t *testing.T) {
 	ps := ordered("a", "b")
 	ps[0].Plus, ps[0].Group = 2, true
 	p := mustCompute(t, mkEvent(1, ps...), nil)
-	want := []string{"a", "b", "a+1", "a+2"}
+	want := []string{"a", "a+1", "a+2", "b"}
 	for d, l := range want {
 		if cell(p, d+1, 1) != l {
 			t.Fatalf("day %d: got %s want %s", d+1, cell(p, d+1, 1), l)
 		}
 	}
-	if p.Stats.Forbidden != 0 || p.Stats.Known != 1 || p.Stats.Unknown != 2 {
+	if p.Stats.Forbidden != 0 || p.Stats.Kept != 2 || p.Stats.Handovers != 3 {
 		t.Fatalf("stats %+v", p.Stats)
 	}
 }
@@ -143,30 +129,66 @@ func TestForbiddenEdgeUnavoidableWarns(t *testing.T) {
 	}
 }
 
-// With a pin on day 3, the greedy day-2 choice (a→c known) costs two known
-// handovers on day 3; the 2-opt pass must swap c and d on day 2 (and then a and b on day 1).
-func TestImproveLooksPastPins(t *testing.T) {
-	ps := ordered("a", "b", "c", "d", "e", "f")
-	ps[0].Knows = []string{"c"}
-	ps[4].Knows = []string{"d"}
-	ps[5].Knows = []string{"c"}
-	p := mustCompute(t, mkEvent(2, ps...), []Pin{{Label: "e", Day: 3, Voucher: 1}})
-	if cell(p, 2, 1) != "d" || cell(p, 2, 2) != "c" {
-		t.Fatalf("day 2: got %s/%s want d/c", cell(p, 2, 1), cell(p, 2, 2))
-	}
-	if p.Stats.Known != 3 || p.Stats.Unknown != 1 {
-		t.Fatalf("stats %+v", p.Stats)
+// q is pinned on day 3 and q+1 is day 2's only slot, which the 2-opt pass
+// cannot move: the assignment itself must keep q+1 off q's voucher, on
+// either voucher.
+func TestAssignLooksAtTomorrowsPin(t *testing.T) {
+	for v := 1; v <= 2; v++ {
+		ps := ordered("a", "b", "q")
+		ps[2].Plus = 1
+		p := mustCompute(t, mkEvent(2, ps...), []Pin{{Label: "q", Day: 3, Voucher: v}})
+		if p.Stats.Forbidden != 0 || cell(p, 2, 3-v) != "q+1" {
+			t.Fatalf("q on voucher %d: %v, stats %+v", v, p.ToExport().Grid, p.Stats)
+		}
 	}
 }
 
-func TestPlusSlotsInheritSponsorConnections(t *testing.T) {
+// All idle units of one day's assignment (two edges per voucher) stay below
+// one unit of edgeCost, so they only break ties.
+func TestIdleTieOnlyBreaksTies(t *testing.T) {
+	if idleTie <= 2*MaxVouchers {
+		t.Fatalf("idleTie %d is not above 2 × %d vouchers", idleTie, MaxVouchers)
+	}
+}
+
+// p is pinned on day 3: x takes p's voucher on day 2 instead of leaving it
+// idle before the pin, whichever voucher that is.
+func TestNoIdleDayBeforeAPin(t *testing.T) {
+	for v := 1; v <= 2; v++ {
+		p := mustCompute(t, mkEvent(2, ordered("a", "b", "x", "p")...), []Pin{{Label: "p", Day: 3, Voucher: v}})
+		if cell(p, 2, v) != "x" {
+			t.Fatalf("p on voucher %d: %v", v, p.ToExport().Grid)
+		}
+	}
+}
+
+// A group goes on with its own voucher rather than one fresh from the
+// organisers with a lower number (extras listed out of date order).
+func TestGroupPrefersItsVoucherToAFreshOne(t *testing.T) {
+	ps := ordered("b", "a")
+	ps[0].Plus, ps[0].Group = 3, true
+	ps[1].Plus, ps[1].Group = 1, true
+	e := mkEvent(1, ps...)
+	e.OneChain, e.End = true, "2026-11-11"
+	e.Extra = []Extra{{Date: "2026-11-03", Count: 2}, {Date: "2026-11-01", Count: 1}} // vouchers 2, 3 from day 3, voucher 4 from day 2
+	p := mustCompute(t, e, nil)
+	for _, id := range []string{"a", "b"} {
+		if _, vouchers := daysOf(p, id); len(vouchers) != 1 {
+			t.Fatalf("%s on vouchers %v: %v", id, vouchers, p.ToExport().Grid)
+		}
+	}
+}
+
+// Day 1 follows the priority order, so a holds voucher 1 and would hand it
+// straight to a+1, pinned on day 2; the 2-opt pass must swap a and b.
+func TestImproveLooksPastPins(t *testing.T) {
 	ps := ordered("a", "b", "c")
 	ps[0].Plus = 1
-	ps[2].Tier = TierGuest
-	ps[1].Knows = []string{"a"}
-	// Day 1: a, b. Day 2: c, a+1. b knows a, so b → a+1 is known; a → c unknown.
-	p := mustCompute(t, mkEvent(2, ps...), nil)
-	if cell(p, 2, 2) != "a+1" || p.Stats.Known != 1 {
-		t.Fatalf("got day 2 %s/%s, stats %+v", cell(p, 2, 1), cell(p, 2, 2), p.Stats)
+	p := mustCompute(t, mkEvent(2, ps...), []Pin{{Label: "a+1", Day: 2, Voucher: 1}})
+	if cell(p, 1, 1) != "b" || cell(p, 1, 2) != "a" {
+		t.Fatalf("day 1: got %s/%s want b/a", cell(p, 1, 1), cell(p, 1, 2))
+	}
+	if p.Stats.Forbidden != 0 {
+		t.Fatalf("stats %+v", p.Stats)
 	}
 }

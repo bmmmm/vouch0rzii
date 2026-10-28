@@ -9,8 +9,8 @@ import (
 
 // Compute normalises the event and builds the plan. Pins fix slots to cells
 // before the automatic placement fills the rest. The returned plan carries all
-// warnings (unknown handles, dropped pins, forbidden handovers that could not
-// be avoided); hard problems come back as the error.
+// warnings (dropped pins, forbidden handovers that could not be avoided);
+// hard problems come back as the error.
 func Compute(e *Event, pins []Pin) (*Plan, error) {
 	warnings, err := Normalize(e)
 	if err != nil {
@@ -42,6 +42,7 @@ func Compute(e *Event, pins []Pin) (*Plan, error) {
 		return nil, err
 	}
 	warnings = append(warnings, pinWarnings...)
+	grid = chainGroups(e, slots, grid, starts, horizon)
 	for v, f := range starts {
 		if phase > 0 && f > phase {
 			warnings = append(warnings, fmt.Sprintf("voucher %d: available from day %d, after the voucher phase (%d days), unused", v+1, f, phase))
@@ -66,7 +67,7 @@ func Compute(e *Event, pins []Pin) (*Plan, error) {
 				continue
 			}
 			c := edgeCost(e, from, to)
-			p.Handovers = append(p.Handovers, Handover{Day: from.Day, Voucher: v, From: from, To: to, Known: c == costKnown, Forbidden: c == costForbidden})
+			p.Handovers = append(p.Handovers, Handover{Day: from.Day, Voucher: v, From: from, To: to, Kept: c == costKeep, Forbidden: c == costForbidden})
 		}
 	}
 	sort.SliceStable(p.Handovers, func(i, j int) bool {
@@ -82,10 +83,8 @@ func Compute(e *Event, pins []Pin) (*Plan, error) {
 		case h.Forbidden:
 			p.Stats.Forbidden++
 			p.Warnings = append(p.Warnings, fmt.Sprintf("day %d, voucher %d: %s hands directly to %s (no alternative)", h.Day, h.Voucher, h.From.Label, h.To.Label))
-		case h.Known:
-			p.Stats.Known++
-		default:
-			p.Stats.Unknown++
+		case h.Kept:
+			p.Stats.Kept++
 		}
 	}
 	// Free voucher days: capacity of the phase (or of the grid, without an

@@ -3,7 +3,6 @@
 package plan
 
 import (
-	"reflect"
 	"strings"
 	"testing"
 )
@@ -67,26 +66,6 @@ func TestNormalizeGroupLiftsPlusLimit(t *testing.T) {
 	e.PlusMax = 4
 	if _, err := Normalize(e); err != nil {
 		t.Fatal(err)
-	}
-}
-
-func TestNormalizeKnowsSymmetricAndCleaned(t *testing.T) {
-	e := mkEvent(1,
-		Person{ID: "a", Knows: []string{"B", "a", "ghost", "b"}},
-		Person{ID: "b"},
-	)
-	warnings, err := Normalize(e)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !reflect.DeepEqual(e.People[0].Knows, []string{"b"}) || !reflect.DeepEqual(e.People[1].Knows, []string{"a"}) {
-		t.Fatalf("knows not symmetric/clean: %v / %v", e.People[0].Knows, e.People[1].Knows)
-	}
-	if len(warnings) != 2 || !strings.Contains(warnings[0], `a: knows own handle "a"`) || !strings.Contains(warnings[1], "ghost") {
-		t.Fatalf("warnings %v", warnings)
-	}
-	if !e.Knows("a", "b") || !e.Knows("b", "a") || e.Knows("a", "ghost") {
-		t.Fatal("Knows lookup wrong")
 	}
 }
 

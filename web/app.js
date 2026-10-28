@@ -53,15 +53,15 @@
       kpiMoving: 'Voucher unterwegs', kpiDone: 'Ketten abgeschlossen', kpiFree: 'Slots frei',
       nobody: 'niemand', nextOn: (day) => `Als Nächstes, ${day}`, next: 'Als Nächstes', fingerprint: (fp) => ` Kennung ${fp}.`,
       bought: (n, total) => `${n} von ${total} Tickets gekauft`,
-      stats: (v, s) => `${v} Vouchers · ${s.days} Tage · ${s.slots} Slots · ${s.handovers} Übergaben, davon ${s.known} unter Buddies, ${s.unknown} neue Verbindungen` +
+      stats: (v, s) => `${v} Vouchers · ${s.days} Tage · ${s.slots} Slots · ${s.handovers} Übergaben` + (s.kept ? `, davon ${s.kept} innerhalb einer Gruppe` : '') +
         (s.forbidden ? `, ${s.forbidden} direkt an eigene Begleitung` : '') + (s.pinned ? ` · ${s.pinned} gepinnt` : ''),
       handoverAt: (at) => ` · Übergabe ${at}`,
-      order: (seed) => `Reihenfolge: erst Mitglieder, dann häufige Gäste, dann Bekanntschaften; innerhalb jeder Gruppe entscheidet das Los mit Seed „${seed}" (gleicher Seed, gleiche Losung). Danach die Begleitungen rundenweise: alle +1, dann alle +2 und so weiter. Eine Zahl in der Spalte „Order" überstimmt das Los.`,
+      order: (seed) => `Reihenfolge: erst Mitglieder, dann häufige Gäste, dann Bekanntschaften; innerhalb jeder Gruppe entscheidet das Los mit Seed „${seed}" (gleicher Seed, gleiche Losung). Danach die Begleitungen rundenweise: alle +1, dann alle +2 und so weiter; nur die Begleitungen einer Gruppe folgen ihr Tag für Tag auf ihrem Voucher. Eine Zahl in der Spalte „Order" überstimmt das Los.`,
       blockPins: 'Gewürfelt wird nur vor dem Start: es gibt schon Pins.',
       blockStatus: 'Gewürfelt wird nur vor dem Start: es gibt schon einen Status.',
       blockNothing: 'Nichts zu losen: alle haben eine feste Reihenfolge.',
       drawing: 'Lose werden gezogen …',
-      drawn: 'Gelost in jeder Stufe, dann jeder Tag nach Bekanntschaften optimiert.',
+      drawn: 'Gelost in jeder Stufe, dann behält jede Gruppe ihren Voucher.',
       entropyInfo: (n, of, bits) => `${n} von ${of} Bewegungen · ≈ ${bits} Bit gesammelt`,
       tierNames: { member: 'Mitglieder', guest: 'Häufige Gäste', acquaintance: 'Bekanntschaften' },
       nerdChain: (seed) => `Seed „${seed}" → FNV-1a-64-Hash, ein zweiter setzt ihn mit Salz fort → PCG-Generator → Fisher–Yates-Mischen. Jede Stufe hat ihren eigenen Generator (Seed + Stufe), darum verschiebt eine neue Anmeldung bei den Gästen niemanden bei den Mitgliedern.`,
@@ -74,7 +74,7 @@
       addDay: '+ Tag', free: 'frei', notYet: 'Voucher noch nicht verfügbar', fromOrga: 'bekommt den Voucher von der Orga',
       freeCell: 'Voucher verfügbar, noch niemand eingeplant', unpin: 'Pin lösen',
       evening: (day, date, at) => `${day} (${date}), ${at} Uhr`,
-      forbidden: 'direkt an eigene Begleitung', known: 'Buddies, kennen sich schon', stranger: 'neue Verbindung',
+      forbidden: 'direkt an eigene Begleitung', kept: 'Gruppe behält den Voucher', passed: 'weitergegeben',
       buysOn: (day) => `, kauft am ${day}`, oneDay: 'Nur ein Tag, keine Übergaben.',
       mail: (to, label, date, v, ev, at, next, nextMail, from) => [
         `Hallo ${to}${label !== to ? ` (für ${label})` : ''},`, '',
@@ -123,15 +123,15 @@
       kpiMoving: 'vouchers on their way', kpiDone: 'chains complete', kpiFree: 'slots free',
       nobody: 'nobody', nextOn: (day) => `Next, ${day}`, next: 'Next', fingerprint: (fp) => ` Fingerprint ${fp}.`,
       bought: (n, total) => `${n} of ${total} tickets bought`,
-      stats: (v, s) => `${v} vouchers · ${s.days} days · ${s.slots} slots · ${s.handovers} handovers, ${s.known} of them between buddies, ${s.unknown} new connections` +
+      stats: (v, s) => `${v} vouchers · ${s.days} days · ${s.slots} slots · ${s.handovers} handovers` + (s.kept ? `, ${s.kept} of them within a group` : '') +
         (s.forbidden ? `, ${s.forbidden} straight to one's own companion` : '') + (s.pinned ? ` · ${s.pinned} pinned` : ''),
       handoverAt: (at) => ` · handover ${at}`,
-      order: (seed) => `Order: members first, then frequent guests, then acquaintances; within each tier the draw with seed "${seed}" decides (same seed, same draw). Then the companions round by round: every +1, then every +2 and so on. A number in "Order" overrides the draw.`,
+      order: (seed) => `Order: members first, then frequent guests, then acquaintances; within each tier the draw with seed "${seed}" decides (same seed, same draw). Then the companions round by round: every +1, then every +2 and so on; only a group's companions follow it day by day on its voucher. A number in "Order" overrides the draw.`,
       blockPins: 'Rolling is only for the start: there are pins already.',
       blockStatus: 'Rolling is only for the start: there is a status already.',
       blockNothing: 'Nothing to draw: everyone has a fixed order.',
       drawing: 'Drawing lots …',
-      drawn: 'Drawn within each tier, then every day optimised for people who know each other.',
+      drawn: 'Drawn within each tier, then every group keeps its voucher.',
       entropyInfo: (n, of, bits) => `${n} of ${of} movements · ≈ ${bits} bits collected`,
       tierNames: { member: 'Members', guest: 'Frequent guests', acquaintance: 'Acquaintances' },
       nerdChain: (seed) => `Seed "${seed}" → FNV-1a 64 hash, a second one continues it with a salt → PCG generator → Fisher–Yates shuffle. Every tier has its own generator (seed + tier), so a new guest never moves a member.`,
@@ -144,7 +144,7 @@
       addDay: '+ day', free: 'free', notYet: 'Voucher not available yet', fromOrga: 'gets the voucher from the organisers',
       freeCell: 'Voucher available, nobody planned yet', unpin: 'Release pin',
       evening: (day, date, at) => `${day} (${date}), ${at}`,
-      forbidden: "straight to one's own companion", known: 'buddies, already know each other', stranger: 'new connection',
+      forbidden: "straight to one's own companion", kept: 'group keeps the voucher', passed: 'passed on',
       buysOn: (day) => `, buys on ${day}`, oneDay: 'Only one day, no handovers.',
       mail: (to, label, date, v, ev, at, next, nextMail, from) => [
         `Hello ${to}${label !== to ? ` (for ${label})` : ''},`, '',
@@ -350,6 +350,7 @@
     ev.end = $('#f-end').value;
     if (!ev.end) delete ev.end;
     ev.weekends = $('#f-weekends').checked;
+    if ($('#f-oneChain').checked) ev.oneChain = true; else delete ev.oneChain;
     ev.plusMax = Number($('#f-plusMax').value) || 0;
     ev.seed = $('#f-seed').value.trim();
     ev.handover = $('#f-handover').value.trim();
@@ -367,6 +368,7 @@
     $('#f-start').value = ev.start || '';
     $('#f-end').value = ev.end || '';
     $('#f-weekends').checked = !!ev.weekends;
+    $('#f-oneChain').checked = !!ev.oneChain;
     $('#f-plusMax').value = ev.plusMax || 2;
     $('#f-seed').value = ev.seed || '';
     $('#f-handover').value = ev.handover || '23:00';
@@ -861,7 +863,7 @@
         if (!label && !d.extra) cls.push('empty');
         if (d.extra) cls.push('extra');
         if (d.date === now) cls.push('today');
-        if (h) cls.push(h.forbidden ? 'forbidden' : h.known ? 'known' : 'stranger');
+        if (h && (h.forbidden || h.kept)) cls.push(h.forbidden ? 'forbidden' : 'kept');
         if (label && pinned.has(label)) cls.push('pinned');
         if (label && statusOf(label) !== 'open') cls.push('st-' + statusOf(label));
         if (selected && label && selected.label === label) cls.push('selected');
@@ -907,7 +909,7 @@
         list = el('ul');
         box.append(list);
       }
-      const mark = h.forbidden ? el('span', { class: 'mark forbidden-text', title: t('forbidden') }, '!') : h.known ? el('span', { class: 'mark known-text', title: t('known') }, '✓') : el('span', { class: 'mark', title: t('stranger') }, '·');
+      const mark = h.forbidden ? el('span', { class: 'mark forbidden-text', title: t('forbidden') }, '!') : h.kept ? el('span', { class: 'mark known-text', title: t('kept') }, '✓') : el('span', { class: 'mark', title: t('passed') }, '·');
       const toDay = pos.get(h.to).day;
       list.append(el('li', {}, mark, ` Voucher ${h.voucher}: ${h.from} → ${h.to}`, h.toEmail && ` <${h.toEmail}>`, toDay !== h.day + 1 && t('buysOn', dayName(plan.days[toDay - 1]))));
     }
@@ -1041,7 +1043,7 @@
         if (!cur) return;
         current = cur.people;
       }
-      const r = bridge.parseSignup($('#inbox').value, JSON.stringify(current.map((p) => p.id)));
+      const r = bridge.parseSignup($('#inbox').value);
       if (!r.ok) { showMessages(r.errors, r.warnings, near); return; }
       const have = new Set(current.map((p) => p.id.toLowerCase()));
       const skipped = [];
@@ -1104,7 +1106,7 @@
       const handle = clean($('#c-handle').value);
       const line = [
         handle, clean($('#c-email').value), $('#c-tier').value, String(Number($('#c-plus').value) || 0),
-        clean($('#c-knows').value), clean($('#c-note').value),
+        clean($('#c-note').value),
       ].join('; ');
       $('#c-line').value = line;
       $('#collectOut').hidden = false;

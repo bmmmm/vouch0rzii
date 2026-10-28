@@ -5,7 +5,6 @@ package plan
 import (
 	"errors"
 	"fmt"
-	"slices"
 	"strconv"
 	"strings"
 )
@@ -20,7 +19,6 @@ const (
 	colTier
 	colPlus
 	colEmail
-	colKnows
 	colGroup
 	colOut
 	colNote
@@ -32,7 +30,6 @@ var columnAliases = map[string]int{
 	"status": colTier, "tier": colTier, "mitglied": colTier,
 	"+n": colPlus, "plus": colPlus,
 	"e-mail": colEmail, "email": colEmail, "mail": colEmail,
-	"kennt": colKnows, "knows": colKnows,
 	"gruppe": colGroup, "group": colGroup,
 	"ausgestiegen": colOut, "raus": colOut, "out": colOut, "left": colOut,
 	"notiz": colNote, "note": colNote,
@@ -162,8 +159,6 @@ func ParseRoster(text string) (people []Person, warnings []string, err error) {
 				p.Plus = v
 			case colEmail:
 				p.Email = f
-			case colKnows:
-				p.Knows = append(p.Knows, splitHandles(f)...)
 			case colGroup:
 				p.Group = yn(row, "group", f)
 			case colOut:
@@ -191,13 +186,12 @@ func ParseRoster(text string) (people []Person, warnings []string, err error) {
 }
 
 // RosterHeader is the header row FormatRoster writes; ParseRoster reads it back.
-const RosterHeader = "Order\tName\tStatus\t+N\tEmail\tKnows\tGroup\tOut\tNote"
+const RosterHeader = "Order\tName\tStatus\t+N\tEmail\tGroup\tOut\tNote"
 
 // FormatRoster renders people as TSV with English labels, the shape the page
-// shows for editing. ParseRoster reads it back with values trimmed, each
-// Knows handle once in any case, an empty Knows as nil and Plus or Order
-// below 1 as 0; a tab or line break inside a field does not survive, and no
-// people at all do not parse back.
+// shows for editing. ParseRoster reads it back with values trimmed and Plus
+// or Order below 1 as 0; a tab or line break inside a field does not
+// survive, and no people at all do not parse back.
 func FormatRoster(people []Person) string {
 	var b strings.Builder
 	b.WriteString(RosterHeader)
@@ -210,39 +204,25 @@ func FormatRoster(people []Person) string {
 		return ""
 	}
 	for _, p := range people {
-		fmt.Fprintf(&b, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
-			num(p.Order), p.ID, p.Tier, num(p.Plus), p.Email, strings.Join(p.Knows, ", "), yn[p.Group], yn[p.Out], p.Note)
+		fmt.Fprintf(&b, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
+			num(p.Order), p.ID, p.Tier, num(p.Plus), p.Email, yn[p.Group], yn[p.Out], p.Note)
 	}
 	return b.String()
 }
 
 // SignupFields is the order in which the sign-up form writes a line.
-const SignupFields = "Name; Email; Status; +N; Knows; Note"
+const SignupFields = "Name; Email; Status; +N; Note"
 
 // ParseSignup reads sign-up lines, one person per line, fields separated by
-// ";". A line with the form's six fields is read by position (SignupFields);
+// ";". A line with the form's five fields is read by position (SignupFields);
 // if that fails and the line is in the form's order (an address or nothing
-// in position 2), its errors stand, except when only leftover yes/no words
-// of the former credit-card field are in the way. Any other line is read by
-// content: the first field is the handle, "@" marks the e-mail, a tier word
-// the status, a number the +N; a second one of these and yes/no words are
-// ignored with a warning. The first list of handles separated by commas and
-// every word or list, before or after it, that names only other people's
-// handles (known, or a name in text) are the connections; anything else but
-// bare commas is the note. A word or list kept as note is reported unless an entry has a
-// space, "+" or "|" (prose). Unknown and own handles in the first list are
-// reported by Normalize.
-func ParseSignup(text string, known []string) (people []Person, warnings []string, err error) {
+// in position 2), its errors stand, except when only yes/no words are in the
+// way. Any other line is read by content: the first field is the handle, "@"
+// marks the e-mail, a tier word the status, a number the +N; a second one of
+// these and yes/no words are ignored with a warning, anything else but bare
+// commas is the note.
+func ParseSignup(text string) (people []Person, warnings []string, err error) {
 	lines := strings.Split(strings.ReplaceAll(text, "\r\n", "\n"), "\n")
-	handles := map[string]bool{}
-	for _, id := range known {
-		handles[strings.ToLower(strings.TrimSpace(id))] = true
-	}
-	for _, line := range lines {
-		if f := strings.Split(line, ";"); !isSignupHeader(f) {
-			handles[strings.ToLower(strings.TrimSpace(f[0]))] = true
-		}
-	}
 	var errs []error
 	for n, line := range lines {
 		if strings.TrimSpace(line) == "" {
@@ -260,21 +240,15 @@ func ParseSignup(text string, known []string) (people []Person, warnings []strin
 		if isSignupHeader(fields) {
 			continue // the header line from the hint, pasted along
 		}
-		if len(fields) == 7 {
-			if card := fields[4]; ParseBoolOK(card) { // a line from the form before the card field was dropped
-				fields = append(fields[:4], fields[5:]...)
-				warnings = append(warnings, fmt.Sprintf("line %d: %s: credit-card field %q dropped, there is no such field any more", row, fields[0], card))
-			}
-		}
-		if len(fields) == 6 {
+		if len(fields) == 5 {
 			p, perrs, bad := signupByPosition(row, fields)
 			if len(perrs) == 0 {
 				people = append(people, p)
 				continue
 			}
 			// An address in position 2 means the form's order: its errors
-			// stand, unless the offending values are only leftover yes/no
-			// words. Anything else in position 2 is a reordered line.
+			// stand, unless the offending values are only yes/no words.
+			// Anything else in position 2 is a reordered line.
 			formOrder := fields[1] == "" || strings.Contains(fields[1], "@")
 			leftovers := true
 			for _, i := range bad {
@@ -286,7 +260,7 @@ func ParseSignup(text string, known []string) (people []Person, warnings []strin
 			}
 			warnings = append(warnings, fmt.Sprintf("line %d: %s: fields are not in the form's order, read by content", row, fields[0]))
 		}
-		p, more := signupByContent(row, fields, handles)
+		p, more := signupByContent(row, fields)
 		people = append(people, p)
 		warnings = append(warnings, more...)
 	}
@@ -313,25 +287,10 @@ func ParseBoolOK(s string) bool {
 	return err == nil
 }
 
-func splitHandles(f string) (ids []string) {
-	for id := range strings.SplitSeq(f, ",") {
-		ids = addHandle(ids, strings.TrimSpace(id))
-	}
-	return ids
-}
-
-// addHandle appends id unless it is empty or already in ids, in any case.
-func addHandle(ids []string, id string) []string {
-	if id == "" || slices.ContainsFunc(ids, func(s string) bool { return strings.EqualFold(s, id) }) {
-		return ids
-	}
-	return append(ids, id)
-}
-
-// signupByPosition reads the form's six fields; bad lists the indexes of the
+// signupByPosition reads the form's five fields; bad lists the indexes of the
 // fields that did not parse.
 func signupByPosition(row int, f []string) (p Person, errs []error, bad []int) {
-	p = Person{ID: f[0], Email: f[1], Knows: splitHandles(f[4]), Note: f[5]}
+	p = Person{ID: f[0], Email: f[1], Note: f[4]}
 	if f[2] != "" {
 		t, ok := ParseTier(f[2])
 		if !ok {
@@ -351,29 +310,15 @@ func signupByPosition(row int, f []string) (p Person, errs []error, bad []int) {
 	return p, errs, bad
 }
 
-// signupByContent reads a line by content; handles holds the known handles,
-// lower-cased.
-func signupByContent(row int, f []string, handles map[string]bool) (p Person, warnings []string) {
+// signupByContent reads a line by content.
+func signupByContent(row int, f []string) (p Person, warnings []string) {
 	p = Person{ID: f[0]}
-	var tier, plus, list bool
-	var loose []string
-	at := -1 // where the warning about loose goes, to keep field order
-	isHandles := func(s string) bool {
-		for id := range strings.SplitSeq(s, ",") {
-			if id = strings.TrimSpace(id); id != "" && strings.ContainsAny(id, " +|") {
-				return false
-			}
-		}
-		return true
-	}
+	var tier, plus bool
 	for _, v := range f[1:] {
 		t, isTier := ParseTier(v)
 		n, nerr := strconv.Atoi(v)
-		_, berr := ParseBool(v)
-		single := !strings.Contains(v, ",")
-		ids := splitHandles(v)
 		switch {
-		case len(ids) == 0: // nothing, or only commas
+		case strings.Trim(v, ", ") == "": // nothing, or only commas
 		case strings.Contains(v, "@") && p.Email == "":
 			p.Email = v
 		case isTier && !tier:
@@ -382,29 +327,11 @@ func signupByContent(row int, f []string, handles map[string]bool) (p Person, wa
 			p.Plus, plus = n, true
 		case strings.Contains(v, "@") || isTier || nerr == nil:
 			warnings = append(warnings, fmt.Sprintf("line %d: %s: %q ignored, that field is already set", row, p.ID, v))
-		case berr == nil:
+		case ParseBoolOK(v):
 			warnings = append(warnings, fmt.Sprintf("line %d: %s: %q ignored, no field takes yes/no", row, p.ID, v))
-		case isHandles(v) && !single && !list, !slices.ContainsFunc(ids, func(id string) bool { return !handles[strings.ToLower(id)] || strings.EqualFold(id, p.ID) }):
-			for _, id := range ids {
-				p.Knows = addHandle(p.Knows, id)
-			}
-			list = list || !single
-		case isHandles(v):
-			if at < 0 {
-				at = len(warnings)
-			}
-			loose = append(loose, strconv.Quote(v))
-			fallthrough
 		default:
 			p.Note = strings.TrimSpace(p.Note + " " + v)
 		}
-	}
-	if len(loose) > 0 {
-		w := fmt.Sprintf("line %d: %s: %s kept as note, not handles of other people", row, p.ID, strings.Join(loose, ", "))
-		if !list {
-			w += "; Knows takes handles with a comma"
-		}
-		warnings = slices.Insert(warnings, at, w)
 	}
 	if !tier {
 		warnings = append(warnings, fmt.Sprintf("line %d: %s: no status given, counts as member", row, p.ID))

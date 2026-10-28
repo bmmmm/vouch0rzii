@@ -8,6 +8,34 @@ what to check.
 
 ## [Unreleased]
 
+### Changed
+
+- Groups keep their voucher: a person with the group flag gets their slots
+  day after day on as few vouchers as the plan's length allows, so the
+  voucher stays in one mailbox instead of passing through strangers. The new
+  event setting `oneChain` ("one voucher per group") gives each group a
+  single voucher and lets the plan grow up to the end of the voucher phase.
+  Who gets into the plan still follows the tiers; only days move. In the
+  example mammut's eleven slots run on two vouchers instead of six.
+- The assignment counts the handover into a pin on the next day: a slot no
+  longer lands right before a pinned slot of the same person (without the
+  group flag) when another voucher is free, and among equal choices a
+  voucher does not idle before its pin. A group goes on with
+  its own voucher rather than one fresh from the organisers.
+- Exports: `stats.kept` and `handovers[].kept` (handovers within a group)
+  replace `stats.known`, `stats.unknown` and `handovers[].known`; the SVG
+  arrow kinds are `kept`, `pass` and `forbidden`; the legend shows only
+  "group keeps the voucher".
+
+### Removed
+
+- `Knows` (Kennt): the roster column, the sign-up field and the preference
+  for handovers between people who know each other. The sign-up line is now
+  `Name; Email; Status; +N; Note`; `parseSignup` takes the text only.
+  Event files with `knows` are rejected, a `Kennt` column is ignored with a
+  warning, and older sign-up lines with six or seven fields are read by
+  content, their handles ending up in the note.
+
 ## [0.1.0] - 2026-10-27
 
 ### Added
