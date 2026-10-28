@@ -24,6 +24,8 @@ func TestNormalizeErrors(t *testing.T) {
 		{"extra zero count", &Event{Name: "t", Vouchers: 1, Start: "2026-10-30", Extra: []Extra{{Date: "2026-11-05"}}, People: []Person{{ID: "a"}}}, "count must be between 1 and 200"},
 		{"extra too many", &Event{Name: "t", Vouchers: 1, Start: "2026-10-30", Extra: []Extra{{Date: "2026-11-05", Count: MaxVouchers}}, People: []Person{{ID: "a"}}}, "in total, more than"},
 		{"extra count overflow", &Event{Name: "t", Vouchers: 1, Start: "2026-10-30", Extra: []Extra{{Date: "2026-11-05", Count: 1 << 62}, {Date: "2026-11-05", Count: 1 << 62}}, People: []Person{{ID: "a"}}}, "count must be between 1 and 200"},
+		{"every too big", &Event{Name: "t", Vouchers: 1, Start: "2026-10-30", Every: MaxEvery + 1, People: []Person{{ID: "a"}}}, "every must be between 0 and 14"},
+		{"every negative", &Event{Name: "t", Vouchers: 1, Start: "2026-10-30", Every: -1, People: []Person{{ID: "a"}}}, "every must be between 0 and 14"},
 		{"plusMax too big", &Event{Name: "t", Vouchers: 1, Start: "2026-10-30", PlusMax: MaxPlus + 1, People: []Person{{ID: "a"}}}, "plusMax must be between 0 and 200"},
 		{"tab in id", mkEvent(1, Person{ID: "a\tb"}), "must not contain"},
 		{"too many people", mkEvent(1, members(MaxPeople+1)...), "more than 2000"},

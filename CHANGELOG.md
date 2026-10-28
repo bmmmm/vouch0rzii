@@ -8,6 +8,17 @@ what to check.
 
 ## [Unreleased]
 
+### Added
+
+- `every` in the event (page: "Voucher every … days"): plan days from one
+  buying day of a chain to the next, 1 to 14, default 1. Without weekends the
+  voucher process rests on Saturday and Sunday, so `every` counts weekdays.
+  Handovers are dated on the evening the new voucher is expected; the JSON
+  export gives each handover a `label`. `"every": 1` is the default and keeps
+  the fingerprint.
+- The page warns when a change of start, weekends or `every` moves pinned
+  slots to other dates.
+
 ### Changed
 
 - Groups keep their voucher: a person with the group flag gets their slots
@@ -20,8 +31,8 @@ what to check.
 - The assignment counts the handover into a pin on the next day: a slot no
   longer lands right before a pinned slot of the same person (without the
   group flag) when another voucher is free, and among equal choices a
-  voucher does not idle before its pin. A group goes on with
-  its own voucher rather than one fresh from the organisers.
+  voucher does not idle before its pin. A group goes on with its own
+  voucher rather than one fresh from the organisers.
 - Exports: `stats.kept` and `handovers[].kept` (handovers within a group)
   replace `stats.known`, `stats.unknown` and `handovers[].known`; the SVG
   arrow kinds are `kept`, `pass` and `forbidden`; the legend shows only
@@ -35,6 +46,7 @@ what to check.
   Event files with `knows` are rejected, a `Kennt` column is ignored with a
   warning, and older sign-up lines with six or seven fields are read by
   content, their handles ending up in the note.
+
 
 ## [0.1.0] - 2026-10-27
 

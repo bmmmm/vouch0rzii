@@ -78,6 +78,11 @@ func Normalize(e *Event) (warnings []string, err error) {
 	if total > MaxVouchers {
 		errs = append(errs, fmt.Errorf("%d vouchers in total, more than %d", total, MaxVouchers))
 	}
+	if e.Every < 0 || e.Every > MaxEvery {
+		errs = append(errs, fmt.Errorf("every must be between 0 and %d days, got %d", MaxEvery, e.Every))
+	} else if e.Every == 1 {
+		e.Every = 0 // the default, so "every": 1 and no every are the same event and fingerprint
+	}
 	if e.PlusMax < 0 || e.PlusMax > MaxPlus {
 		errs = append(errs, fmt.Errorf("plusMax must be between 0 and %d, got %d", MaxPlus, e.PlusMax))
 	}

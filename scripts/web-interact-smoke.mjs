@@ -114,6 +114,24 @@ try {
   check('new action after undo clears the redo stack', (await text(1, 1)) === b && (await disabled('redo')));
   await key('z');
 
+  // Pins hold plan days: a calendar change that moves them in time is named.
+  const warning = () => js(`document.querySelector('#messages .warning')?.textContent || ''`);
+  const day2 = [await text(2, 1), await text(2, 2)];
+  await click(2, 1);
+  await click(2, 2);
+  await js(`document.getElementById('compute').click(); 0`);
+  check('pins: recomputing without a calendar change warns about nothing', (await stats()).includes('2 gepinnt') && !(await warning()).includes('anderes Datum'));
+  await click(2, 1);
+  await click(3, 1);
+  check('pins: moving a pinned slot to another day warns about nothing', (await text(3, 1)) === day2[1] && !(await warning()).includes('anderes Datum'));
+  await key('z');
+  await js(`document.getElementById('f-every').value = '2'; document.getElementById('compute').click(); 0`);
+  check('pins: every 2 moves the day-2 pins from Monday to Tuesday, and says so', (await warning()).includes(`Gepinnte Slots haben jetzt ein anderes Datum: ${day2[1]} Mo 02.11. → Di 03.11., ${day2[0]} Mo 02.11. → Di 03.11. Ein Pin`), await warning());
+  await key('z');
+  check('pins: Ctrl+Z restores daily buying days', await js(`document.getElementById('f-every').value === '1' && document.querySelector('#matrix thead th:nth-child(3) small').textContent === '2026-11-02'`));
+  await key('z');
+  check('pins: and the swap is gone again', (await text(2, 1)) === day2[0] && !(await stats()).includes('gepinnt'));
+
   // Pending roster edits become an undo step of their own.
   await js(`document.getElementById('roster').value += '\\tdodo2\\tBekanntschaft\\t\\t\\t\\t\\t\\t\\n'; 0`);
   await key('z');

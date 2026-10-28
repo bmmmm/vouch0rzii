@@ -14,10 +14,25 @@ func ParseDate(s string) (time.Time, error) {
 	return time.Parse(DateLayout, s)
 }
 
-// Dates returns the calendar dates of days 1..n starting at start. Unless
-// weekends is true, Saturdays and Sundays are skipped, so a start on a weekend
+// Dates returns the calendar dates of days 1..n starting at start: every
+// every-th plan day (every < 1 counts as 1). Plan days are all days with
+// weekends, else Monday to Friday, because then the voucher process rests on
+// Saturday and Sunday too: every counts weekdays, and a start on a weekend
 // moves day 1 to the following Monday.
-func Dates(start time.Time, n int, weekends bool) []time.Time {
+func Dates(start time.Time, n int, weekends bool, every int) []time.Time {
+	every = max(every, 1)
+	out := make([]time.Time, 0, n)
+	for i, d := range planDays(start, n*every, weekends) {
+		if i%every == 0 {
+			out = append(out, d)
+		}
+	}
+	return out
+}
+
+// planDays returns the first n days from start on which the voucher process
+// runs: all days with weekends, else Monday to Friday.
+func planDays(start time.Time, n int, weekends bool) []time.Time {
 	out := make([]time.Time, 0, n)
 	for d := start; len(out) < n; d = d.AddDate(0, 0, 1) {
 		if weekends || (d.Weekday() != time.Saturday && d.Weekday() != time.Sunday) {

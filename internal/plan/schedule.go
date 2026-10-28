@@ -136,7 +136,7 @@ func voucherStarts(e *Event) ([]int, error) {
 		return from, nil
 	}
 	start, _ := ParseDate(e.Start)
-	dates := Dates(start, MaxDays, e.Weekends)
+	dates := Dates(start, MaxDays, e.Weekends, e.Every)
 	for _, x := range e.Extra {
 		day := 0
 		for i, d := range dates {
@@ -163,7 +163,7 @@ func phaseDays(e *Event) int {
 	}
 	start, _ := ParseDate(e.Start)
 	n := 0
-	for _, d := range Dates(start, MaxDays, e.Weekends) {
+	for _, d := range Dates(start, MaxDays, e.Weekends, e.Every) {
 		if d.Format(DateLayout) > e.End {
 			break
 		}

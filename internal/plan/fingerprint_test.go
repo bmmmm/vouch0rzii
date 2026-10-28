@@ -38,4 +38,10 @@ func TestFingerprint(t *testing.T) {
 	if mustCompute(t, renderEvent(), []Pin{{Label: "c", Day: 2, Voucher: 2}}).Fingerprint() == fp {
 		t.Fatal("a changed placement must change the fingerprint")
 	}
+	e3 := renderEvent()
+	e3.People[0].Note = "private"
+	e3.Every = 1 // the default spelled out
+	if got := mustCompute(t, e3, nil).Fingerprint(); got != fp {
+		t.Fatalf("every 1 %q, no every %q: the default must not change the fingerprint", got, fp)
+	}
 }
