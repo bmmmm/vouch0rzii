@@ -37,12 +37,13 @@ func Compute(e *Event, pins []Pin) (*Plan, error) {
 		}
 	}
 	slots := buildSlots(e, keep)
-	grid, pinWarnings, err := placeSlots(slots, pins, starts, horizon)
+	frozen := frozenDays(e)
+	grid, pinWarnings, err := placeSlots(slots, pins, starts, frozen, horizon)
 	if err != nil {
 		return nil, err
 	}
 	warnings = append(warnings, pinWarnings...)
-	grid = chainGroups(e, slots, grid, starts, horizon)
+	grid = chainGroups(e, slots, grid, starts, frozen, horizon)
 	for v, f := range starts {
 		if phase > 0 && f > phase {
 			warnings = append(warnings, fmt.Sprintf("voucher %d: available from day %d, after the voucher phase (%d days), unused", v+1, f, phase))
@@ -88,13 +89,14 @@ func Compute(e *Event, pins []Pin) (*Plan, error) {
 		}
 	}
 	// Free voucher days: capacity of the phase (or of the grid, without an
-	// end) minus the placed slots. Vouchers that arrive after the end add none.
+	// end) after the frozen days minus the slots placed there. Vouchers that
+	// arrive after the end add none.
 	span, placed := phase, 0
 	if span == 0 {
 		span = len(grid)
 	}
 	for _, f := range starts {
-		if f <= span {
+		if f = max(f, frozen+1); f <= span {
 			p.Stats.Free += span - f + 1
 		}
 	}
@@ -102,7 +104,7 @@ func Compute(e *Event, pins []Pin) (*Plan, error) {
 		if s.Pinned {
 			p.Stats.Pinned++
 		}
-		if s.Day > 0 {
+		if s.Day > frozen {
 			placed++
 		}
 	}

@@ -206,6 +206,23 @@ try {
   await key('z');
   check('groups: Ctrl+Z restores the box and the plan', (await stats()).startsWith('7 Vouchers · 7 Tage · 47 Slots · 40 Übergaben, davon 9 innerhalb einer Gruppe') && await js(`!document.getElementById('f-membersFirst').checked`), await stats());
 
+  // Pin until today on day 9 (11 Nov) with one voucher per group: mammut's
+  // chain leaves cells free in the past; a member added afterwards buys on
+  // day 10, not in them. "Release all pins" reopens the past.
+  const linkState = () => js(`JSON.parse(globalThis.vouch0rzii.decodeState(location.hash.slice(3)).stateJson)`);
+  await js(`document.getElementById('f-oneChain').click(); document.getElementById('compute').click(); 0`);
+  await js(`(() => { const D = globalThis.Date, at = new D(2026, 10, 11, 12); globalThis.Date = class extends D { constructor(...a) { super(...(a.length ? a : [at])); } static now() { return at.getTime(); } }; document.getElementById('freezeToday').click(); globalThis.Date = D; })(); 0`);
+  let st = await linkState();
+  check('freeze: pins every slot up to today and freezes the days, the plan stays', st.event.frozen === '2026-11-11' && st.pins.length > 0 && (await stats()).startsWith('7 Vouchers · 11 Tage · 47 Slots · 40 Übergaben, davon 9 innerhalb einer Gruppe'), `${st.event.frozen} ${st.pins.length} ${await stats()}`);
+  await js(`document.getElementById('roster').value += '\\tlatecomer\\tMitglied\\t\\t\\t\\t\\t\\t\\n'; document.getElementById('compute').click(); 0`);
+  const lateDay = () => js(`[...document.querySelectorAll('#matrix td.cell')].find((td) => td.firstChild?.nodeValue === 'latecomer')?.cellIndex`);
+  check('freeze: a member added afterwards buys on day 10, after the frozen days', (await lateDay()) === 10 && (await stats()).includes('48 Slots'), `day ${await lateDay()}, ${await stats()}`);
+  await js(`document.getElementById('unpinAll').click(); 0`);
+  st = await linkState();
+  check('freeze: "Release all pins" drops the pins and the frozen days', !('frozen' in st.event) && !(st.pins || []).length && !(await stats()).includes('gepinnt'), JSON.stringify({ frozen: st.event.frozen, pins: (st.pins || []).length }));
+  for (let i = 0; i < 4; i++) await key('z');
+  check('freeze: Ctrl+Z four times restores the plain plan', (await stats()).startsWith('7 Vouchers · 7 Tage · 47 Slots · 40 Übergaben, davon 9 innerhalb einer Gruppe') && !(await roster()).includes('latecomer') && await js(`!document.getElementById('f-oneChain').checked`), await stats());
+
   // Language switch: re-renders in place, keeps pending input, and switching
   // back restores the German text and attributes.
   await js(`document.getElementById('roster').value += 'pending'; 0`);

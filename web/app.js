@@ -1075,13 +1075,17 @@
       showMessages([], r.warnings.concat(skipped.length ? [() => t('skipped', skipped.join(', '))] : []), near);
       toast(added ? t('added', added) : t('nothingAdded'));
     });
-    $('#unpinAll').addEventListener('click', () => { mutate(() => { state.pins = []; }); selected = null; computePlan({ fromForm: false }); });
+    // Releasing all pins reopens the frozen days too; otherwise the whole plan would move behind them.
+    $('#unpinAll').addEventListener('click', () => { mutate(() => { state.pins = []; state.event = { ...state.event }; delete state.event.frozen; }); selected = null; computePlan({ fromForm: false }); });
     $('#freezeToday').addEventListener('click', () => {
       if (!plan) return;
       const now = today();
       const gone = plan.sheets.filter((s) => s.date <= now);
       if (!gone.length) { toast(t('noneGone')); return; }
-      mutate(() => { for (const s of gone) setPin(s.label, s.day, s.voucher); });
+      mutate(() => {
+        for (const s of gone) setPin(s.label, s.day, s.voucher);
+        state.event = { ...state.event, frozen: now }; // frozen days take no new slot, so free cells in the past stay free
+      });
       selected = null;
       computePlan({ fromForm: false });
       toast(t('frozen', gone.length));

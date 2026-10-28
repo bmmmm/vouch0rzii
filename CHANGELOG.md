@@ -61,6 +61,17 @@ what to check.
   arrow kinds are `kept`, `pass` and `forbidden`; the legend shows only
   "group keeps the voucher".
 
+### Fixed
+
+- "Pin until today" closes the past: it also sets `frozen` in the event to
+  today, and days up to `frozen` take pinned slots only. Before, a cell
+  left free in the past (beside a group's chain with `oneChain`, at the end
+  of the plan) took the next slot once someone joined, and a group slot
+  could move back into it: in the example with `oneChain`, pinned until
+  day 9, a new member landed on day 7, now on day 10. `free` counts the
+  days after `frozen` only. "Release all pins" clears `frozen` as well.
+  Since `frozen` is a setting, freezing changes the fingerprint.
+
 ### Removed
 
 - `Knows` (Kennt): the roster column, the sign-up field and the preference

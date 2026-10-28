@@ -178,8 +178,8 @@ func TestPinnedGroupSlotTakesItsDay(t *testing.T) {
 }
 
 // keepsThePast computes mk() with the manual pins and checks that pinning
-// every day 1..t, as "Pin until today" does on day t, keeps the plan for
-// every t. Manual pins after t stay pins.
+// every day 1..t, with and without freezing those days as "Pin until today"
+// does on day t, keeps the plan for every t. Manual pins after t stay pins.
 func keepsThePast(t *testing.T, name string, mk func() *Event, manual []Pin) *Plan {
 	t.Helper()
 	p := mustCompute(t, mk(), manual)
@@ -195,11 +195,64 @@ func keepsThePast(t *testing.T, name string, mk func() *Event, manual []Pin) *Pl
 				pins = append(pins, pin)
 			}
 		}
-		if again := mustCompute(t, mk(), pins); !reflect.DeepEqual(again.ToExport().Grid, p.ToExport().Grid) {
-			t.Fatalf("%s: pinning days 1-%d changed the plan:\n%v\n%v", name, day, p.ToExport().Grid, again.ToExport().Grid)
+		for _, frozen := range []string{"", p.Dates[day-1]} {
+			e := mk()
+			e.Frozen = frozen
+			if again := mustCompute(t, e, pins); !reflect.DeepEqual(again.ToExport().Grid, p.ToExport().Grid) {
+				t.Fatalf("%s: pinning days 1-%d (frozen %q) changed the plan:\n%v\n%v", name, day, frozen, p.ToExport().Grid, again.ToExport().Grid)
+			}
 		}
 	}
 	return p
+}
+
+// A member added after "Pin until today" buys after the frozen days, even
+// where a group left cells free in the past, and no group slot moves into
+// them.
+func TestFrozenDaysTakeNoNewSlots(t *testing.T) {
+	for _, c := range []struct {
+		name   string
+		mk     func() *Event
+		frozen string // day 4 or 6
+		day    int    // z's day
+		free   int    // empty cells after the frozen days
+	}{
+		{"one voucher", func() *Event { e := groupEvent(); e.OneChain = true; return e }, "2026-11-04", 5, 0},
+		{"members first", func() *Event { e := membersFirstEvent(); e.OneChain = true; return e }, "2026-11-06", 7, 1},
+	} {
+		p := mustCompute(t, c.mk(), nil)
+		e := c.mk()
+		e.Frozen = c.frozen
+		e.People = append(e.People, Person{ID: "z"})
+		var pins []Pin
+		for _, pin := range Freeze(p) {
+			if p.Dates[pin.Day-1] <= c.frozen {
+				pins = append(pins, pin)
+			}
+		}
+		q := mustCompute(t, e, pins)
+		frozen := frozenDays(e)
+		for _, s := range q.Slots {
+			if s.Day > 0 && s.Day <= frozen && !s.Pinned {
+				t.Fatalf("%s: %s moved into frozen day %d: %v", c.name, s.Label, s.Day, q.ToExport().Grid)
+			}
+		}
+		if z := q.Slot("z"); z.Day != c.day || q.Stats.Free != c.free {
+			t.Fatalf("%s: z on day %d, want %d; free %d, want %d: %v", c.name, z.Day, c.day, q.Stats.Free, c.free, q.ToExport().Grid)
+		}
+	}
+}
+
+// Frozen days count as gone for the voucher phase: with day 1 of three
+// frozen, two vouchers place four people, the rest goes to the public sale.
+func TestFrozenDaysShortenThePhase(t *testing.T) {
+	e := mkEvent(2, ordered("a", "b", "c", "d", "e", "f")...)
+	e.End, e.Frozen = "2026-11-03", "2026-10-30"
+	p := mustCompute(t, e, nil)
+	want := [][]string{{"", ""}, {"a", "b"}, {"c", "d"}}
+	if got := p.ToExport().Grid; !reflect.DeepEqual(got, want) || !reflect.DeepEqual(p.Public(), []string{"e", "f"}) || p.Stats.Free != 0 {
+		t.Fatalf("grid %v, public %v, free %d", got, p.Public(), p.Stats.Free)
+	}
 }
 
 // A later group starts its chain when its first slot is due, after the
@@ -321,7 +374,7 @@ func TestGroupChainsProperties(t *testing.T) {
 			horizon = phaseDays(plain)
 		}
 		slots := buildSlots(plain, nil) // pins by hand take placed slots only, never of people who left
-		grid, _, err := placeSlots(slots, manual, starts, horizon)
+		grid, _, err := placeSlots(slots, manual, starts, 0, horizon)
 		if err != nil {
 			t.Fatal(err)
 		}

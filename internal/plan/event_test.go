@@ -32,6 +32,7 @@ func TestNormalizeErrors(t *testing.T) {
 		{"bad date", &Event{Name: "t", Vouchers: 1, Start: "30.10.2026", People: []Person{{ID: "a"}}}, "YYYY-MM-DD"},
 		{"bad end", &Event{Name: "t", Vouchers: 1, Start: "2026-10-30", End: "13.11.", People: []Person{{ID: "a"}}}, "end must be YYYY-MM-DD"},
 		{"end before start", &Event{Name: "t", Vouchers: 1, Start: "2026-10-30", End: "2026-10-29", People: []Person{{ID: "a"}}}, "end 2026-10-29 is before start"},
+		{"bad frozen", &Event{Name: "t", Vouchers: 1, Start: "2026-10-30", Frozen: "heute", People: []Person{{ID: "a"}}}, "frozen must be YYYY-MM-DD"},
 		{"no people", mkEvent(1), "no people"},
 		{"no name", &Event{Vouchers: 1, Start: "2026-10-30", People: []Person{{ID: "a"}}}, "name missing"},
 	}

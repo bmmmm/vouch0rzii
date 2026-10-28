@@ -98,6 +98,11 @@ func Normalize(e *Event) (warnings []string, err error) {
 			errs = append(errs, fmt.Errorf("end %s is before start %s", e.End, e.Start))
 		}
 	}
+	if e.Frozen != "" {
+		if _, derr := ParseDate(e.Frozen); derr != nil {
+			errs = append(errs, fmt.Errorf("frozen must be YYYY-MM-DD, got %q", e.Frozen))
+		}
+	}
 	if len(e.People) == 0 {
 		errs = append(errs, errors.New("no people"))
 	} else if len(e.People) > MaxPeople {

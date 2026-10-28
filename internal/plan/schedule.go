@@ -157,14 +157,22 @@ func voucherStarts(e *Event) ([]int, error) {
 
 // phaseDays returns the number of plan days up to and including End, capped
 // at MaxDays; 0 when the event has no end.
-func phaseDays(e *Event) int {
-	if e.End == "" {
+func phaseDays(e *Event) int { return daysThrough(e, e.End) }
+
+// frozenDays returns the number of plan days up to and including Frozen: the
+// past, on which only pinned slots stand.
+func frozenDays(e *Event) int { return daysThrough(e, e.Frozen) }
+
+// daysThrough returns the number of plan days up to and including date,
+// capped at MaxDays; 0 for "".
+func daysThrough(e *Event, date string) int {
+	if date == "" {
 		return 0
 	}
 	start, _ := ParseDate(e.Start)
 	n := 0
 	for _, d := range Dates(start, MaxDays, e.Weekends, e.Every) {
-		if d.Format(DateLayout) > e.End {
+		if d.Format(DateLayout) > date {
 			break
 		}
 		n++
@@ -180,12 +188,13 @@ func pinCellOK(pin Pin, from []int, horizon int) bool {
 
 // placeSlots fixes pinned slots to their cells and fills the remaining cells
 // day by day with the unpinned slots in priority order, using every voucher
-// from its start day on, up to the horizon (the end of the voucher phase, or
-// MaxDays). Slots that do not fit keep Day 0: they go to the public sale;
-// without an end they are an error. Vouchers of unpinned slots stay 0 until
-// assignChains runs. Returns the grid and warnings about pins that could not
-// be applied; conflicting pins are an error.
-func placeSlots(slots []*Slot, pins []Pin, from []int, horizon int) (grid [][]*Slot, warnings []string, err error) {
+// from its start day on, from the day after the frozen days up to the
+// horizon (the end of the voucher phase, or MaxDays). Slots that do not fit
+// keep Day 0: they go to the public sale; without an end they are an error.
+// Vouchers of unpinned slots stay 0 until assignChains runs. Returns the grid
+// and warnings about pins that could not be applied; conflicting pins are an
+// error.
+func placeSlots(slots []*Slot, pins []Pin, from []int, frozen, horizon int) (grid [][]*Slot, warnings []string, err error) {
 	total := len(from)
 	byLabel := make(map[string]*Slot, len(slots))
 	for _, s := range slots {
@@ -241,7 +250,7 @@ func placeSlots(slots []*Slot, pins []Pin, from []int, horizon int) (grid [][]*S
 	}
 	skipPinned()
 	lastFill := 0
-	for d := 1; next < len(slots); d++ {
+	for d := frozen + 1; next < len(slots); d++ {
 		if d > horizon {
 			if horizon < MaxDays {
 				break // the rest goes to the public sale
@@ -274,26 +283,26 @@ func placeSlots(slots []*Slot, pins []Pin, from []int, horizon int) (grid [][]*S
 // chainGroups lets every group keep its voucher. It runs after placeSlots and
 // keeps its choice of who is in the plan, so nobody goes to the public sale
 // for a group; it only moves days. Day by day, the unpinned slots fill the
-// free cells in priority order, as placeSlots does. A group (person with
-// the group flag) starts its chain on the day its first slot comes up or
-// its first pin sits, whichever is earlier: at the end of that day, groups
-// in priority order, its other slots take target days from that day on,
-// one per day while one chain suffices, otherwise the first chain from
-// that day and further chains ending on the last day. A pinned slot takes
-// the target of its day, a day without a free cell is skipped, and a slot
-// left without a target waits for its turn like everybody else's: a group
-// chains only once, so pinning the past keeps the future. The last day is
-// the plan's, so the group runs on as few vouchers as the plan's length
-// allows; with OneChain it is the horizon, so one chain may make the plan
-// longer. With MembersFirst a group's chain starts on its first day, but no
-// earlier than the day after the last day with a member's own slot, pinned
-// or not; its slots placed up to that day stay where they are. A member
-// added after pinning counts like any other, so a begun chain resumes after
-// them.
+// free cells after the frozen days in priority order, as placeSlots does. A
+// group (person with the group flag) starts its chain on the day its first
+// slot comes up or its first pin sits, whichever is earlier: at the end of
+// that day, groups in priority order, its other slots take target days from
+// that day on, one per day while one chain suffices, otherwise the first
+// chain from that day and further chains ending on the last day. A pinned
+// slot takes the target of its day, a day without a free cell is skipped,
+// and a slot left without a target waits for its turn like everybody
+// else's: a group chains only once, so pinning the past keeps the future.
+// The last day is the plan's, so the group runs on as few vouchers as the
+// plan's length allows; with OneChain it is the horizon, so one chain may
+// make the plan longer. With MembersFirst a group's chain starts on its
+// first day, but no earlier than the day after the last day with a member's
+// own slot, pinned or not; its slots placed up to that day stay where they
+// are. A member added after pinning counts like any other, so a begun chain
+// resumes after them.
 // assignChains then keeps each chain on its voucher (costKeep) unless a
 // forbidden handover would outweigh it. Returns the grid, grown to the last
 // placed day.
-func chainGroups(e *Event, slots []*Slot, grid [][]*Slot, from []int, horizon int) [][]*Slot {
+func chainGroups(e *Event, slots []*Slot, grid [][]*Slot, from []int, frozen, horizon int) [][]*Slot {
 	days, last := len(grid), len(grid)
 	if e.OneChain {
 		last = horizon
@@ -308,8 +317,8 @@ func chainGroups(e *Event, slots []*Slot, grid [][]*Slot, from []int, horizon in
 			}
 		}
 	}
-	free := make([]int, last+1) // cells per day not taken by a pin
-	for d := 1; d <= last; d++ {
+	free := make([]int, last+1) // cells per day not taken by a pin, none on frozen days
+	for d := frozen + 1; d <= last; d++ {
 		for v, f := range from {
 			if f <= d && (d > days || grid[d-1][v] == nil) {
 				free[d]++

@@ -98,6 +98,7 @@ type Event struct {
 	Extra        []Extra  `json:"extra,omitempty"`        // chains that start later
 	Start        string   `json:"start"`                  // date of day 1, YYYY-MM-DD
 	End          string   `json:"end,omitempty"`          // last day of the voucher phase, YYYY-MM-DD; "" = until everyone is placed
+	Frozen       string   `json:"frozen,omitempty"`       // last day that is past, YYYY-MM-DD: days up to it take pinned slots only; set by "Pin until today"
 	Weekends     bool     `json:"weekends,omitempty"`     // plan on Saturdays and Sundays too
 	OneChain     bool     `json:"oneChain,omitempty"`     // a group keeps one voucher for all its slots, even if the plan grows; false = as few vouchers as the shortest plan allows
 	MembersFirst bool     `json:"membersFirst,omitempty"` // groups start their chains no earlier than the day after the last member's own slot, so no member waits for a group; false = from the group's first day
