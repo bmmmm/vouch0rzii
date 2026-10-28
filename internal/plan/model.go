@@ -100,7 +100,7 @@ type Event struct {
 	End          string   `json:"end,omitempty"`          // last day of the voucher phase, YYYY-MM-DD; "" = until everyone is placed
 	Weekends     bool     `json:"weekends,omitempty"`     // plan on Saturdays and Sundays too
 	OneChain     bool     `json:"oneChain,omitempty"`     // a group keeps one voucher for all its slots, even if the plan grows; false = as few vouchers as the shortest plan allows
-	MembersFirst bool     `json:"membersFirst,omitempty"` // groups start their chains after the last day of a member's own slot, so no member waits for a group; false = from the group's first day
+	MembersFirst bool     `json:"membersFirst,omitempty"` // groups start their chains no earlier than the day after the last member's own slot, so no member waits for a group; false = from the group's first day
 	Every        int      `json:"every,omitempty"`        // plan days from one buying day of a chain to the next; 0 = 1
 	PlusMax      int      `json:"plusMax,omitempty"`      // 0 = DefaultPlusMax
 	Seed         string   `json:"seed,omitempty"`         // "" = Name; a different seed is a new draw

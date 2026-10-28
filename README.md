@@ -49,9 +49,14 @@ data, and your browser history keeps it like any other link.
    `oneChain` ("one voucher per group" on the page) a group keeps a single
    voucher and the plan may grow, up to the end of the voucher phase. With
    `membersFirst` ("members first") every member buys their own slot on the
-   same day as without groups: a group's chain starts on the day after the
-   last member's day, pinned members included, and the group's slots whose
-   turn came before stay where they are. Who
+   same day as without groups: a group's chain starts on its first day, but
+   no earlier than the day after the last member's day, pinned members
+   included, and the group's slots placed up to that day stay where they
+   are. That costs vouchers: in the example mammut runs on three vouchers
+   instead of two, and 7 instead of 9 handovers stay within the group. A
+   member added after "Pin until today" comes first as well; the rest of the
+   group's chain moves behind them, and without `oneChain` it crowds onto
+   the remaining days on more vouchers. Who
    gets into the plan at all still follows rules 2 and 3; only the days
    move. For each day the assignment person → voucher keeps every group on
    the voucher it holds, unless a voucher would otherwise go straight to

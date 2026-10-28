@@ -59,6 +59,18 @@ func TestGroupKeepsOneVoucher(t *testing.T) {
 	}
 }
 
+// A group whose turn comes after the others starts its chain on that day.
+func TestGroupStartsOnItsDay(t *testing.T) {
+	ps := ordered("a", "b", "c", "d", "e")
+	ps[4].Plus, ps[4].Group = 4, true
+	p := mustCompute(t, mkEvent(2, ps...), nil)
+	days, _ := daysOf(p, "e")
+	want := map[string]int{"a": 1, "b": 1, "c": 2, "d": 2, "e": 3, "e+1": 3, "e+2": 4, "e+3": 4, "e+4": 5}
+	if !reflect.DeepEqual(days, want) || p.Stats.Kept != 3 {
+		t.Fatalf("days %v, stats %+v", days, p.Stats)
+	}
+}
+
 // membersFirstEvent: groupEvent with g at +6, the guests x and y, and
 // MembersFirst.
 func membersFirstEvent() *Event {
@@ -279,9 +291,10 @@ func randomCase(t *testing.T, round uint64) (mk func() *Event, manual []Pin) {
 
 // Random rosters with several groups, some with pins by hand: every placed
 // slot sits on a voucher that exists that day, the same slots are placed as
-// without chains, with MembersFirst every member's own slot on the same day,
-// the default mode keeps the plan's length, and pinning the days up to any
-// day keeps the plan, pins by hand after that day included.
+// without chains, with MembersFirst every member's own slot on the same day
+// and without members the plan of the default mode, the default mode keeps
+// the plan's length, and pinning the days up to any day keeps the plan, pins
+// by hand after that day included.
 func TestGroupChainsProperties(t *testing.T) {
 	for round := range uint64(1500) {
 		mk, manual := randomCase(t, round)
@@ -291,20 +304,24 @@ func TestGroupChainsProperties(t *testing.T) {
 				t.Fatalf("round %d: %s on day %d voucher %d: %v", round, s.Label, s.Day, s.Voucher, p.ToExport().Grid)
 			}
 		}
-		if len(manual) > 0 {
-			continue // placeSlots below plans without pins
-		}
 		plain := mk()
 		if _, err := Normalize(plain); err != nil {
 			t.Fatal(err)
+		}
+		if plain.MembersFirst && !slices.ContainsFunc(plain.People, func(p Person) bool { return p.Tier == TierMember }) {
+			e := mk()
+			e.MembersFirst = false
+			if q := mustCompute(t, e, manual); !reflect.DeepEqual(q.ToExport().Grid, p.ToExport().Grid) {
+				t.Fatalf("round %d: members first without members changed the plan:\n%v\n%v", round, q.ToExport().Grid, p.ToExport().Grid)
+			}
 		}
 		starts, _ := voucherStarts(plain)
 		horizon := MaxDays
 		if plain.End != "" {
 			horizon = phaseDays(plain)
 		}
-		slots := buildSlots(plain, nil)
-		grid, _, err := placeSlots(slots, nil, starts, horizon)
+		slots := buildSlots(plain, nil) // pins by hand take placed slots only, never of people who left
+		grid, _, err := placeSlots(slots, manual, starts, horizon)
 		if err != nil {
 			t.Fatal(err)
 		}

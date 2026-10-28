@@ -285,10 +285,11 @@ func placeSlots(slots []*Slot, pins []Pin, from []int, horizon int) (grid [][]*S
 // chains only once, so pinning the past keeps the future. The last day is
 // the plan's, so the group runs on as few vouchers as the plan's length
 // allows; with OneChain it is the horizon, so one chain may make the plan
-// longer. With MembersFirst a group starts no earlier than the end of the
-// last day with a member's own slot, pinned or not, and its chain takes
-// target days from the next day on; its slots placed until then stay where
-// they are.
+// longer. With MembersFirst a group's chain starts on its first day, but no
+// earlier than the day after the last day with a member's own slot, pinned
+// or not; its slots placed up to that day stay where they are. A member
+// added after pinning counts like any other, so a begun chain resumes after
+// them.
 // assignChains then keeps each chain on its voucher (costKeep) unless a
 // forbidden handover would outweigh it. Returns the grid, grown to the last
 // placed day.
@@ -300,9 +301,11 @@ func chainGroups(e *Event, slots []*Slot, grid [][]*Slot, from []int, horizon in
 	// Members' days as placeSlots left them: no chain starts before the
 	// last of them, so the queue below places members on the same days.
 	membersDay := 0
-	for _, s := range slots {
-		if p := e.Person(s.PersonID); e.MembersFirst && s.K == 0 && p != nil && p.Tier == TierMember {
-			membersDay = max(membersDay, s.Day)
+	if e.MembersFirst {
+		for _, s := range slots {
+			if p := e.Person(s.PersonID); s.K == 0 && p != nil && p.Tier == TierMember {
+				membersDay = max(membersDay, s.Day)
+			}
 		}
 	}
 	free := make([]int, last+1) // cells per day not taken by a pin
@@ -389,12 +392,8 @@ func chainGroups(e *Event, slots []*Slot, grid [][]*Slot, from []int, horizon in
 			if pinDay[id] == d {
 				due[id] = true
 			}
-			switch {
-			case !due[id] || started[id] || d < membersDay:
-			case e.MembersFirst:
-				chain(id, d+1)
-			default:
-				chain(id, d)
+			if due[id] && !started[id] && d >= membersDay {
+				chain(id, max(d, membersDay+1))
 			}
 		}
 	}
