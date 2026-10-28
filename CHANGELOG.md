@@ -44,14 +44,15 @@ what to check.
 - The page locks what would move the past once the sale has started (a pin,
   a status or a lost voucher): start, weekends, `every`, the seed and, while
   it stands in for the seed, the name. A change that gives the existing
-  vouchers other numbers or start days, or moves or drops a pin whose slot
-  is still in the roster, is rejected with the reason; other changes go
-  through and say how many planned slots moved.
+  vouchers other numbers or start days, moves or drops a pin whose slot is
+  still in the roster, or does not compute is rejected with the reason and
+  the plan stays; other changes go through and say how many planned slots
+  moved.
 
 ### Changed
 
-- The page explains × on a pin in the past: nobody bought there, the slot
-  is planned again after today and the cell stays free.
+- The page explains × on a pin on a frozen day: nobody bought there, the
+  slot is planned again after the frozen days and the cell stays free.
 
 - Groups keep their voucher: a person with the group flag gets their slots
   day after day on as few vouchers as the plan's length allows, so the

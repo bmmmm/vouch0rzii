@@ -100,7 +100,7 @@
       found: 'wieder da', foundTitle: (v) => `Voucher ${v} ist wieder da: der Plan nutzt ihn wieder`,
       blockLost: 'Gewürfelt wird nur vor dem Start: ein Voucher ist verloren.',
       lockedStarted: 'Nach dem Start gesperrt: das würde die Vergangenheit verschieben. Frei erst ohne Pins, Status und verlorene Voucher.',
-      lockedVouchers: 'Nach dem Start bleiben die Voucher-Nummern: keine Voucher weniger, neue nur hinten dran. Mit zusätzlichen Vouchers verschiebt ein höheres „Vouchers" deren Nummern; dann lieber einen weiteren Eintrag bei „Zusätzliche Vouchers".',
+      lockedVouchers: 'Nach dem Start behalten die Voucher Nummer und Starttag: keine Voucher weniger, kein anderes Datum bei zusätzlichen Vouchers, neue nur hinten dran. Mit zusätzlichen Vouchers verschiebt ein höheres „Vouchers" deren Nummern; dann lieber einen weiteren Eintrag bei „Zusätzliche Vouchers".',
       lockedPins: 'Nach dem Start bleiben Pins, wo sie sind: die Änderung würde einen gepinnten Slot verschieben oder streichen. Erst den Pin lösen (×).',
       futureMoved: (n) => `${n} geplante(r) Slot(s) verschoben: Betroffene informieren.`,
       adminLink: (fp) => `Admin-Link, Stand ${fp},`, viewLink: (fp) => `Viewer-Link, Stand ${fp},`, boardLink: (fp) => `Board-Link, Stand ${fp},`,
@@ -179,7 +179,7 @@
       found: 'found', foundTitle: (v) => `Voucher ${v} is back: the plan uses it again`,
       blockLost: 'Rolling is only for the start: a voucher is lost.',
       lockedStarted: 'Locked after the start: it would move the past. Free again without pins, statuses and lost vouchers.',
-      lockedVouchers: 'After the start the voucher numbers stay: no fewer vouchers, new ones only at the end. With extra vouchers, raising "Vouchers" renumbers them; add another entry under "Extra vouchers" instead.',
+      lockedVouchers: 'After the start the vouchers keep their numbers and start days: no fewer vouchers, no other date for extra vouchers, new ones only at the end. With extra vouchers, raising "Vouchers" renumbers them; add another entry under "Extra vouchers" instead.',
       lockedPins: 'After the start pins stay where they are: this change would move or drop a pinned slot. Release the pin (×) first.',
       futureMoved: (n) => `${n} planned slot(s) moved: tell the people concerned.`,
       adminLink: (fp) => `Admin link, state ${fp},`, viewLink: (fp) => `Viewer link, state ${fp},`, boardLink: (fp) => `Board link, state ${fp},`,
@@ -414,24 +414,25 @@
   }
 
   // ---------- planning
-  // Started: a pin, a status or a lost voucher. From then on the past is
-  // fact; settings that would move it are locked (applyLocks, lockedChange).
-  // Without a plan every status counts, so a form error keeps the locks.
-  const started = () => state.pins.length > 0 || (state.event.lost || []).length > 0 || (plan ? tracking() : Object.keys(state.status).length > 0);
-  // lockedChange tries a form change after the start: the voucher numbers
-  // stay (pins and lost marks name them; extras are numbered after the base
-  // vouchers), and no pin moves or drops while its slot still exists.
-  // Returns the TEXT key of the reason, or ''.
+  // Started: a pin, a status on a slot of the plan or a lost voucher. From
+  // then on the past is fact; settings that would move it are locked
+  // (applyLocks, lockedChange).
+  const started = () => state.pins.length > 0 || (state.event.lost || []).length > 0 || (!!plan && tracking());
+  // lockedChange tries a form change after the start. It must compute, so
+  // the plan to compare the next change with stays; the vouchers keep their
+  // numbers and start days (pins and lost marks name them; extras are
+  // numbered after the base vouchers); no pin moves or drops while its slot
+  // still exists. Returns the messages that reject the change, or null.
   function lockedChange(ev) {
-    if (!plan || !started() || canon(ev) === canon(state.event)) return '';
+    if (!plan || !started() || canon(ev) === canon(state.event)) return null;
     const trial = bridge.plan(JSON.stringify(ev), JSON.stringify(state.pins));
-    if (!trial.ok) return ''; // the computation shows the errors
+    if (!trial.ok) return trial.errors;
     const x = JSON.parse(trial.exportJson);
-    if (plan.voucherFrom.some((f, i) => x.voucherFrom[i] !== f)) return 'lockedVouchers';
+    if (plan.voucherFrom.some((f, i) => x.voucherFrom[i] !== f)) return [() => t('lockedVouchers')];
     const at = new Map(x.sheets.map((s) => [s.label, s]));
     const pub = new Set(x.public);
     const dropped = (p) => { const s = at.get(p.label); return s ? !s.pinned : pub.has(p.label); }; // an applied pin sits on its cell
-    return state.pins.some(dropped) ? 'lockedPins' : '';
+    return state.pins.some(dropped) ? [() => t('lockedPins')] : null;
   }
   // movedSince counts the slots of an older plan that the current plan puts
   // on another day or voucher, or into the public sale.
@@ -450,7 +451,7 @@
       if (!r) return false;
       const ev = { ...f.event, people: r.people };
       const locked = lockedChange(ev);
-      if (locked) { showMessages([() => t(locked)], [], anchor); return false; }
+      if (locked) { showMessages(locked, [], anchor); return false; }
       mutate(() => { state.event = ev; state.collect = { to: f.to }; });
       warnings = r.warnings;
     }

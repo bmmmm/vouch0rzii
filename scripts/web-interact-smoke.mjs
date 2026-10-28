@@ -280,8 +280,12 @@ try {
   check('locks: a locked field shows the value of the plan, not a pending edit', (await lockedValues()) === '2026-10-30 false 1 other congress2026', await lockedValues());
   const statsFrozen = await stats();
   const errorText = () => js(`document.querySelector('#messages .error')?.textContent || ''`);
+  const bigRow = '\\tbig\\tMitglied\\t3\\t\\t\\t\\t\\n';
+  await js(`document.getElementById('roster').value += '${bigRow}'; document.getElementById('compute').click(); 0`);
+  check('locks: a change that does not compute is not applied, the plan stays', (await js(`!document.getElementById('result').hidden`)) && (await stats()) === statsFrozen && (await errorText()).includes('exceeds the limit'), await errorText());
+  await js(`(() => { const r = document.getElementById('roster'); r.value = r.value.replace('${bigRow}', ''); })(); 0`);
   await js(`document.getElementById('f-vouchers').value = '6'; document.getElementById('compute').click(); 0`);
-  check('locks: fewer vouchers are rejected, the plan stays', (await stats()) === statsFrozen && (await linkState()).event.vouchers === 7 && (await errorText()).includes('bleiben die Voucher-Nummern'), await errorText());
+  check('locks: fewer vouchers are rejected, also right after a change that did not compute', (await stats()) === statsFrozen && (await linkState()).event.vouchers === 7 && (await errorText()).includes('behalten die Voucher Nummer und Starttag'), await errorText());
   await js(`document.getElementById('f-vouchers').value = '7'; document.getElementById('f-end').value = '2026-11-02'; document.getElementById('compute').click(); 0`);
   check('locks: an end that would drop pinned slots is rejected', (await stats()) === statsFrozen && (await linkState()).event.end === '2026-11-13' && (await errorText()).includes('bleiben Pins, wo sie sind'), await errorText());
   await js(`document.getElementById('f-end').value = '2026-11-13'; 0`);
@@ -587,11 +591,10 @@ try {
   await js(`document.getElementById('unpinAll').click(); 0`);
   await js(`document.querySelector('#sheets tbody tr input.pick').click(); document.querySelector('#bulk button[data-st="received"]').click(); 0`);
   check('chance: a status locks them too, and the calendar', await js(`document.getElementById('roll').disabled && document.getElementById('roll').title.includes('Status')`) && (await locked()) === 'f-start f-weekends f-every f-seed', await locked());
-  const bigRow = '\\tbig\\tMitglied\\t3\\t\\t\\t\\t\\n';
   await js(`document.getElementById('roster').value += '${bigRow}'; document.getElementById('compute').click(); 0`);
-  check('chance: with a status, a roster the plan rejects shows its error and keeps the calendar locked', (await js(`document.getElementById('result').hidden`)) && (await errorText()).includes('exceeds the limit') && (await locked()) === 'f-start f-weekends f-every f-seed', `${await errorText()} / ${await locked()}`);
+  check('chance: with a status, a roster the plan rejects shows its error, the plan and the locks stay', (await js(`!document.getElementById('result').hidden`)) && (await errorText()).includes('exceeds the limit') && (await locked()) === 'f-start f-weekends f-every f-seed', `${await errorText()} / ${await locked()}`);
   await js(`(() => { const r = document.getElementById('roster'); r.value = r.value.replace('${bigRow}', ''); document.getElementById('compute').click(); })(); 0`);
-  check('chance: without a plan the roster fixed computes again', (await js(`!document.getElementById('result').hidden`)) && !(await errorText()), await errorText());
+  check('chance: the roster fixed computes again', (await js(`!document.getElementById('result').hidden`)) && !(await errorText()), await errorText());
   await js(`(() => { // the person with the status leaves the roster: a status on no slot of the plan locks nothing
     const who = document.querySelector('#sheets tbody tr').dataset.label.split('+')[0];
     const r = document.getElementById('roster');

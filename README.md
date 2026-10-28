@@ -71,9 +71,9 @@ data, and your browser history keeps it like any other link.
    acquaintance, pinned to the cell. Ctrl+Z / Ctrl+Shift+Z (Cmd on a Mac)
    or the buttons above the matrix undo and redo moves, pins, status and
    roster changes while the tab is open; the link always carries the
-   current state. Releasing a pin in the past (× in the matrix) means
-   nobody bought there: the slot is planned again after today, later slots
-   move back for it, and the cell stays free.
+   current state. Releasing a pin on a frozen day (× in the matrix, see
+   rule 6) means nobody bought there: the slot is planned again after the
+   frozen days, later slots move back for it, and the cell stays free.
 6. **Mid-run changes.** "Pin until today" pins every slot up to today and
    sets `frozen` to today: days up to `frozen` take pinned slots only, so a
    cell left free there stays free unless someone is moved in by hand, and
@@ -94,9 +94,9 @@ data, and your browser history keeps it like any other link.
    Once the sale has started — a pin, a status or a lost voucher — the page
    locks start, weekends, `every` and the seed (the name too while it
    stands in for the seed), and rejects a change that would give the
-   existing vouchers other numbers or start days, or move or drop a pin
-   whose slot is still in the roster. Other changes go through and say how
-   many planned slots moved.
+   existing vouchers other numbers or start days, move or drop a pin whose
+   slot is still in the roster, or not compute at all; the plan stays as it
+   is. Other changes go through and say how many planned slots moved.
 7. **End of the voucher phase.** `end` is the last day vouchers
    work. The plan fills only up to it; slots that do not fit are listed as
    *public sale* (`public`) in priority order and are bought in the public
