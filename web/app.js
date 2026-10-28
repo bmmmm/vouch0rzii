@@ -76,10 +76,10 @@
       evening: (day, date, at) => `${day} (${date}), ${at} Uhr`,
       forbidden: 'direkt an eigene Begleitung', known: 'Buddies, kennen sich schon', stranger: 'neue Verbindung',
       buysOn: (day) => `, kauft am ${day}`, oneDay: 'Nur ein Tag, keine Übergaben.',
-      mail: (to, label, date, v, ev, at, next, nextMail, from) => [
+      mail: (to, label, date, v, ev, at, passOn, next, nextMail, from) => [
         `Hallo ${to}${label !== to ? ` (für ${label})` : ''},`, '',
         `am ${date} bekommst du von mir Voucher ${v} für ${ev}:`, '', '<CODE HIER EINFÜGEN>', '',
-        `Kauf bitte an dem Tag dein Ticket und gib den neuen Voucher um ${at} Uhr weiter` +
+        `Kauf bitte an dem Tag dein Ticket und gib den neuen Voucher ${passOn ? `am ${passOn} ` : ''}um ${at} Uhr weiter` +
           (next ? ` an ${next}${nextMail ? ` (${nextMail})` : ''}.` : '. Du bist die letzte Station dieser Kette.'),
         '', `Viele Grüße, ${from}`,
       ],
@@ -146,10 +146,10 @@
       evening: (day, date, at) => `${day} (${date}), ${at}`,
       forbidden: "straight to one's own companion", known: 'buddies, already know each other', stranger: 'new connection',
       buysOn: (day) => `, buys on ${day}`, oneDay: 'Only one day, no handovers.',
-      mail: (to, label, date, v, ev, at, next, nextMail, from) => [
+      mail: (to, label, date, v, ev, at, passOn, next, nextMail, from) => [
         `Hello ${to}${label !== to ? ` (for ${label})` : ''},`, '',
         `on ${date} you get voucher ${v} for ${ev} from me:`, '', '<PASTE CODE HERE>', '',
-        `Please buy your ticket on that day and pass the new voucher on at ${at}` +
+        `Please buy your ticket on that day and pass the new voucher on ${passOn ? `on ${passOn} ` : ''}at ${at}` +
           (next ? ` to ${next}${nextMail ? ` (${nextMail})` : ''}.` : '. You are the last stop of this chain.'),
         '', `Best, ${from}`,
       ],
@@ -350,6 +350,8 @@
     ev.end = $('#f-end').value;
     if (!ev.end) delete ev.end;
     ev.weekends = $('#f-weekends').checked;
+    ev.every = Number($('#f-every').value) || 0;
+    if (ev.every === 1) delete ev.every; // the default stays out of links and the fingerprint; Go rejects a bad value
     ev.plusMax = Number($('#f-plusMax').value) || 0;
     ev.seed = $('#f-seed').value.trim();
     ev.handover = $('#f-handover').value.trim();
@@ -367,6 +369,7 @@
     $('#f-start').value = ev.start || '';
     $('#f-end').value = ev.end || '';
     $('#f-weekends').checked = !!ev.weekends;
+    $('#f-every').value = ev.every || 1;
     $('#f-plusMax').value = ev.plusMax || 2;
     $('#f-seed').value = ev.seed || '';
     $('#f-handover').value = ev.handover || '23:00';
@@ -520,6 +523,7 @@
     const body = `Slot: ${sheet.label}\nVoucher: ${sheet.voucher}\n${t('newStatus')}: ${statusLabel(next)}\nPlan: ${plan.fingerprint}\n`;
     return mailto(to, `vouch0rzii ${plan.event}: ${sheet.label} ${statusLabel(next)}`, body);
   }
+  const handoverFrom = (label) => plan.handovers.find((h) => h.from === label);
   // voucherState reads the curated status of one chain: where the voucher is
   // (kind: done, moving, holding, orga, none) and whether it is overdue.
   // Overdue marks only once the sale is being tracked (track).
@@ -537,10 +541,11 @@
     if (holder >= 0) {
       const h = chain[holder];
       const next = chain.slice(holder + 1).find((s) => statusOf(s.label) === 'open');
+      const due = st[holder] === 'bought' ? (handoverFrom(h.label) || h).date : h.date; // bought: due when the new voucher is expected
       return {
         v, kind: 'holding',
         text: t('holding', h.label, statusLabel(st[holder])) + (next ? t('holdingNext', next.label, day(next)) : t('lastStop')),
-        late: track && h.date < now && !(st[holder] === 'bought' && !next), // a bought last station is done, not late
+        late: track && due < now && !(st[holder] === 'bought' && !next), // a bought last station is done, not late
       };
     }
     if (chain.length) return { v, kind: 'orga', text: t('atOrga', chain[0].label, day(chain[0])), late: track && chain[0].date < now };
@@ -577,11 +582,16 @@
     const now = today(), track = tracking();
     const sheets = plan.sheets;
     const first = plan.days[0];
-    // Plan day number of a date, counting past the grid up to the end.
+    // Plan day number of a date, counting past the grid up to the end; steps
+    // like Go's Dates: every N days, a weekend day moves on to Monday.
     const planDay = (date) => {
       const [y, m, d] = first.date.split('-').map(Number);
       let n = 0;
-      for (const t = new Date(y, m - 1, d); fmtDate(t) <= date; t.setDate(t.getDate() + 1)) if (state.event.weekends || t.getDay() % 6) n++; // % 6: Sunday 0 and Saturday 6 are skipped
+      for (const t = new Date(y, m - 1, d); fmtDate(t) <= date;) {
+        if (!state.event.weekends && !(t.getDay() % 6)) { t.setDate(t.getDate() + 1); continue; } // % 6: Sunday 0 and Saturday 6 are skipped
+        n++;
+        t.setDate(t.getDate() + (state.event.every || 1));
+      }
       return n;
     };
     const total = plan.end.day || plan.days.length;
@@ -903,7 +913,7 @@
     for (const h of plan.handovers) {
       if (h.day !== day) {
         day = h.day;
-        box.append(el('h3', {}, t('evening', dayName(plan.days[day - 1]), h.date, plan.handover)));
+        box.append(el('h3', {}, t('evening', dayName(h), h.date, plan.handover)));
         list = el('ul');
         box.append(list);
       }
@@ -917,7 +927,9 @@
   function mailFor(sheet) {
     const next = sheet.to && plan.sheets.find((s) => s.label === sheet.to);
     if (!next || !next.email) return null;
-    const body = t('mail', next.person, next.label, next.date, sheet.voucher, plan.event, plan.handover, next.to, next.toEmail, sheet.person).join('\n');
+    const onward = handoverFrom(next.label); // with every > 1 the new voucher comes days after the purchase
+    const passOn = onward && onward.date !== next.date ? dayName(onward) : '';
+    const body = t('mail', next.person, next.label, next.date, sheet.voucher, plan.event, plan.handover, passOn, next.to, next.toEmail, sheet.person).join('\n');
     return mailto(next.email, t('mailSubject', sheet.voucher, plan.event), body);
   }
 

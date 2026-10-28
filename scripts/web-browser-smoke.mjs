@@ -34,6 +34,10 @@ const link = (mode, extra = [], event = demoEvent) =>
 const decode = (href) => JSON.parse(inflateRawSync(Buffer.from(href.split('#s=')[1], 'base64url')).toString());
 const withStatus = (href, status) =>
   page + '#s=' + deflateRawSync(JSON.stringify({ ...decode(href), status, statusAt: '2026-10-27T12:00:00Z' })).toString('base64url');
+const withEvent = (href, patch) => {
+  const st = decode(href);
+  return page + '#s=' + deflateRawSync(JSON.stringify({ ...st, event: { ...st.event, ...patch } })).toString('base64url');
+};
 const hrefOf = (html, id) => (html.match(new RegExp(`id="${id}" class="button" href="([^"]+)"`)) || [])[1] || '';
 
 function dom(url, lang = 'de') { // the page follows the browser language; pinned so checks do not depend on the machine
@@ -85,6 +89,12 @@ check('admin: German page relabels the organisers and formats German day labels'
 check('admin: a German browser gets the German page', admin.includes('<html lang="de">') && admin.includes('<title>vouch0rzii — Voucher-Kettenplaner</title>'));
 const fp = (html) => (html.match(/id="fingerprint"[^>]*>([^<]*)</) || [])[1] || '';
 check('admin: four-emoji fingerprint shown', [...fp(admin)].length === 4);
+
+const every2 = dom(withEvent(link('admin'), { every: 2 })); // buy Fri, the new voucher Sat evening, the next buyer Mon
+check('every 2: buying days two apart, weekend day moves to Monday', every2.includes('>Fr 30.10.<small>2026-10-30<') && every2.includes('>Mo 02.11.<small>2026-11-02<') && every2.includes('>Mi 04.11.<small>2026-11-04<') && !every2.includes('<small>2026-11-03<'));
+check('every 2: handover on the evening the new voucher is expected', every2.includes('<h3>Sa 31.10. (2026-10-31), 23:00 Uhr</h3>') && every2.includes('<h3>Di 03.11. (2026-11-03), 23:00 Uhr</h3>'));
+check('every 2: the mail names the evening to pass on', decodeURIComponent(every2).includes('gib den neuen Voucher am Di 03.11. um 23:00 Uhr weiter'));
+check('every 2: no error box', noError(every2));
 
 const view = dom(link('view'));
 check('view: plan rendered, matrix not editable', planned(view) && !view.includes('class="editable"'));

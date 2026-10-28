@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"time"
 )
 
 // Export is the serialisable view of a plan: what the CLI prints as JSON and
@@ -35,10 +36,12 @@ type DayExport struct {
 	Label string `json:"label"`
 }
 
-// HandoverExport is one evening transfer with contact addresses.
+// HandoverExport is one evening transfer with contact addresses. Day is the
+// buying day of From, Date and Label the evening the new voucher is expected.
 type HandoverExport struct {
 	Day       int    `json:"day"`
 	Date      string `json:"date"`
+	Label     string `json:"label"`
 	Voucher   int    `json:"voucher"`
 	From      string `json:"from"`
 	FromEmail string `json:"fromEmail,omitempty"`
@@ -85,6 +88,13 @@ func (p *Plan) dayLabel(d int) string {
 	return DayLabel(t)
 }
 
+// handoverDate is the evening on which the new voucher of h is expected:
+// Every-1 days after From's buying day.
+func (p *Plan) handoverDate(h Handover) time.Time {
+	t, _ := ParseDate(p.Dates[h.Day-1])
+	return t.AddDate(0, 0, p.Event.EveryOrDefault()-1)
+}
+
 // end describes the last day of the voucher phase; zero without an end.
 func (p *Plan) end() DayExport {
 	if p.PhaseDays == 0 {
@@ -122,8 +132,9 @@ func (p *Plan) ToExport() *Export {
 		ex.Grid = append(ex.Grid, row)
 	}
 	for _, h := range p.Handovers {
+		at := p.handoverDate(h)
 		ex.Handovers = append(ex.Handovers, HandoverExport{
-			Day: h.Day, Date: p.Dates[h.Day-1], Voucher: h.Voucher,
+			Day: h.Day, Date: at.Format(DateLayout), Label: DayLabel(at), Voucher: h.Voucher,
 			From: h.From.Label, FromEmail: p.email(h.From),
 			To: h.To.Label, ToEmail: p.email(h.To),
 			Known: h.Known, Forbidden: h.Forbidden,
@@ -198,7 +209,7 @@ func (p *Plan) Markdown() string {
 	for _, h := range p.Handovers {
 		if h.Day != day {
 			day = h.Day
-			fmt.Fprintf(&b, "\n**%s, %s**\n\n", p.dayLabel(day), p.Event.HandoverOrDefault())
+			fmt.Fprintf(&b, "\n**%s, %s**\n\n", DayLabel(p.handoverDate(h)), p.Event.HandoverOrDefault())
 		}
 		fmt.Fprintf(&b, "- Voucher %d: %s → %s", h.Voucher, h.From.Label, h.To.Label)
 		if e := p.email(h.To); e != "" {

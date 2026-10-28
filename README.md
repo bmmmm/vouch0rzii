@@ -18,6 +18,9 @@ data, and your browser history keeps it like any other link.
    slots the plan has `ceil(N / V)` days; extra vouchers, pins, people who
    leave and the end of the voucher phase (rule 7) change that, the grid
    shows the result. Weekends are skipped unless the event says otherwise.
+   A "day" is a buying day: with `every` set to 2 (the new voucher only
+   arrives the day after next) buying days are two days apart, and a
+   handover is listed on the evening the new voucher is expected.
 2. **Tiers.** Named people first — members, then frequent guests, then
    acquaintances. After all named people come everybody's +1, then everybody's
    +2, each round ordered by the sponsor's position. Within a tier the order is

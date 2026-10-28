@@ -81,6 +81,9 @@ func Normalize(e *Event) (warnings []string, err error) {
 	if total > MaxVouchers {
 		errs = append(errs, fmt.Errorf("%d vouchers in total, more than %d", total, MaxVouchers))
 	}
+	if e.Every < 0 || e.Every > MaxEvery {
+		errs = append(errs, fmt.Errorf("every must be between 0 and %d days, got %d", MaxEvery, e.Every))
+	}
 	if e.PlusMax < 0 || e.PlusMax > MaxPlus {
 		errs = append(errs, fmt.Errorf("plusMax must be between 0 and %d, got %d", MaxPlus, e.PlusMax))
 	}
