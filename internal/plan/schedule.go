@@ -285,7 +285,10 @@ func placeSlots(slots []*Slot, pins []Pin, from []int, horizon int) (grid [][]*S
 // chains only once, so pinning the past keeps the future. The last day is
 // the plan's, so the group runs on as few vouchers as the plan's length
 // allows; with OneChain it is the horizon, so one chain may make the plan
-// longer.
+// longer. With MembersFirst a group starts no earlier than the end of the
+// last day with a member's own slot, pinned or not, and its chain takes
+// target days from the next day on; its slots placed until then stay where
+// they are.
 // assignChains then keeps each chain on its voucher (costKeep) unless a
 // forbidden handover would outweigh it. Returns the grid, grown to the last
 // placed day.
@@ -293,6 +296,14 @@ func chainGroups(e *Event, slots []*Slot, grid [][]*Slot, from []int, horizon in
 	days, last := len(grid), len(grid)
 	if e.OneChain {
 		last = horizon
+	}
+	// Members' days as placeSlots left them: no chain starts before the
+	// last of them, so the queue below places members on the same days.
+	membersDay := 0
+	for _, s := range slots {
+		if p := e.Person(s.PersonID); e.MembersFirst && s.K == 0 && p != nil && p.Tier == TierMember {
+			membersDay = max(membersDay, s.Day)
+		}
 	}
 	free := make([]int, last+1) // cells per day not taken by a pin
 	for d := 1; d <= last; d++ {
@@ -325,7 +336,12 @@ func chainGroups(e *Event, slots []*Slot, grid [][]*Slot, from []int, horizon in
 	placed, started := map[*Slot]bool{}, map[string]bool{}
 	chain := func(id string, start int) {
 		started[id] = true
-		gs := member[id]
+		var gs []*Slot // the group's slots from start on
+		for _, s := range member[id] {
+			if !(s.Pinned || placed[s]) || s.Day >= start {
+				gs = append(gs, s)
+			}
+		}
 		n, span := len(gs), last-start+1
 		want := make([]int, last+1)
 		for d := start; d <= last; d++ {
@@ -358,9 +374,8 @@ func chainGroups(e *Event, slots []*Slot, grid [][]*Slot, from []int, horizon in
 			free[d]--
 		}
 	}
-	next := 0
+	next, due := 0, map[string]bool{}
 	for d := 1; d <= last; d++ {
-		due := map[string]bool{}
 		for ; free[d] > 0 && next < len(queue); next++ {
 			s := queue[next]
 			if placed[s] {
@@ -371,7 +386,14 @@ func chainGroups(e *Event, slots []*Slot, grid [][]*Slot, from []int, horizon in
 			due[s.PersonID] = true
 		}
 		for _, id := range groups { // in priority order, by pin or by turn alike
-			if (due[id] || pinDay[id] == d) && !started[id] {
+			if pinDay[id] == d {
+				due[id] = true
+			}
+			switch {
+			case !due[id] || started[id] || d < membersDay:
+			case e.MembersFirst:
+				chain(id, d+1)
+			default:
 				chain(id, d)
 			}
 		}

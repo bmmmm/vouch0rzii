@@ -18,6 +18,12 @@ what to check.
   the fingerprint.
 - The page warns when a change of start, weekends or `every` moves pinned
   slots to other dates.
+- `membersFirst` in the event (page: "members first"): every member buys
+  their own slot on the same day as without groups, and a group's chain
+  starts only on the day after the last member's day, pinned members
+  included. Combines with `oneChain`. In the example all 25 members buy by
+  day 4 instead of day 5, and mammut's ten +N run on days 4 to 7 on three
+  vouchers. Without it plans stay as they are.
 
 ### Changed
 

@@ -199,6 +199,12 @@ try {
   check('groups: one voucher per group stretches the plan to the end of the phase', (await stats()).startsWith('7 Vouchers · 11 Tage · 47 Slots · 40 Übergaben, davon 9 innerhalb einer Gruppe') && await js(`document.querySelectorAll('#matrix td.cell.kept').length === 9`), await stats());
   await key('z');
   check('groups: Ctrl+Z restores the box and the shortest plan', (await stats()).startsWith('7 Vouchers · 7 Tage') && await js(`!document.getElementById('f-oneChain').checked`), await stats());
+  // Members first: the box reaches the event, mammut's chain waits for the
+  // members and keeps fewer handovers; Ctrl+Z restores box and plan.
+  await js(`document.getElementById('f-membersFirst').click(); document.getElementById('compute').click(); 0`);
+  check('groups: members first starts the chain after the members', (await stats()).startsWith('7 Vouchers · 7 Tage · 47 Slots · 40 Übergaben, davon 6 innerhalb einer Gruppe') && await js(`document.querySelectorAll('#matrix td.cell.kept').length === 6`), await stats());
+  await key('z');
+  check('groups: Ctrl+Z restores the box and the plan', (await stats()).startsWith('7 Vouchers · 7 Tage · 47 Slots · 40 Übergaben, davon 9 innerhalb einer Gruppe') && await js(`!document.getElementById('f-membersFirst').checked`), await stats());
 
   // Language switch: re-renders in place, keeps pending input, and switching
   // back restores the German text and attributes.

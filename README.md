@@ -47,7 +47,11 @@ data, and your browser history keeps it like any other link.
    few vouchers as the plan's length allows: one chain from that day,
    further chains ending on the last day; the plan keeps its length. With
    `oneChain` ("one voucher per group" on the page) a group keeps a single
-   voucher and the plan may grow, up to the end of the voucher phase. Who
+   voucher and the plan may grow, up to the end of the voucher phase. With
+   `membersFirst` ("members first") every member buys their own slot on the
+   same day as without groups: a group's chain starts on the day after the
+   last member's day, pinned members included, and the group's slots whose
+   turn came before stay where they are. Who
    gets into the plan at all still follows rules 2 and 3; only the days
    move. For each day the assignment person → voucher keeps every group on
    the voucher it holds, unless a voucher would otherwise go straight to

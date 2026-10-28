@@ -59,6 +59,54 @@ func TestGroupKeepsOneVoucher(t *testing.T) {
 	}
 }
 
+// membersFirstEvent: groupEvent with g at +6, the guests x and y, and
+// MembersFirst.
+func membersFirstEvent() *Event {
+	e := groupEvent()
+	e.People[0].Plus = 6
+	e.People = append(e.People, Person{ID: "x", Tier: TierGuest, Order: 1}, Person{ID: "y", Tier: TierGuest, Order: 2})
+	e.MembersFirst = true
+	return e
+}
+
+// With MembersFirst the members b and c buy on day 2 as without groups; g's
+// chain starts on day 3, before the guest y, on as few vouchers as six days
+// allow.
+func TestGroupWaitsForTheMembers(t *testing.T) {
+	p := keepsThePast(t, "members first", membersFirstEvent, nil)
+	days, _ := daysOf(p, "g")
+	want := map[string]int{"g": 1, "a": 1, "b": 2, "c": 2, "g+1": 3, "x": 3, "g+2": 4, "y": 4, "g+3": 5, "g+4": 5, "g+5": 6, "g+6": 6}
+	if !reflect.DeepEqual(days, want) || p.Stats.Days != 6 || p.Stats.Kept != 4 {
+		t.Fatalf("days %v, stats %+v", days, p.Stats)
+	}
+	// One voucher: g+1 to g+6 on days 3 to 8.
+	p = keepsThePast(t, "members first, one voucher", func() *Event {
+		e := membersFirstEvent()
+		e.OneChain = true
+		return e
+	}, nil)
+	days, _ = daysOf(p, "g")
+	want = map[string]int{"g": 1, "a": 1, "b": 2, "c": 2, "g+1": 3, "x": 3, "g+2": 4, "y": 4, "g+3": 5, "g+4": 6, "g+5": 7, "g+6": 8}
+	if !reflect.DeepEqual(days, want) || p.Stats.Days != 8 || p.Stats.Kept != 5 {
+		t.Fatalf("one voucher: days %v, stats %+v", days, p.Stats)
+	}
+}
+
+// A member pinned by hand to the plan's last day comes first too: g's chain
+// would start after it, so its slots keep their turn.
+func TestLateMemberHoldsTheGroup(t *testing.T) {
+	p := keepsThePast(t, "late member", func() *Event {
+		e := groupEvent()
+		e.MembersFirst = true
+		return e
+	}, []Pin{{Label: "c", Day: 5, Voucher: 1}})
+	days, _ := daysOf(p, "g")
+	want := map[string]int{"g": 1, "a": 1, "b": 2, "g+1": 2, "g+2": 3, "g+3": 3, "g+4": 4, "c": 5}
+	if !reflect.DeepEqual(days, want) {
+		t.Fatalf("days %v", days)
+	}
+}
+
 // Pinning the first days of a plan, as "Pin until today" does, keeps the
 // rest of it.
 func TestGroupChainsSurvivePinningThePast(t *testing.T) {
@@ -212,6 +260,7 @@ func randomCase(t *testing.T, round uint64) (mk func() *Event, manual []Pin) {
 		}
 		e.Weekends = r.IntN(4) == 0
 		e.OneChain = r.IntN(2) == 0
+		e.MembersFirst = r.IntN(2) == 0
 		return e
 	}
 	r := rand.New(rand.NewPCG(round, 5))
@@ -230,9 +279,9 @@ func randomCase(t *testing.T, round uint64) (mk func() *Event, manual []Pin) {
 
 // Random rosters with several groups, some with pins by hand: every placed
 // slot sits on a voucher that exists that day, the same slots are placed as
-// without chains, the default mode keeps the plan's
-// length, and pinning the days up to any day keeps the plan, pins by hand
-// after that day included.
+// without chains, with MembersFirst every member's own slot on the same day,
+// the default mode keeps the plan's length, and pinning the days up to any
+// day keeps the plan, pins by hand after that day included.
 func TestGroupChainsProperties(t *testing.T) {
 	for round := range uint64(1500) {
 		mk, manual := randomCase(t, round)
@@ -262,6 +311,9 @@ func TestGroupChainsProperties(t *testing.T) {
 		for i, s := range slots {
 			if (s.Day > 0) != (p.Slots[i].Day > 0) {
 				t.Fatalf("round %d: %s placed %v with chains, %v without", round, s.Label, p.Slots[i].Day > 0, s.Day > 0)
+			}
+			if plain.MembersFirst && s.K == 0 && plain.Person(s.PersonID).Tier == TierMember && s.Day != p.Slots[i].Day {
+				t.Fatalf("round %d: member %s on day %d, %d without chains", round, s.Label, p.Slots[i].Day, s.Day)
 			}
 		}
 		if !p.Event.OneChain && p.Stats.Days != len(grid) {

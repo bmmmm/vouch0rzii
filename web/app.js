@@ -353,6 +353,7 @@
     if (!ev.end) delete ev.end;
     ev.weekends = $('#f-weekends').checked;
     if ($('#f-oneChain').checked) ev.oneChain = true; else delete ev.oneChain;
+    if ($('#f-membersFirst').checked) ev.membersFirst = true; else delete ev.membersFirst;
     ev.every = Number($('#f-every').value) || 0;
     if (ev.every === 1) delete ev.every; // the default stays out of links and the fingerprint; Go rejects a bad value
     ev.plusMax = Number($('#f-plusMax').value) || 0;
@@ -373,6 +374,7 @@
     $('#f-end').value = ev.end || '';
     $('#f-weekends').checked = !!ev.weekends;
     $('#f-oneChain').checked = !!ev.oneChain;
+    $('#f-membersFirst').checked = !!ev.membersFirst;
     $('#f-every').value = ev.every || 1;
     $('#f-plusMax').value = ev.plusMax || 2;
     $('#f-seed').value = ev.seed || '';
