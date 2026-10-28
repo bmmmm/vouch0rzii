@@ -30,8 +30,28 @@ what to check.
   day 7 on six vouchers), with it as many handovers stay within the group
   as before (8 in the example). Without `membersFirst` plans stay as they
   are.
+- `lost` in the event (page: "lost" at a slot in the sheet table, also
+  after the fact): a voucher whose chain broke carries nobody from the
+  first plan day on or after the date. The page pins the past as "Pin until
+  today" does, except that voucher from the slot's day on; its slots from
+  there are planned again after today, in priority order, on the vouchers
+  left, and once every voucher is lost the rest goes to the public sale.
+  Pins on closed cells are dropped with a warning. The matrix hatches the
+  closed cells, the live status says since when, "found" takes the mark
+  back. The JSON export has `voucherLost` (first day without the voucher,
+  0 = not lost), the Markdown a line per lost voucher, and `free` leaves
+  the closed cells out.
+- The page locks what would move the past once the sale has started (a pin,
+  a status or a lost voucher): start, weekends, `every`, the seed and, while
+  it stands in for the seed, the name. A change that gives the existing
+  vouchers other numbers or start days, or moves or drops a pin whose slot
+  is still in the roster, is rejected with the reason; other changes go
+  through and say how many planned slots moved.
 
 ### Changed
+
+- The page explains × on a pin in the past: nobody bought there, the slot
+  is planned again after today and the cell stays free.
 
 - Groups keep their voucher: a person with the group flag gets their slots
   day after day on as few vouchers as the plan's length allows, so the

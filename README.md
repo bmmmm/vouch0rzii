@@ -71,7 +71,9 @@ data, and your browser history keeps it like any other link.
    acquaintance, pinned to the cell. Ctrl+Z / Ctrl+Shift+Z (Cmd on a Mac)
    or the buttons above the matrix undo and redo moves, pins, status and
    roster changes while the tab is open; the link always carries the
-   current state.
+   current state. Releasing a pin in the past (× in the matrix) means
+   nobody bought there: the slot is planned again after today, later slots
+   move back for it, and the cell stays free.
 6. **Mid-run changes.** "Pin until today" pins every slot up to today and
    sets `frozen` to today: days up to `frozen` take pinned slots only, so a
    cell left free there stays free unless someone is moved in by hand, and
@@ -81,12 +83,26 @@ data, and your browser history keeps it like any other link.
    else moves), their pinned slots remain, their other slots vanish and the
    people behind move up. Vouchers that arrive later go into `extra`
    (`date:count`); those chains start fresh from the organisers on that day.
+   A voucher whose chain broke is marked "lost" at the slot where it broke,
+   also after the fact: the past is pinned as with "Pin until today" except
+   that voucher from that day on, and `lost` in the event (`voucher`,
+   `date`) closes it from the first plan day on or after the date. Its slots
+   from there are planned again after today, in priority order, on the
+   vouchers left; once every voucher is lost, the rest goes to the public
+   sale. Pins on the closed cells are dropped with a warning; "found" in
+   the live status takes the mark back.
+   Once the sale has started — a pin, a status or a lost voucher — the page
+   locks start, weekends, `every` and the seed (the name too while it
+   stands in for the seed), and rejects a change that would give the
+   existing vouchers other numbers or start days, or move or drop a pin
+   whose slot is still in the roster. Other changes go through and say how
+   many planned slots moved.
 7. **End of the voucher phase.** `end` is the last day vouchers
    work. The plan fills only up to it; slots that do not fit are listed as
    *public sale* (`public`) in priority order and are bought in the public
    sale. Pins after the end are dropped with a warning. Free voucher days
    are marked *free* in the grid and counted (`free`) after the `frozen`
-   days: until the end, or within the grid when no end is set, so
+   days and before a voucher is lost: until the end, or within the grid when no end is set, so
    organisers see how many more slots they can still hand out. Extra
    vouchers dated after the end are reported as unused.
 
