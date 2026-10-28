@@ -296,6 +296,9 @@ func placeSlots(slots []*Slot, pins []Pin, from, until []int, frozen, horizon in
 			if stop < MaxDays {
 				break // the rest goes to the public sale
 			}
+			if frozen >= MaxDays {
+				return nil, nil, fmt.Errorf("all %d plan days are frozen; no day remains for unpinned slots", MaxDays)
+			}
 			return nil, nil, fmt.Errorf("plan would need more than %d days", MaxDays)
 		}
 		r := row(d)

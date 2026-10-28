@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"sort"
 	"strings"
 )
 
@@ -105,6 +106,7 @@ func Normalize(e *Event) (warnings []string, err error) {
 		errs = append(errs, fmt.Errorf("plusMax must be between 0 and %d, got %d", MaxPlus, e.PlusMax))
 	}
 	e.Start, e.End = strings.TrimSpace(e.Start), strings.TrimSpace(e.End)
+	e.Frozen = strings.TrimSpace(e.Frozen)
 	_, startErr := ParseDate(e.Start)
 	if startErr != nil {
 		errs = append(errs, fmt.Errorf("start must be YYYY-MM-DD, got %q", e.Start))
@@ -158,6 +160,7 @@ func Normalize(e *Event) (warnings []string, err error) {
 	if len(errs) > 0 {
 		return nil, errors.Join(errs...)
 	}
+	sort.Slice(e.Lost, func(i, j int) bool { return e.Lost[i].Voucher < e.Lost[j].Voucher })
 	e.index = make(map[string]*Person, len(e.People))
 	for i := range e.People {
 		e.index[e.People[i].ID] = &e.People[i]
