@@ -29,6 +29,24 @@ func TestLostVoucherClosesItsRow(t *testing.T) {
 	}
 }
 
+// An extra voucher can be lost as well, numbered after the base vouchers,
+// and a voucher lost from day 1 is named in the Markdown too.
+func TestLostExtraVoucher(t *testing.T) {
+	e := mkEventExtra() // voucher 2 from day 3
+	e.People = ordered("a", "b", "c", "d", "e", "f")
+	e.Lost = []Lost{{Voucher: 2, Date: "2026-11-04"}} // day 4
+	p := mustCompute(t, e, nil)
+	if ex := p.ToExport(); !reflect.DeepEqual(ex.VoucherLost, []int{0, 4}) || p.Stats.Days != 5 {
+		t.Fatalf("voucherLost %v, %d days, grid %v", ex.VoucherLost, p.Stats.Days, ex.Grid)
+	}
+	e = mkEvent(2, ordered("a", "b")...)
+	e.Lost = []Lost{{Voucher: 1, Date: "2026-10-30"}}
+	day, _ := ParseDate("2026-10-30")
+	if md := mustCompute(t, e, nil).Markdown(); !strings.Contains(md, "Voucher 1 lost from "+DayLabel(day)+".") {
+		t.Fatalf("markdown without the voucher lost from day 1:\n%s", md)
+	}
+}
+
 // With every voucher lost the rest goes to the public sale, also without an
 // end; one voucher left keeps the plan going.
 func TestAllVouchersLost(t *testing.T) {
