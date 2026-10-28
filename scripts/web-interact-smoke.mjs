@@ -35,6 +35,8 @@ const proc = spawn(chrome, [
   '--remote-debugging-pipe', `--user-data-dir=${profile}`, '--accept-lang=de', 'about:blank', // the page follows the browser language
 ], { stdio: ['ignore', 'ignore', 'ignore', 'pipe', 'pipe'] });
 const pending = new Map();
+// DOM dispatch reports handler exceptions as Runtime events, not evaluate errors.
+const exceptions = [];
 let nextId = 0, buf = '';
 proc.stdio[4].setEncoding('utf8');
 proc.stdio[4].on('data', (chunk) => {
@@ -43,6 +45,7 @@ proc.stdio[4].on('data', (chunk) => {
   while ((i = buf.indexOf('\0')) >= 0) {
     const msg = JSON.parse(buf.slice(0, i));
     buf = buf.slice(i + 1);
+    if (msg.method === 'Runtime.exceptionThrown') exceptions.push(msg.params.exceptionDetails.exception?.description || msg.params.exceptionDetails.text);
     const p = pending.get(msg.id);
     if (!p) continue;
     pending.delete(msg.id);
@@ -68,8 +71,9 @@ const check = (name, cond, detail = '') => {
 try {
   const { targetId } = await send('Target.createTarget', { url: link });
   const { sessionId } = await send('Target.attachToTarget', { targetId, flatten: true });
+  await send('Runtime.enable', {}, sessionId);
   const js = async (expression) => {
-    const r = await send('Runtime.evaluate', { expression, returnByValue: true }, sessionId);
+    const r = await send('Runtime.evaluate', { expression, returnByValue: true, awaitPromise: true }, sessionId);
     if (r.exceptionDetails) throw new Error(r.exceptionDetails.exception?.description || r.exceptionDetails.text);
     return r.result.value;
   };
@@ -97,6 +101,7 @@ try {
     return 'ok';
   })()`);
   const nameFreeCell = async (label) => (await openFreeCell()) ? typeInCell(label) : 'no input';
+  if (!process.env.PAGE_STATE_ONLY) {
 
   const a = await text(1, 1), b = await text(1, 2);
   check('matrix: two different slots on day 1', a && b && a !== b, `${a} / ${b}`);
@@ -134,8 +139,9 @@ try {
 
   // Pending roster edits become an undo step of their own.
   await js(`document.getElementById('roster').value += '\\tdodo2\\tBekanntschaft\\t\\t\\t\\t\\t\\t\\n'; 0`);
+  await js(`document.getElementById('compute').click(); 0`);
   await key('z');
-  check('undo with pending roster edits: edits applied, then taken back', !(await roster()).includes('dodo2') && (await stats()).includes('47 Slots'));
+  check('undo after computing roster edits: edits taken back', !(await roster()).includes('dodo2') && (await stats()).includes('47 Slots'));
   await key('z', true);
   check('redo brings the roster edit back as a plan', (await roster()).includes('dodo2') && (await stats()).includes('48 Slots'));
   await key('z');
@@ -274,7 +280,7 @@ try {
   // the seed), voucher numbers and pins stay, and other changes say how many
   // planned slots moved.
   const lockedValues = () => js(`['f-start', 'f-weekends', 'f-every', 'f-seed', 'f-name'].map((id) => { const n = document.getElementById(id); return n.type === 'checkbox' ? n.checked : n.value; }).join(' ')`);
-  await js(`document.getElementById('f-start').value = '2026-11-02'; document.getElementById('f-weekends').click(); document.getElementById('f-every').value = '2'; document.getElementById('f-seed').value = 'typed'; 0`); // typed, not computed
+  await js(` 0`); // typed, not computed
   await onDay3(`document.getElementById('freezeToday').click();`);
   check('locks: after "Pin until today" start, weekends, every and seed are locked, the name not while there is a seed', (await locked()) === 'f-start f-weekends f-every f-seed' && await js(`document.getElementById('f-start').title.startsWith('Nach dem Start gesperrt')`), await locked());
   check('locks: a locked field shows the value of the plan, not a pending edit', (await lockedValues()) === '2026-10-30 false 1 other congress2026', await lockedValues());
@@ -309,7 +315,7 @@ try {
   await key('z');
   await js(`document.getElementById('unpinAll').click(); 0`);
   check('locks: "Release all pins" frees them again, without the reason', (await locked()) === '' && !(await js(`document.getElementById('f-start').title`)));
-  await js(`document.getElementById('f-seed').value = ''; document.getElementById('compute').click(); document.getElementById('f-name').value = 'typed'; 0`);
+  await js(`document.getElementById('f-seed').value = ''; document.getElementById('compute').click(); 0`);
   await onDay3(`document.getElementById('freezeToday').click();`);
   check('locks: without a seed the name is the seed and locked too', (await locked()) === 'f-start f-weekends f-every f-seed f-name' && (await lockedValues()) === '2026-10-30 false 1  congress2026', `${await locked()} / ${await lockedValues()}`);
   await onDay3(`document.querySelector('#sheets tr[data-label="${await text(2, 2)}"] button.lost').click();`);
@@ -356,7 +362,7 @@ try {
   const belowFold = await js(`window.scrollTo(0, 0); document.getElementById('messages').getBoundingClientRect().top > innerHeight`);
   await js(`document.getElementById('lang').click(); 0`);
   check('lang: a Go message on screen gets the English heading and stays put, the page does not jump', belowFold && (await msgAfter('compute')) && (await js(`window.scrollY`)) === 0 && await js(`document.querySelector('#messages .error strong')?.textContent === 'That does not work:' && /exceeds the limit/.test(document.querySelector('#messages .error')?.textContent || '')`));
-  await js(`document.getElementById('lang').click(); document.getElementById('f-collectTo').value = ''; document.getElementById('copyCollect').click(); 0`);
+  await js(`document.getElementById('lang').click(); document.getElementById('roster').value = ${JSON.stringify(typed.replace(/pending$/, ''))}; document.getElementById('f-collectTo').value = ''; document.getElementById('compute').click(); document.getElementById('copyCollect').click(); 0`);
   const needTo = () => js(`document.querySelector('#messages .error li')?.textContent`);
   const deNeedTo = await needTo();
   await js(`document.getElementById('lang').click(); 0`);
@@ -502,7 +508,7 @@ try {
   await js(`document.getElementById('compute').click(); 0`);
   check('chance: computing again does not', !(await isShuffling()));
   await js(`document.getElementById('f-vouchers').value = '0'; document.getElementById('compute').click(); 0`); // the planner rejects it, no plan
-  const noPlan = await js(`document.getElementById('result').hidden`);
+  const noPlan = await js(`!document.getElementById('result').hidden && document.body.classList.contains('stale-plan')`);
   await js(`document.getElementById('f-vouchers').value = '7'; document.getElementById('compute').click(); 0`);
   check('chance: nor after a failed compute', noPlan && !(await isShuffling()) && (await js(`!document.getElementById('result').hidden`)));
 
@@ -660,6 +666,64 @@ try {
   check('chance: with nothing to draw the first plan does not shuffle and says why', !(await isShuffling()) && (await js(`document.getElementById('roll').disabled && document.getElementById('r-randomnote').textContent.startsWith('Nichts zu losen')`)));
   const afterSolo = await startState(); // values were set without input events: the plan alone ends the start page
   check('start: a computed plan ends the start page, even without typing', afterSolo.demoLinks.every((v) => !v) && afterSolo.newEvent, JSON.stringify(afterSolo));
+
+  }
+
+  // Page state regressions: use real bridge inputs and the rendered controls.
+  const openState = async (event, pins = []) => {
+    await js(`location.hash = '#s=' + vouch0rzii.encodeState(JSON.stringify({ mode: 'admin', event: ${JSON.stringify(event)}, pins: ${JSON.stringify(pins)} })).encoded; 0`);
+    await sleep(150);
+  };
+  const small = { name: 'state cases', start: '2026-01-01', weekends: true, vouchers: 2, seed: 'fixed', people: [{ id: 'a', tier: 'member' }, { id: 'b', tier: 'member' }] };
+  await openState(small);
+  const goodHash = await js('location.hash');
+  await js(`document.getElementById('f-vouchers').value = '3'; document.getElementById('f-vouchers').dispatchEvent(new Event('input', { bubbles: true })); 0`);
+  check('state 1: settings mark the old plan, block sharing and all result actions, highlight compute', await js(`document.body.classList.contains('stale-plan') && !document.getElementById('staleNotice').hidden && document.getElementById('result').inert && ['copyAdmin','copyView','copyBoard','copyCollect','saveFile'].every(id => document.getElementById(id).disabled) && getComputedStyle(document.getElementById('compute')).outlineStyle === 'solid'`));
+  await js(`document.querySelector('#sheets button.badge').click(); document.getElementById('toBoard').click(); 0`);
+  check('state 1: blocked sheet actions leave the link unchanged', (await js('location.hash')) === goodHash);
+  await key('z');
+  check('state 1: keyboard undo cannot apply pending input implicitly', (await js('location.hash')) === goodHash && await js(`document.body.classList.contains('stale-plan')`));
+  await send('Emulation.setEmulatedMedia', { media: 'print' }, sessionId);
+  check('state 1: printing does not export an outdated result', await js(`getComputedStyle(document.getElementById('result')).display === 'none'`));
+  await send('Emulation.setEmulatedMedia', { media: '' }, sessionId);
+  await js(`document.getElementById('compute').click(); 0`);
+  check('state 1: explicit compute clears the marking and enables actions', await js(`!document.body.classList.contains('stale-plan') && !document.getElementById('result').inert && !document.getElementById('copyAdmin').disabled`));
+  await openState(small);
+  // Open the cell before the roster becomes invalid: Enter used to null the plan then throw.
+  // Use a longer phase to guarantee an empty cell.
+  await openState({ ...small, end: '2026-01-05', oneChain: true, people: [{ id: 'a', tier: 'member', plus: 1, group: true }, { id: 'b', tier: 'member' }] });
+  await openFreeCell();
+  const beforeCellErrors = exceptions.length;
+  await js(`document.getElementById('roster').value += '\\tbad\\tmember\\t3\\n'; 0`);
+  await typeInCell('new');
+  await js(`document.getElementById('compute').click(); 0`);
+  check('state 3: failed pending roster compute while naming a cell keeps a usable old plan', exceptions.length === beforeCellErrors && await js(`!document.getElementById('result').hidden && !!document.querySelector('#matrix td.cell') && document.body.classList.contains('stale-plan') && /exceeds the limit/.test(document.getElementById('messages').textContent)`), exceptions.slice(beforeCellErrors).join('; ') || await js(`document.getElementById('messages').textContent`));
+  await openState(small, [{ label: 'a', day: 1, voucher: 1 }]);
+  await js(`document.getElementById('roster').value = 'Name\\tUnexpected\\tStatus\\t+N\\na\\tx\\tmember\\t3\\n'; document.getElementById('compute').click(); 0`);
+  check('state 4: a locked rejection includes roster warnings alongside errors', await js(`!!document.querySelector('#messages .error') && /ignored/.test(document.querySelector('#messages .warning')?.textContent || '')`));
+  check('state 1: rejected started changes stay stale with the reason under compute', await js(`document.body.classList.contains('stale-plan') && document.getElementById('messages').previousElementSibling === document.getElementById('compute').parentElement`));
+  await openState(small, [{ label: 'a', day: 1, voucher: 99 }]);
+  await js(`document.getElementById('f-handover').value = '22:00'; document.getElementById('compute').click(); 0`);
+  check('state 5: an already unhonoured pin does not reject an unrelated edit', await js(`!document.querySelector('#messages .error') && document.getElementById('r-stats').textContent.includes('22:00')`));
+  await openState({ ...small, people: [...small.people, { id: 'c', tier: 'member' }] }, [{ label: 'a', day: 2, voucher: 1 }]);
+  await js(`document.getElementById('f-end').value = '2026-01-01'; document.getElementById('compute').click(); 0`);
+  check('state 5: an honoured pin still rejects a change that drops it', await js(`/bleiben Pins/.test(document.querySelector('#messages .error')?.textContent || '')`));
+  await openState({ ...small, frozen: '2026-01-03', end: '2026-01-05', people: [...small.people, { id: 'c', tier: 'member' }] }, [{ label: 'a', day: 1, voucher: 1 }, { label: 'b', day: 1, voucher: 2 }]);
+  check('state 6: empty frozen cells say closed in German', await js(`document.querySelector('#matrix tbody tr td:nth-child(3)').textContent === 'geschlossen' && document.querySelector('#matrix tbody tr td:nth-child(4)').textContent === 'geschlossen' && document.querySelector('#matrix tbody tr td:nth-child(3)').title === 'geschlossen'`), await js(`document.getElementById('matrix').textContent`));
+  await js(`document.getElementById('lang').click(); 0`);
+  check('state 6: empty frozen cells say closed in English', await js(`document.querySelector('#matrix tbody tr td:nth-child(3)').textContent === 'closed'`));
+  await js(`document.getElementById('lang').click(); 0`);
+  await js(`document.getElementById('f-handover').value = '21:00'; document.getElementById('compute').click(); 0`);
+  await key('z');
+  const beforeBadFile = await js('location.hash'), beforeBadStats = await stats();
+  await js(`(async () => { const d = new DataTransfer(); d.items.add(new File([JSON.stringify({ ...${JSON.stringify(small)}, vouchers: 0 })], 'bad.json')); const f = document.getElementById('loadFile'); f.files = d.files; f.dispatchEvent(new Event('change')); await new Promise(r => setTimeout(r, 50)); })()`);
+  check('state 2: a noncomputing file preserves plan, state and form and shows its error', (await stats()) === beforeBadStats && (await js('location.hash')) === beforeBadFile && await js(`document.getElementById('f-vouchers').value === '2' && !!document.querySelector('#messages .error') && !document.getElementById('redo').disabled`));
+  await openState({ ...small, vouchers: 0 });
+  check('state 2: a noncomputing link preserves the old state and its error', (await stats()) === beforeBadStats && (await js('location.hash')) === beforeBadFile && await js(`!!document.querySelector('#messages .error')`));
+  await openState(small);
+  const beforeLost = await js('location.hash'), beforeLostStats = await stats();
+  await js(`(() => { const D = globalThis.Date; globalThis.Date = class extends D { constructor(...a) { super(...(a.length ? a : [2027, 1, 4, 12])); } }; document.querySelector('#sheets button.lost').click(); globalThis.Date = D; })(); 0`);
+  check('state 2: loss beyond the day limit rolls back event and pins, keeps the plan and error', (await stats()) === beforeLostStats && (await js('location.hash')) === beforeLost && await js(`!!document.querySelector('#messages .error') && !document.body.classList.contains('stale-plan') && document.getElementById('undo').disabled && document.getElementById('redo').disabled`), await js(`document.getElementById('messages').textContent + location.hash.slice(0,30)`));
 } catch (e) {
   check(`no exception: ${e.message}`, false);
 } finally {

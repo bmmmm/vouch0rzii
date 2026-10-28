@@ -177,3 +177,8 @@ button.badge { cursor: pointer; font: inherit; font-size: .8rem; border-color: v
 #toast { position: fixed; left: 50%; bottom: 1.5rem; transform: translateX(-50%); background: var(--ink); color: var(--bg); padding: .5rem 1rem; border-radius: 8px; font-size: .9rem; }
 #loading { color: var(--muted); }
 @media (max-width: 640px) { html { font-size: 14px; } header { align-items: start; } }
+/* Keep the old result readable while making its pending replacement explicit. */
+#staleNotice { border: 3px solid var(--accent); padding: 1rem; font-weight: bold; }
+.stale-plan #compute { outline: 4px solid var(--accent); outline-offset: 4px; }
+.stale-plan #result { outline: 3px dashed var(--accent); }
+@media print { .stale-plan #result { display: none; } }

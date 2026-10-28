@@ -36,6 +36,7 @@
       orga: 'Orga',
       nothingToUndo: 'Nichts rückgängig zu machen', undone: 'Rückgängig', nothingToRedo: 'Nichts zu wiederholen', redone: 'Wiederholt',
       errorsHead: 'Das geht so nicht:', warningsHead: 'Hinweise:',
+      stale: 'Plan veraltet: Eingaben geändert. Jetzt „Plan berechnen“, bevor du den Plan verwendest oder teilst.', closed: 'geschlossen',
       copied: (what) => `${what} kopiert`, copyFailed: 'Kopieren fehlgeschlagen',
       linkUnreadable: (e) => `Der Link konnte nicht gelesen werden: ${e}`,
       cellAria: 'Handle für diese Zelle',
@@ -115,6 +116,7 @@
       orga: 'organisers',
       nothingToUndo: 'Nothing to undo', undone: 'Undone', nothingToRedo: 'Nothing to redo', redone: 'Redone',
       errorsHead: 'That does not work:', warningsHead: 'Notes:',
+      stale: 'Outdated plan: inputs changed. Choose “Compute plan” before using or sharing the plan.', closed: 'closed',
       copied: (what) => `${what} copied`, copyFailed: 'Copying failed',
       linkUnreadable: (e) => `The link could not be read: ${e}`,
       cellAria: 'Handle for this cell',
@@ -227,6 +229,10 @@
 
   // ---------- undo / redo: in memory, admin only; the link always holds the current state
   const past = [], future = [];
+  let checkpoint = null, computedForm = '';
+  function remember() {
+    if (!checkpoint) checkpoint = { state: structuredClone(state), past: past.slice(), future: future.slice() };
+  }
   // canon serialises with sorted keys, so the same data in another key order
   // (Go JSON vs. objects built here) is not mistaken for a change.
   const canon = (v) => Array.isArray(v) ? `[${v.map(canon).join(',')}]`
@@ -234,6 +240,7 @@
   const snapshot = () => canon({ event: state.event, pins: state.pins, collect: state.collect, status: state.status, statusAt: state.statusAt });
   // mutate runs fn and remembers the state before it, if fn changed anything.
   function mutate(fn) {
+    remember();
     const before = snapshot();
     fn();
     if (snapshot() === before) return;
@@ -242,27 +249,28 @@
     future.length = 0;
   }
   function restore(s) {
+    remember();
     Object.assign(state, JSON.parse(s));
     selected = null;
     eventToForm();
     peopleToRoster(state.event.people);
-    computePlan({ fromForm: false });
+    return computePlan({ fromForm: false });
   }
   // Both first apply what is typed in the form, so pending roster edits
   // become a step of their own instead of being overwritten.
   function undo() {
     if (!computePlan()) return;
     if (!past.length) { toast(t('nothingToUndo')); return; }
+    remember();
     future.push(snapshot());
-    restore(past.pop());
-    toast(t('undone'));
+    if (restore(past.pop())) toast(t('undone'));
   }
   function redo() {
     if (!computePlan()) return;
     if (!future.length) { toast(t('nothingToRedo')); return; }
+    remember();
     past.push(snapshot());
-    restore(future.pop());
-    toast(t('redone'));
+    if (restore(future.pop())) toast(t('redone'));
   }
 
   // ---------- wasm
@@ -349,6 +357,7 @@
     return JSON.parse(r.stateJson);
   }
   function writeHash() {
+    checkpoint = null;
     if (state.mode !== 'admin') return;
     try { history.replaceState(null, '', '#s=' + encodeState(state)); } catch (e) { showMessages([String(e)]); } // keeps ?demo: the demo stays the demo
   }
@@ -413,6 +422,25 @@
     $('#roster').value = r.ok ? r.tsv : '';
   }
 
+  function formStamp() {
+    const r = bridge.parseRoster($('#roster').value);
+    return canon({ ...readForm(), people: r.ok ? JSON.parse(r.peopleJson) : $('#roster').value });
+  }
+  function stalePlan() {
+    return !!plan && state.mode === 'admin' && formStamp() !== computedForm;
+  }
+  function renderStale() {
+    const stale = stalePlan();
+    document.body.classList.toggle('stale-plan', stale);
+    $('#staleNotice').hidden = !stale;
+    $('#staleNotice').textContent = t('stale');
+    $('#result').inert = stale;
+    if (stale) $('#result').setAttribute('aria-label', t('stale'));
+    else $('#result').removeAttribute('aria-label');
+    for (const id of ['copyAdmin', 'copyView', 'copyBoard', 'copyCollect', 'saveFile']) $('#'+id).disabled = stale;
+    if (stale) { selected = null; closeEntropy(); stopShuffle(); }
+  }
+
   // ---------- planning
   // Started: a pin, a status on a slot of the plan or a lost voucher. From
   // then on the past is fact; settings that would move it are locked
@@ -432,7 +460,8 @@
     const at = new Map(x.sheets.map((s) => [s.label, s]));
     const pub = new Set(x.public);
     const dropped = (p) => { const s = at.get(p.label); return s ? !s.pinned : pub.has(p.label); }; // an applied pin sits on its cell
-    return state.pins.some(dropped) ? [() => t('lockedPins')] : null;
+    const honoured = new Set(plan.sheets.filter((s) => s.pinned).map((s) => s.label));
+    return state.pins.some((p) => honoured.has(p.label) && dropped(p)) ? [() => t('lockedPins')] : null;
   }
   // movedSince counts the slots of an older plan that the current plan puts
   // on another day or voucher, or into the public sale.
@@ -448,10 +477,10 @@
     if (fromForm) {
       const f = readForm();
       const r = rosterToPeople();
-      if (!r) return false;
+      if (!r) { renderStale(); return false; }
       const ev = { ...f.event, people: r.people };
       const locked = lockedChange(ev);
-      if (locked) { showMessages(locked, [], anchor); return false; }
+      if (locked) { showMessages(locked, r.warnings, anchor); renderStale(); return false; }
       mutate(() => { state.event = ev; state.collect = { to: f.to }; });
       warnings = r.warnings;
     }
@@ -459,7 +488,13 @@
     const r = bridge.plan(JSON.stringify(state.event), JSON.stringify(state.pins));
     if (!r.ok) {
       showMessages(r.errors, warnings.concat(r.warnings), anchor);
-      plan = null;
+      if (checkpoint) {
+        state = checkpoint.state;
+        past.splice(0, past.length, ...checkpoint.past);
+        future.splice(0, future.length, ...checkpoint.future);
+        checkpoint = null;
+        if (!fromForm) { eventToForm(); peopleToRoster(state.event.people); }
+      }
       renderResult();
       return false;
     }
@@ -470,6 +505,7 @@
     const shifted = old ? movedSince(old) : 0;
     if (shifted) warnings.push(() => t('futureMoved', shifted));
     showMessages([], warnings.concat(plan.warnings), anchor);
+    computedForm = formStamp();
     renderResult();
     if (shuffle) shuffleMatrix();
     drawShown = true;
@@ -736,6 +772,7 @@
   function renderResult() {
     renderStart();
     applyLocks();
+    renderStale();
     const board = state.mode === 'board';
     $('#result').hidden = !plan || board;
     $('#board').hidden = !plan || !board;
@@ -987,8 +1024,9 @@
         if (label && pinned.has(label)) cls.push('pinned');
         if (label && statusOf(label) !== 'open') cls.push('st-' + statusOf(label));
         if (selected && label && selected.label === label) cls.push('selected');
-        const title = label ? `${h ? `${h.from} → ${h.to}` : t('fromOrga')} · ${statusLabel(statusOf(label))}` : d.extra ? '' : t('freeCell');
-        const td = el('td', { class: cls.join(' '), draggable: editable && label ? 'true' : null, tabindex: editable ? '0' : null, title }, label || (d.extra ? '·' : t('free')));
+        const closed = d.date <= state.event.frozen;
+        const title = label ? `${h ? `${h.from} → ${h.to}` : t('fromOrga')} · ${statusLabel(statusOf(label))}` : d.extra ? '' : closed ? t('closed') : t('freeCell');
+        const td = el('td', { class: cls.join(' '), draggable: editable && label ? 'true' : null, tabindex: editable ? '0' : null, title }, label || (d.extra ? '·' : closed ? t('closed') : t('free')));
         if (editable) {
           if (d.extra) cell.extra = true;
           td.addEventListener('click', () => onCellPick(cell, td));
@@ -1134,7 +1172,11 @@
 
   function wireAdmin() {
     $('#compute').addEventListener('click', () => { selected = null; computePlan({ shuffle: !drawShown }); }); // the first plan shows its draw
-    $('#editor').addEventListener('input', () => { if (!typed) { typed = true; renderStart(); } });
+    $('#editor').addEventListener('input', () => { if (!typed) { typed = true; renderStart(); } renderStale(); });
+    // Capture also covers generated controls, links, drag/drop and keyboard actions.
+    for (const type of ['click', 'keydown', 'dragstart', 'drop']) document.addEventListener(type, (e) => {
+      if (stalePlan() && e.target.closest('#result, #sharebar button, #saveFile')) { e.preventDefault(); e.stopImmediatePropagation(); renderStale(); }
+    }, true);
     // Leaving for a new event first puts pending edits into the link, if they
     // compute, so the browser's Back returns to them.
     for (const a of document.querySelectorAll('#newEvent, #demoBanner a')) a.addEventListener('click', () => { if (location.hash && state.mode === 'admin') computePlan(); });
@@ -1180,6 +1222,7 @@
         added++;
       }
       peopleToRoster(current);
+      renderStale();
       $('#inbox').value = '';
       showMessages([], r.warnings.concat(skipped.length ? [() => t('skipped', skipped.join(', '))] : []), near);
       toast(added ? t('added', added) : t('nothingAdded'));
@@ -1192,8 +1235,7 @@
       mutate(() => { n = pinUntilToday(); });
       if (!n) { toast(t('noneGone')); return; }
       selected = null;
-      computePlan({ fromForm: false });
-      toast(t('frozen', n));
+      if (computePlan({ fromForm: false })) toast(t('frozen', n));
     });
     $('#undo').addEventListener('click', undo);
     $('#redo').addEventListener('click', redo);
@@ -1202,6 +1244,7 @@
     document.addEventListener('keydown', (e) => { // Ctrl/Cmd+Z, Ctrl/Cmd+Shift+Z or Ctrl/Cmd+Y outside of inputs
       if (state.mode !== 'admin' || !(e.ctrlKey || e.metaKey) || e.altKey || (e.target instanceof Element && e.target.matches('input:not([type=checkbox]), textarea, select'))) return;
       const k = e.key.toLowerCase();
+      if (stalePlan() && (k === 'z' || k === 'y')) { e.preventDefault(); renderStale(); return; }
       if (k === 'z') { e.preventDefault(); if (e.shiftKey) redo(); else undo(); } else if (k === 'y') { e.preventDefault(); redo(); }
     });
 
@@ -1287,9 +1330,15 @@
     wireResult();
     wireCollect();
     const boot = () => {
+      const previous = plan ? '#s=' + encodeState(state) : '';
       closeEntropy(); // a new link starts without an open super random
       noteKey = '';
       const st = readHash();
+      if (previous && !st) { showMessages([() => t('linkUnreadable', 'Invalid state')]); history.replaceState(null, '', previous); return; }
+      if (previous && st && st.mode !== 'collect' && st.event?.people?.length) {
+        const trial = bridge.plan(JSON.stringify({ ...DEFAULT_EVENT, ...st.event }), JSON.stringify(st.pins || []));
+        if (!trial.ok) { showMessages(trial.errors, trial.warnings); history.replaceState(null, '', previous); return; }
+      }
       if (st) {
         state = {
           ...emptyState(), mode: st.mode || 'admin', event: { ...DEFAULT_EVENT, ...(st.event || {}) },
@@ -1298,6 +1347,7 @@
       }
       selected = null;
       plan = null;
+      checkpoint = null;
       picked.clear();
       past.length = future.length = 0; // a new link is a new baseline
       applyMode();
