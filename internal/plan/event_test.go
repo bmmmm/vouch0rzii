@@ -33,6 +33,11 @@ func TestNormalizeErrors(t *testing.T) {
 		{"bad end", &Event{Name: "t", Vouchers: 1, Start: "2026-10-30", End: "13.11.", People: []Person{{ID: "a"}}}, "end must be YYYY-MM-DD"},
 		{"end before start", &Event{Name: "t", Vouchers: 1, Start: "2026-10-30", End: "2026-10-29", People: []Person{{ID: "a"}}}, "end 2026-10-29 is before start"},
 		{"bad frozen", &Event{Name: "t", Vouchers: 1, Start: "2026-10-30", Frozen: "heute", People: []Person{{ID: "a"}}}, "frozen must be YYYY-MM-DD"},
+		{"lost voucher 0", &Event{Name: "t", Vouchers: 2, Start: "2026-10-30", Lost: []Lost{{Voucher: 0, Date: "2026-11-02"}}, People: []Person{{ID: "a"}}}, "lost voucher 0: no such voucher (1 to 2)"},
+		{"lost voucher beyond extras", &Event{Name: "t", Vouchers: 2, Start: "2026-10-30", Extra: []Extra{{Date: "2026-11-02", Count: 1}}, Lost: []Lost{{Voucher: 4, Date: "2026-11-02"}}, People: []Person{{ID: "a"}}}, "lost voucher 4: no such voucher (1 to 3)"},
+		{"lost voucher twice", &Event{Name: "t", Vouchers: 2, Start: "2026-10-30", Lost: []Lost{{Voucher: 2, Date: "2026-11-02"}, {Voucher: 2, Date: "2026-11-03"}}, People: []Person{{ID: "a"}}}, "lost voucher 2: listed twice"},
+		{"lost bad date", &Event{Name: "t", Vouchers: 2, Start: "2026-10-30", Lost: []Lost{{Voucher: 1, Date: "heute"}}, People: []Person{{ID: "a"}}}, "lost voucher 1: date must be YYYY-MM-DD"},
+		{"lost too many", &Event{Name: "t", Vouchers: 2, Start: "2026-10-30", Lost: make([]Lost, MaxVouchers+1), People: []Person{{ID: "a"}}}, "lost entries, more than"},
 		{"no people", mkEvent(1), "no people"},
 		{"no name", &Event{Vouchers: 1, Start: "2026-10-30", People: []Person{{ID: "a"}}}, "name missing"},
 	}

@@ -7,7 +7,9 @@ import (
 	"hash/fnv"
 	"math/big"
 	"math/rand/v2"
+	"slices"
 	"sort"
+	"time"
 )
 
 // newRand derives a platform-independent generator from the seed string, so
@@ -138,13 +140,7 @@ func voucherStarts(e *Event) ([]int, error) {
 	start, _ := ParseDate(e.Start)
 	dates := Dates(start, MaxDays, e.Weekends, e.Every)
 	for _, x := range e.Extra {
-		day := 0
-		for i, d := range dates {
-			if d.Format(DateLayout) >= x.Date {
-				day = i + 1
-				break
-			}
-		}
+		day := dayOnOrAfter(dates, x.Date)
 		if day == 0 {
 			return nil, fmt.Errorf("extra vouchers on %s: beyond the plan horizon of %d days", x.Date, MaxDays)
 		}
@@ -153,6 +149,42 @@ func voucherStarts(e *Event) ([]int, error) {
 		}
 	}
 	return from, nil
+}
+
+// voucherEnds returns per voucher the first plan day without it, 0 when it
+// is not lost: the first plan day on or after the Lost date.
+func voucherEnds(e *Event, total int) ([]int, error) {
+	until := make([]int, total)
+	if len(e.Lost) == 0 {
+		return until, nil
+	}
+	start, _ := ParseDate(e.Start)
+	dates := Dates(start, MaxDays, e.Weekends, e.Every)
+	for _, x := range e.Lost {
+		day := dayOnOrAfter(dates, x.Date)
+		if day == 0 {
+			return nil, fmt.Errorf("lost voucher %d on %s: beyond the plan horizon of %d days", x.Voucher, x.Date, MaxDays)
+		}
+		until[x.Voucher-1] = day
+	}
+	return until, nil
+}
+
+// dayOnOrAfter returns the plan day of the first date on or after date, 0
+// when there is none.
+func dayOnOrAfter(dates []time.Time, date string) int {
+	for i, d := range dates {
+		if d.Format(DateLayout) >= date {
+			return i + 1
+		}
+	}
+	return 0
+}
+
+// usable reports whether voucher v carries a slot on day d: it has started
+// and is not lost yet.
+func usable(from, until []int, v, d int) bool {
+	return from[v-1] <= d && (until[v-1] == 0 || d < until[v-1])
 }
 
 // phaseDays returns the number of plan days up to and including End, capped
@@ -182,19 +214,19 @@ func daysThrough(e *Event, date string) int {
 
 // pinCellOK reports whether a pin names a cell that exists: a day within the
 // horizon and a voucher that is available on that day.
-func pinCellOK(pin Pin, from []int, horizon int) bool {
-	return pin.Day >= 1 && pin.Day <= horizon && pin.Voucher >= 1 && pin.Voucher <= len(from) && from[pin.Voucher-1] <= pin.Day
+func pinCellOK(pin Pin, from, until []int, horizon int) bool {
+	return pin.Day >= 1 && pin.Day <= horizon && pin.Voucher >= 1 && pin.Voucher <= len(from) && usable(from, until, pin.Voucher, pin.Day)
 }
 
 // placeSlots fixes pinned slots to their cells and fills the remaining cells
 // day by day with the unpinned slots in priority order, using every voucher
-// from its start day on, from the day after the frozen days up to the
-// horizon (the end of the voucher phase, or MaxDays). Slots that do not fit
-// keep Day 0: they go to the public sale; without an end they are an error.
-// Vouchers of unpinned slots stay 0 until assignChains runs. Returns the grid
-// and warnings about pins that could not be applied; conflicting pins are an
-// error.
-func placeSlots(slots []*Slot, pins []Pin, from []int, frozen, horizon int) (grid [][]*Slot, warnings []string, err error) {
+// from its start day until it is lost, from the day after the frozen days up
+// to the horizon (the end of the voucher phase, or MaxDays). Slots that do
+// not fit keep Day 0: they go to the public sale; without an end they are an
+// error unless every voucher is lost. Vouchers of unpinned slots stay 0
+// until assignChains runs. Returns the grid and warnings about pins that
+// could not be applied; conflicting pins are an error.
+func placeSlots(slots []*Slot, pins []Pin, from, until []int, frozen, horizon int) (grid [][]*Slot, warnings []string, err error) {
 	total := len(from)
 	byLabel := make(map[string]*Slot, len(slots))
 	for _, s := range slots {
@@ -217,6 +249,9 @@ func placeSlots(slots []*Slot, pins []Pin, from []int, frozen, horizon int) (gri
 			continue
 		case from[pin.Voucher-1] > pin.Day:
 			warnings = append(warnings, fmt.Sprintf("pin %s: voucher %d is not yet available on day %d, dropped", pin.Label, pin.Voucher, pin.Day))
+			continue
+		case !usable(from, until, pin.Voucher, pin.Day):
+			warnings = append(warnings, fmt.Sprintf("pin %s: voucher %d is lost from day %d, dropped", pin.Label, pin.Voucher, until[pin.Voucher-1]))
 			continue
 		case s.Pinned:
 			return nil, nil, fmt.Errorf("pin %s: slot pinned twice", pin.Label)
@@ -249,10 +284,16 @@ func placeSlots(slots []*Slot, pins []Pin, from []int, frozen, horizon int) (gri
 		}
 	}
 	skipPinned()
+	// Once every voucher is lost, nobody else gets one: the rest goes to the
+	// public sale, with or without an end.
+	stop := horizon
+	if !slices.Contains(until, 0) {
+		stop = min(stop, slices.Max(until)-1)
+	}
 	lastFill := 0
 	for d := frozen + 1; next < len(slots); d++ {
-		if d > horizon {
-			if horizon < MaxDays {
+		if d > stop {
+			if stop < MaxDays {
 				break // the rest goes to the public sale
 			}
 			return nil, nil, fmt.Errorf("plan would need more than %d days", MaxDays)
@@ -260,7 +301,7 @@ func placeSlots(slots []*Slot, pins []Pin, from []int, frozen, horizon int) (gri
 		r := row(d)
 		free := 0
 		for v := 1; v <= total; v++ {
-			if from[v-1] <= d && r[v-1] == nil {
+			if usable(from, until, v, d) && r[v-1] == nil {
 				free++
 			}
 		}
@@ -283,7 +324,8 @@ func placeSlots(slots []*Slot, pins []Pin, from []int, frozen, horizon int) (gri
 // chainGroups lets every group keep its voucher. It runs after placeSlots and
 // keeps its choice of who is in the plan, so nobody goes to the public sale
 // for a group; it only moves days. Day by day, the unpinned slots fill the
-// free cells after the frozen days in priority order, as placeSlots does. A
+// free cells after the frozen days, on vouchers not lost, in priority order,
+// as placeSlots does. A
 // group (person with the group flag) starts its chain on the day its first
 // slot comes up or its first pin sits, whichever is earlier: at the end of
 // that day, groups in priority order, its other slots take target days from
@@ -302,7 +344,7 @@ func placeSlots(slots []*Slot, pins []Pin, from []int, frozen, horizon int) (gri
 // assignChains then keeps each chain on its voucher (costKeep) unless a
 // forbidden handover would outweigh it. Returns the grid, grown to the last
 // placed day.
-func chainGroups(e *Event, slots []*Slot, grid [][]*Slot, from []int, frozen, horizon int) [][]*Slot {
+func chainGroups(e *Event, slots []*Slot, grid [][]*Slot, from, until []int, frozen, horizon int) [][]*Slot {
 	days, last := len(grid), len(grid)
 	if e.OneChain {
 		last = horizon
@@ -319,8 +361,8 @@ func chainGroups(e *Event, slots []*Slot, grid [][]*Slot, from []int, frozen, ho
 	}
 	free := make([]int, last+1) // cells per day not taken by a pin, none on frozen days
 	for d := frozen + 1; d <= last; d++ {
-		for v, f := range from {
-			if f <= d && (d > days || grid[d-1][v] == nil) {
+		for v := 1; v <= len(from); v++ {
+			if usable(from, until, v, d) && (d > days || grid[d-1][v-1] == nil) {
 				free[d]++
 			}
 		}

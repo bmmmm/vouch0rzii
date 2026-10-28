@@ -78,6 +78,24 @@ func Normalize(e *Event) (warnings []string, err error) {
 	if total > MaxVouchers {
 		errs = append(errs, fmt.Errorf("%d vouchers in total, more than %d", total, MaxVouchers))
 	}
+	lost := map[int]bool{}
+	if len(e.Lost) > MaxVouchers {
+		errs = append(errs, fmt.Errorf("%d lost entries, more than %d", len(e.Lost), MaxVouchers))
+	}
+	for i := range e.Lost {
+		x := &e.Lost[i]
+		x.Date = strings.TrimSpace(x.Date)
+		switch {
+		case x.Voucher < 1 || x.Voucher > total:
+			errs = append(errs, fmt.Errorf("lost voucher %d: no such voucher (1 to %d)", x.Voucher, total))
+		case lost[x.Voucher]:
+			errs = append(errs, fmt.Errorf("lost voucher %d: listed twice", x.Voucher))
+		}
+		lost[x.Voucher] = true
+		if _, derr := ParseDate(x.Date); derr != nil {
+			errs = append(errs, fmt.Errorf("lost voucher %d: date must be YYYY-MM-DD, got %q", x.Voucher, x.Date))
+		}
+	}
 	if e.Every < 0 || e.Every > MaxEvery {
 		errs = append(errs, fmt.Errorf("every must be between 0 and %d days, got %d", MaxEvery, e.Every))
 	} else if e.Every == 1 {

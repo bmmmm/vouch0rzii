@@ -87,11 +87,11 @@ func nextHolder(grid [][]*Slot, d, v int) *Slot {
 // slots (see costScale). A day depends only on the days before it, the
 // pins and the slots' days, so pinning the past does not change the rest of
 // the plan. Day 1 keeps priority order unless a pin says otherwise.
-func assignChains(e *Event, slots []*Slot, grid [][]*Slot, from []int) {
+func assignChains(e *Event, slots []*Slot, grid [][]*Slot, from, until []int) {
 	for d := 1; d <= len(grid); d++ {
 		var free []int
 		for v := 1; v <= len(from); v++ {
-			if from[v-1] <= d && grid[d-1][v-1] == nil {
+			if usable(from, until, v, d) && grid[d-1][v-1] == nil {
 				free = append(free, v)
 			}
 		}
@@ -112,7 +112,7 @@ func assignChains(e *Event, slots []*Slot, grid [][]*Slot, from []int) {
 		idle, open := make([]int, len(free)), make([]bool, len(free))
 		for i, v := range free {
 			prev[i], next[i] = prevHolder(grid, d, v), nextHolder(grid, d, v) // only pins lie ahead yet
-			open[i] = d < len(grid) && grid[d][v-1] == nil && from[v-1] <= d+1
+			open[i] = d < len(grid) && grid[d][v-1] == nil && usable(from, until, v, d+1)
 			idle[i] = assignCost(e, prev[i], next[i])
 		}
 		cost := make([][]int, len(todo)) // slot j on voucher free[i], against that voucher idling

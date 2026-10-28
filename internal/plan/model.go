@@ -90,12 +90,20 @@ type Extra struct {
 	Count int    `json:"count"`
 }
 
+// Lost closes a voucher whose chain broke: from the first plan day on or
+// after Date it carries nobody, and the slots planned on it move elsewhere.
+type Lost struct {
+	Voucher int    `json:"voucher"` // 1-based, extras counted after the base vouchers
+	Date    string `json:"date"`
+}
+
 // Event is the per-event configuration plus the roster. It is the canonical
 // file format (events/<name>.json).
 type Event struct {
 	Name         string   `json:"name"`
 	Vouchers     int      `json:"vouchers"`               // chains available from day 1
 	Extra        []Extra  `json:"extra,omitempty"`        // chains that start later
+	Lost         []Lost   `json:"lost,omitempty"`         // chains that broke, at most one entry per voucher
 	Start        string   `json:"start"`                  // date of day 1, YYYY-MM-DD
 	End          string   `json:"end,omitempty"`          // last day of the voucher phase, YYYY-MM-DD; "" = until everyone is placed
 	Frozen       string   `json:"frozen,omitempty"`       // last day that is past, YYYY-MM-DD: days up to it take pinned slots only; set by "Pin until today"
@@ -202,7 +210,7 @@ type Stats struct {
 	Kept      int `json:"kept"` // handovers within a group
 	Forbidden int `json:"forbidden"`
 	Pinned    int `json:"pinned"`
-	Free      int `json:"free"` // voucher days nobody is placed on: until End, or within the grid
+	Free      int `json:"free"` // voucher days nobody is placed on: after the frozen days and before a voucher is lost, until End, or within the grid
 }
 
 // Plan is the computed result. Grid[d-1][v-1] is the slot of voucher v on day
@@ -213,6 +221,7 @@ type Plan struct {
 	Event     *Event
 	PhaseDays int      // plan days up to and including Event.End; 0 without an end
 	From      []int    // start day per voucher, 1-based; len(From) is the total voucher count
+	Until     []int    // first day without the voucher (Event.Lost), 0 = never
 	Dates     []string // YYYY-MM-DD per day
 	Slots     []*Slot  // in priority order
 	Grid      [][]*Slot

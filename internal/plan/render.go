@@ -16,6 +16,7 @@ type Export struct {
 	Fingerprint string           `json:"fingerprint"`
 	Vouchers    int              `json:"vouchers"`    // total, including extras
 	VoucherFrom []int            `json:"voucherFrom"` // first day per voucher, 1-based
+	VoucherLost []int            `json:"voucherLost"` // first day without the voucher, 0 = not lost
 	Handover    string           `json:"handover"`
 	End         DayExport        `json:"end"` // last day of the voucher phase; zero without an end
 	Days        []DayExport      `json:"days"`
@@ -112,6 +113,7 @@ func (p *Plan) ToExport() *Export {
 		Fingerprint: p.Fingerprint(),
 		Vouchers:    len(p.From),
 		VoucherFrom: p.From,
+		VoucherLost: p.Until,
 		Handover:    p.Event.HandoverOrDefault(),
 		End:         p.end(),
 		Handovers:   []HandoverExport{},
@@ -182,6 +184,12 @@ func (p *Plan) Markdown() string {
 		fmt.Fprintf(&b, "Voucher phase until %s (%d days), %d slots free.\n\n", p.end().Label, p.PhaseDays, s.Free)
 	} else {
 		fmt.Fprintf(&b, "%d slots free.\n\n", s.Free)
+	}
+	for v, u := range p.Until {
+		if u > 0 { // the day may lie beyond the grid
+			start, _ := ParseDate(p.Event.Start)
+			fmt.Fprintf(&b, "Voucher %d lost from %s.\n\n", v+1, DayLabel(Dates(start, u, p.Event.Weekends, p.Event.Every)[u-1]))
+		}
 	}
 	if pub := p.Public(); len(pub) > 0 {
 		fmt.Fprintf(&b, "**Public sale:** %d ticket(s) did not fit into the voucher phase: %s\n\n", len(pub), strings.Join(pub, ", "))

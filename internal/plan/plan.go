@@ -21,6 +21,10 @@ func Compute(e *Event, pins []Pin) (*Plan, error) {
 	if err != nil {
 		return nil, err
 	}
+	until, err := voucherEnds(e, len(starts))
+	if err != nil {
+		return nil, err
+	}
 	phase, horizon := phaseDays(e), MaxDays
 	if e.End != "" {
 		if phase == 0 {
@@ -32,26 +36,26 @@ func Compute(e *Event, pins []Pin) (*Plan, error) {
 	// be applied, so a pin on a vanished cell does not resurrect them.
 	keep := make(map[string]bool, len(pins))
 	for _, pin := range pins {
-		if pinCellOK(pin, starts, horizon) {
+		if pinCellOK(pin, starts, until, horizon) {
 			keep[pin.Label] = true
 		}
 	}
 	slots := buildSlots(e, keep)
 	frozen := frozenDays(e)
-	grid, pinWarnings, err := placeSlots(slots, pins, starts, frozen, horizon)
+	grid, pinWarnings, err := placeSlots(slots, pins, starts, until, frozen, horizon)
 	if err != nil {
 		return nil, err
 	}
 	warnings = append(warnings, pinWarnings...)
-	grid = chainGroups(e, slots, grid, starts, frozen, horizon)
+	grid = chainGroups(e, slots, grid, starts, until, frozen, horizon)
 	for v, f := range starts {
 		if phase > 0 && f > phase {
 			warnings = append(warnings, fmt.Sprintf("voucher %d: available from day %d, after the voucher phase (%d days), unused", v+1, f, phase))
 		}
 	}
-	assignChains(e, slots, grid, starts)
+	assignChains(e, slots, grid, starts, until)
 
-	p := &Plan{Event: e, PhaseDays: phase, From: starts, Slots: slots, Grid: grid, Warnings: warnings}
+	p := &Plan{Event: e, PhaseDays: phase, From: starts, Until: until, Slots: slots, Grid: grid, Warnings: warnings}
 	for _, t := range Dates(start, len(grid), e.Weekends, e.Every) {
 		p.Dates = append(p.Dates, t.Format(DateLayout))
 	}
@@ -89,15 +93,19 @@ func Compute(e *Event, pins []Pin) (*Plan, error) {
 		}
 	}
 	// Free voucher days: capacity of the phase (or of the grid, without an
-	// end) after the frozen days minus the slots placed there. Vouchers that
-	// arrive after the end add none.
+	// end) after the frozen days and before a voucher is lost, minus the
+	// slots placed there. Vouchers that arrive after the end add none.
 	span, placed := phase, 0
 	if span == 0 {
 		span = len(grid)
 	}
-	for _, f := range starts {
-		if f = max(f, frozen+1); f <= span {
-			p.Stats.Free += span - f + 1
+	for v, f := range starts {
+		hi := span
+		if u := until[v]; u > 0 {
+			hi = min(hi, u-1)
+		}
+		if f = max(f, frozen+1); f <= hi {
+			p.Stats.Free += hi - f + 1
 		}
 	}
 	for _, s := range slots {

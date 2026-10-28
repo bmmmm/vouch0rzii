@@ -326,6 +326,9 @@ func randomCase(t *testing.T, round uint64) (mk func() *Event, manual []Pin) {
 		e.Weekends = r.IntN(4) == 0
 		e.OneChain = r.IntN(2) == 0
 		e.MembersFirst = r.IntN(2) == 0
+		if r.IntN(4) == 0 { // drawn last, so the cases above stay as they were
+			e.Lost = []Lost{{Voucher: 1 + r.IntN(e.Vouchers), Date: []string{"2026-10-30", "2026-11-03", "2026-11-09"}[r.IntN(3)]}}
+		}
 		return e
 	}
 	r := rand.New(rand.NewPCG(round, 5))
@@ -342,18 +345,19 @@ func randomCase(t *testing.T, round uint64) (mk func() *Event, manual []Pin) {
 	return mk, manual
 }
 
-// Random rosters with several groups, some with pins by hand: every placed
-// slot sits on a voucher that exists that day, the same slots are placed as
-// without chains, with MembersFirst every member's own slot on the same day
-// and without members the plan of the default mode, the default mode keeps
-// the plan's length, and pinning the days up to any day keeps the plan, pins
-// by hand after that day included.
+// Random rosters with several groups, some with pins by hand or a lost
+// voucher: every placed slot sits on a voucher that exists and is not lost
+// that day, the same slots are placed as without chains, with MembersFirst
+// every member's own slot on the same day and without members the plan of
+// the default mode, the default mode keeps the plan's length, and pinning
+// the days up to any day keeps the plan, pins by hand after that day
+// included.
 func TestGroupChainsProperties(t *testing.T) {
 	for round := range uint64(1500) {
 		mk, manual := randomCase(t, round)
 		p := keepsThePast(t, fmt.Sprintf("round %d", round), mk, manual)
 		for _, s := range p.Slots {
-			if s.Day > 0 && (s.Voucher == 0 || p.Grid[s.Day-1][s.Voucher-1] != s || p.From[s.Voucher-1] > s.Day) {
+			if s.Day > 0 && (s.Voucher == 0 || p.Grid[s.Day-1][s.Voucher-1] != s || !usable(p.From, p.Until, s.Voucher, s.Day)) {
 				t.Fatalf("round %d: %s on day %d voucher %d: %v", round, s.Label, s.Day, s.Voucher, p.ToExport().Grid)
 			}
 		}
@@ -369,12 +373,13 @@ func TestGroupChainsProperties(t *testing.T) {
 			}
 		}
 		starts, _ := voucherStarts(plain)
+		until, _ := voucherEnds(plain, len(starts))
 		horizon := MaxDays
 		if plain.End != "" {
 			horizon = phaseDays(plain)
 		}
 		slots := buildSlots(plain, nil) // pins by hand take placed slots only, never of people who left
-		grid, _, err := placeSlots(slots, manual, starts, 0, horizon)
+		grid, _, err := placeSlots(slots, manual, starts, until, 0, horizon)
 		if err != nil {
 			t.Fatal(err)
 		}
