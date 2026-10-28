@@ -447,7 +447,7 @@ func chainGroups(e *Event, slots []*Slot, grid [][]*Slot, from, until []int, fro
 				due[id] = true
 			}
 			if due[id] && !started[id] && d >= membersDay {
-				chain(id, max(d+1, membersDay+1))
+				chain(id, d+1)
 			}
 		}
 	}
