@@ -39,8 +39,8 @@ data, and your browser history keeps it like any other link.
 3. **+N is capped at 2** unless the person carries the group flag (they
    represent a larger group). Their surplus (+3, +4, …) comes last. A person
    never hands the voucher directly to their own +N — unless they have the
-   group flag (rule 4). If such a handover cannot be avoided (one voucher,
-   one person with +1) it is used and reported as a warning.
+   group flag (rule 4). If the planner finds no way around such a handover
+   (one voucher, one person with +1) it is used and reported as a warning.
 4. **Groups keep their voucher.** +N slots stand in for their sponsor and
    share the sponsor's address, so a voucher that stays with a group needs
    no handover. From a group's first day its slots run day after day on as
@@ -51,8 +51,8 @@ data, and your browser history keeps it like any other link.
    gets into the plan at all still follows rules 2 and 3; only the days
    move. For each day the assignment person → voucher keeps every group on
    the voucher it holds, unless a voucher would otherwise go straight to
-   someone's own +N (rule 3); a 2-opt pass cleans up around pins and idle
-   days. The page marks these cells *group keeps the voucher*.
+   someone's own +N (rule 3). Each day is decided from the days before it
+   and the pins only. The page marks these cells *group keeps the voucher*.
 5. **Pins.** In the admin view a slot can be moved to another cell or swapped
    with another slot. Pins are kept in the link and respected before the
    automatic placement fills the rest. A voucher may idle for a day; the
@@ -64,7 +64,8 @@ data, and your browser history keeps it like any other link.
    roster changes while the tab is open; the link always carries the
    current state.
 6. **Mid-run changes.** "Pin until today" pins every slot up to today,
-   so roster edits only change the future. Someone who got a voucher
+   so roster edits only change the future; pinning alone changes
+   nothing. Someone who got a voucher
    elsewhere is marked `Out`: they stay in the draw (nobody
    else moves), their pinned slots remain, their other slots vanish and the
    people behind move up. Vouchers that arrive later go into `extra`

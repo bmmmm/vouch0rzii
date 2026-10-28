@@ -82,7 +82,7 @@ func Compute(e *Event, pins []Pin) (*Plan, error) {
 		switch {
 		case h.Forbidden:
 			p.Stats.Forbidden++
-			p.Warnings = append(p.Warnings, fmt.Sprintf("day %d, voucher %d: %s hands directly to %s (no alternative)", h.Day, h.Voucher, h.From.Label, h.To.Label))
+			p.Warnings = append(p.Warnings, fmt.Sprintf("day %d, voucher %d: %s hands directly to %s (no alternative found)", h.Day, h.Voucher, h.From.Label, h.To.Label))
 		case h.Kept:
 			p.Stats.Kept++
 		}

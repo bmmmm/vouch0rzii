@@ -28,20 +28,36 @@ func edgeCost(e *Event, from, to *Slot) int {
 	return costForbidden
 }
 
-// idleTie scales edgeCost so that one more unit breaks ties: a handover
-// across an idle day costs that unit, so between equal plans the one where
-// a voucher does not idle wins (it otherwise ties with the look at
-// tomorrow's pin). Larger than the idle edges compared at once: two per
-// voucher and day (TestIdleTieOnlyBreaksTies).
-const idleTie = 1024
+// The assignment ranks plans in three tiers, each scale above everything the
+// tiers below add up to in one day (TestTieScales): edgeCost first, then
+// tomorrow (the cheapest handover a voucher free tomorrow could make to one
+// of tomorrow's slots, so a tie today does not force a bad handover
+// tomorrow), then single units: a handover across an idle day, and day 1
+// out of priority order.
+const (
+	tomorrowScale = 1 << 10
+	costScale     = 1 << 27
+)
 
 // assignCost is edgeCost with the idle tie-break, for the assignment.
 func assignCost(e *Event, from, to *Slot) int {
-	c := edgeCost(e, from, to) * idleTie
+	c := edgeCost(e, from, to) * costScale
 	if from != nil && to != nil && to.Day > from.Day+1 {
 		c++
 	}
 	return c
+}
+
+// tomorrowCost is the tomorrow tier for holder s of a voucher that is free
+// tomorrow: its cheapest edge to one of tomorrow's unpinned slots.
+func tomorrowCost(e *Event, s *Slot, tomorrow []*Slot) int {
+	best := 0
+	for i, t := range tomorrow {
+		if c := edgeCost(e, s, t); i == 0 || c < best {
+			best = c
+		}
+	}
+	return best * tomorrowScale
 }
 
 // prevHolder returns the last slot in chain v before day d (1-based), or nil.
@@ -64,15 +80,13 @@ func nextHolder(grid [][]*Slot, d, v int) *Slot {
 	return nil
 }
 
-// assignChains gives every unpinned slot a voucher. Day by day, the free
-// vouchers are matched to the day's unpinned slots with minimal handover cost
-// against the previous holders (Hungarian); day 1 takes priority order.
-//
-// Without pins and idle days this is already the global optimum: the next
-// day can be permuted freely, so its best cost does not depend on today's
-// arrangement. Pins, idle days and chain ends break that, so a 2-opt pass
-// follows: swap two unpinned slots within a day whenever that lowers the
-// cost of the edges around them, until nothing improves.
+// assignChains gives every unpinned slot a voucher, day by day: the day's
+// unpinned slots are matched to the free vouchers (Hungarian) with minimal
+// handover cost from each voucher's previous holder and into its next pin,
+// against the cost of the voucher taking nobody today; ties go by tomorrow's
+// slots (see costScale). A day depends only on the days before it, the
+// pins and the slots' days, so pinning the past does not change the rest of
+// the plan. Day 1 keeps priority order unless a pin says otherwise.
 func assignChains(e *Event, slots []*Slot, grid [][]*Slot, from []int) {
 	for d := 1; d <= len(grid); d++ {
 		var free []int
@@ -81,76 +95,42 @@ func assignChains(e *Event, slots []*Slot, grid [][]*Slot, from []int) {
 				free = append(free, v)
 			}
 		}
-		var todo []*Slot
+		var todo, tomorrow []*Slot // tomorrow's slots have their day already (placeSlots, chainGroups)
 		for _, s := range slots {
-			if !s.Pinned && s.Day == d {
+			switch {
+			case s.Pinned:
+			case s.Day == d:
 				todo = append(todo, s)
+			case s.Day == d+1:
+				tomorrow = append(tomorrow, s)
 			}
 		}
 		if len(todo) == 0 {
 			continue
 		}
-		n := len(free)
-		cost := make([][]int, n)
+		prev, next := make([]*Slot, len(free)), make([]*Slot, len(free))
+		idle, open := make([]int, len(free)), make([]bool, len(free))
 		for i, v := range free {
-			cost[i] = make([]int, n)
-			prev := prevHolder(grid, d, v)
-			var next *Slot // a pin tomorrow is the next holder for sure
-			if d < len(grid) {
-				next = grid[d][v-1]
-			}
-			for j := range todo {
-				cost[i][j] = assignCost(e, prev, todo[j]) + assignCost(e, todo[j], next)
-			}
-			for j := len(todo); j < n; j++ { // dummies: nobody today, a pin tomorrow receives from prev
-				cost[i][j] = assignCost(e, prev, next)
-			}
+			prev[i], next[i] = prevHolder(grid, d, v), nextHolder(grid, d, v) // only pins lie ahead yet
+			open[i] = d < len(grid) && grid[d][v-1] == nil && from[v-1] <= d+1
+			idle[i] = assignCost(e, prev[i], next[i])
 		}
-		var match []int
-		if d == 1 {
-			match = make([]int, n)
-			for i := range match {
-				match[i] = i
-			}
-		} else {
-			match = hungarian(cost)
-		}
-		for i, v := range free {
-			if j := match[i]; j < len(todo) {
-				todo[j].Voucher = v
-				grid[d-1][v-1] = todo[j]
-			}
-		}
-	}
-	improve(e, grid)
-}
-
-// improve is the 2-opt pass described on assignChains.
-func improve(e *Event, grid [][]*Slot) {
-	for round := 0; round < 100; round++ {
-		changed := false
-		for d := 1; d <= len(grid); d++ {
-			row := grid[d-1]
-			for a := 0; a < len(row); a++ {
-				for b := a + 1; b < len(row); b++ {
-					sa, sb := row[a], row[b]
-					if sa == nil || sb == nil || sa.Pinned || sb.Pinned {
-						continue
-					}
-					pa, pb := prevHolder(grid, d, a+1), prevHolder(grid, d, b+1)
-					na, nb := nextHolder(grid, d, a+1), nextHolder(grid, d, b+1)
-					before := assignCost(e, pa, sa) + assignCost(e, pb, sb) + assignCost(e, sa, na) + assignCost(e, sb, nb)
-					after := assignCost(e, pa, sb) + assignCost(e, pb, sa) + assignCost(e, sb, na) + assignCost(e, sa, nb)
-					if after < before {
-						row[a], row[b] = sb, sa
-						sa.Voucher, sb.Voucher = b+1, a+1
-						changed = true
-					}
+		cost := make([][]int, len(todo)) // slot j on voucher free[i], against that voucher idling
+		for j, s := range todo {
+			cost[j] = make([]int, len(free))
+			for i := range free {
+				cost[j][i] = assignCost(e, prev[i], s) + assignCost(e, s, next[i]) - idle[i]
+				if open[i] {
+					cost[j][i] += tomorrowCost(e, s, tomorrow)
+				}
+				if d == 1 && i != j {
+					cost[j][i]++
 				}
 			}
 		}
-		if !changed {
-			return
+		for j, i := range hungarian(cost) {
+			todo[j].Voucher = free[i]
+			grid[d-1][free[i]-1] = todo[j]
 		}
 	}
 }

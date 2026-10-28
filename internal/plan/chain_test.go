@@ -118,12 +118,12 @@ func TestPinnedGroupSlotTakesItsDay(t *testing.T) {
 }
 
 // keepsThePast computes mk() with the manual pins and checks that pinning
-// every day from..t, as "Pin until today" does on day t, keeps the plan for
-// every t from `from` on. Manual pins after t stay pins.
-func keepsThePast(t *testing.T, name string, mk func() *Event, manual []Pin, from int) *Plan {
+// every day 1..t, as "Pin until today" does on day t, keeps the plan for
+// every t. Manual pins after t stay pins.
+func keepsThePast(t *testing.T, name string, mk func() *Event, manual []Pin) *Plan {
 	t.Helper()
 	p := mustCompute(t, mk(), manual)
-	for day := from; day <= p.Stats.Days; day++ {
+	for day := 1; day <= p.Stats.Days; day++ {
 		var pins []Pin
 		for _, pin := range Freeze(p) {
 			if pin.Day <= day {
@@ -151,7 +151,7 @@ func TestTwoGroupsKeepTheOrderAndThePast(t *testing.T) {
 		ps[2].Plus, ps[2].Group = 1, true
 		return mkEvent(1, ps...)
 	}
-	p := keepsThePast(t, "two groups", mk, nil, 1)
+	p := keepsThePast(t, "two groups", mk, nil)
 	want := [][]string{{"a"}, {"a+1"}, {"a+2"}, {"b"}, {"c"}, {"c+1"}}
 	if got := p.ToExport().Grid; !reflect.DeepEqual(got, want) {
 		t.Fatalf("got %v want %v", got, want)
@@ -166,7 +166,7 @@ func TestGroupChainsOnlyOnce(t *testing.T) {
 		ps[1].Plus, ps[1].Group = 10, true
 		ps[2].Plus, ps[2].Group = 13, true
 		return mkEvent(3, ps...)
-	}, nil, 1)
+	}, nil)
 }
 
 // A group pinned by hand starts its chain on the day of its first pin, not
@@ -177,7 +177,7 @@ func TestGroupChainStartsAtTheFirstPin(t *testing.T) {
 		ps[0].Plus = 2
 		ps[3].Plus, ps[3].Group = 4, true
 		return mkEvent(2, ps...)
-	}, []Pin{{Label: "g", Day: 4, Voucher: 2}, {Label: "b", Day: 3, Voucher: 1}, {Label: "g+4", Day: 3, Voucher: 2}}, 2)
+	}, []Pin{{Label: "g", Day: 4, Voucher: 2}, {Label: "b", Day: 3, Voucher: 1}, {Label: "g+4", Day: 3, Voucher: 2}})
 }
 
 // Group slots cut by the end of the voucher phase stay in the public sale.
@@ -191,9 +191,8 @@ func TestGroupSlotsInThePublicSale(t *testing.T) {
 }
 
 // randomCase builds random roster number round with several groups, and up
-// to three of its slots pinned by hand to cells of the first three days;
-// from is the last day with such a pin.
-func randomCase(t *testing.T, round uint64) (mk func() *Event, manual []Pin, from int) {
+// to three of its slots pinned by hand to cells anywhere in its plan.
+func randomCase(t *testing.T, round uint64) (mk func() *Event, manual []Pin) {
 	mk = func() *Event {
 		r := rand.New(rand.NewPCG(round, 3))
 		e := mkEvent(1 + r.IntN(4))
@@ -217,33 +216,27 @@ func randomCase(t *testing.T, round uint64) (mk func() *Event, manual []Pin, fro
 	}
 	r := rand.New(rand.NewPCG(round, 5))
 	p0 := mustCompute(t, mk(), nil)
-	from = 1
 	taken := map[[2]int]bool{}
 	for i := r.IntN(4); i > 0 && len(p0.Slots) > 0; i-- {
-		s, day, v := p0.Slots[r.IntN(len(p0.Slots))], 1+r.IntN(min(3, p0.Stats.Days)), 1+r.IntN(len(p0.From))
+		s, day, v := p0.Slots[r.IntN(len(p0.Slots))], 1+r.IntN(p0.Stats.Days), 1+r.IntN(len(p0.From))
 		if s.Day == 0 || p0.From[v-1] > day || taken[[2]int{day, v}] || slices.ContainsFunc(manual, func(m Pin) bool { return m.Label == s.Label }) {
 			continue
 		}
 		taken[[2]int{day, v}] = true
 		manual = append(manual, Pin{Label: s.Label, Day: day, Voucher: v})
-		from = max(from, day)
 	}
-	return mk, manual, from
+	return mk, manual
 }
 
-// Random rosters with several groups, some with pins by hand in the first
-// days: every placed slot sits on a voucher that exists that day, the same
-// slots are placed as without chains, the default mode keeps the plan's
-// length, and pinning the days up to any later day keeps the plan. Round
-// 12812, found over 40,000, needs the assignment's look at tomorrow's pins.
+// Random rosters with several groups, some with pins by hand: every placed
+// slot sits on a voucher that exists that day, the same slots are placed as
+// without chains, the default mode keeps the plan's
+// length, and pinning the days up to any day keeps the plan, pins by hand
+// after that day included.
 func TestGroupChainsProperties(t *testing.T) {
-	rounds := []uint64{12812}
 	for round := range uint64(1500) {
-		rounds = append(rounds, round)
-	}
-	for _, round := range rounds {
-		mk, manual, from := randomCase(t, round)
-		p := keepsThePast(t, fmt.Sprintf("round %d", round), mk, manual, from)
+		mk, manual := randomCase(t, round)
+		p := keepsThePast(t, fmt.Sprintf("round %d", round), mk, manual)
 		for _, s := range p.Slots {
 			if s.Day > 0 && (s.Voucher == 0 || p.Grid[s.Day-1][s.Voucher-1] != s || p.From[s.Voucher-1] > s.Day) {
 				t.Fatalf("round %d: %s on day %d voucher %d: %v", round, s.Label, s.Day, s.Voucher, p.ToExport().Grid)

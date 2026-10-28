@@ -28,11 +28,22 @@ what to check.
   single voucher and lets the plan grow up to the end of the voucher phase.
   Who gets into the plan still follows the tiers; only days move. In the
   example mammut's eleven slots run on two vouchers instead of six.
-- The assignment counts the handover into a pin on the next day: a slot no
-  longer lands right before a pinned slot of the same person (without the
-  group flag) when another voucher is free, and among equal choices a
-  voucher does not idle before its pin. A group goes on with its own
-  voucher rather than one fresh from the organisers.
+- The assignment decides each day from the days before it and the pins
+  only, counting the handover into each voucher's next pin and, to break
+  ties, the cheapest handover to tomorrow's slots; the 2-opt pass that
+  changed earlier days afterwards is gone. Pinning the past ("Pin until
+  today") keeps the rest of the plan, pins by hand after today included
+  (0 of 20,000 random rosters changed, 51 before). A slot no longer lands
+  right before a pinned slot of the same person (without the group flag)
+  when another voucher is free, among equal choices a voucher does not idle
+  before its pin, and a group goes on with its own voucher rather than one
+  fresh from the organisers. Plans with pins by hand may hand a voucher
+  straight to someone's own +N a little more often (about 6 % more in
+  random rosters, warned as "no alternative found"). A day with few slots
+  and many vouchers is solved much faster.
+- Plans come out differently than with 0.1.0, also without pins. For an
+  event already under way, "Pin until today" before upgrading keeps the
+  days that have passed.
 - Exports: `stats.kept` and `handovers[].kept` (handovers within a group)
   replace `stats.known`, `stats.unknown` and `handovers[].known`; the SVG
   arrow kinds are `kept`, `pass` and `forbidden`; the legend shows only

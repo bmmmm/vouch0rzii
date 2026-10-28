@@ -17,19 +17,19 @@ func totalCost(cost [][]int, match []int) int {
 }
 
 func bruteForce(cost [][]int) int {
-	n := len(cost)
+	n, m := len(cost), len(cost[0])
 	perm := make([]int, n)
-	used := make([]bool, n)
-	best := -1
+	used := make([]bool, m)
+	best, found := 0, false
 	var rec func(i, acc int)
 	rec = func(i, acc int) {
 		if i == n {
-			if best < 0 || acc < best {
-				best = acc
+			if !found || acc < best {
+				best, found = acc, true
 			}
 			return
 		}
-		for j := 0; j < n; j++ {
+		for j := 0; j < m; j++ {
 			if !used[j] {
 				used[j] = true
 				perm[i] = j
@@ -40,6 +40,36 @@ func bruteForce(cost [][]int) int {
 	}
 	rec(0, 0)
 	return best
+}
+
+// The assignment hands the Hungarian fewer rows (slots) than columns
+// (vouchers) and costs relative to idling, so negative ones.
+func TestHungarianRectangularNegative(t *testing.T) {
+	rng := rand.New(rand.NewPCG(3, 4))
+	for n := 1; n <= 5; n++ {
+		for m := n; m <= n+3; m++ {
+			for range 40 {
+				cost := make([][]int, n)
+				for i := range cost {
+					cost[i] = make([]int, m)
+					for j := range cost[i] {
+						cost[i][j] = rng.IntN(101) - 50
+					}
+				}
+				match := hungarian(cost)
+				seen := map[int]bool{}
+				for _, j := range match {
+					if seen[j] {
+						t.Fatalf("column used twice: %v", match)
+					}
+					seen[j] = true
+				}
+				if got, want := totalCost(cost, match), bruteForce(cost); got != want {
+					t.Fatalf("%d×%d cost=%v: hungarian %d, brute force %d", n, m, cost, got, want)
+				}
+			}
+		}
+	}
 }
 
 func TestHungarianKnownOptimum(t *testing.T) {
@@ -129,9 +159,8 @@ func TestForbiddenEdgeUnavoidableWarns(t *testing.T) {
 	}
 }
 
-// q is pinned on day 3 and q+1 is day 2's only slot, which the 2-opt pass
-// cannot move: the assignment itself must keep q+1 off q's voucher, on
-// either voucher.
+// q is pinned on day 3 and q+1 is day 2's only slot: the assignment keeps q+1
+// off q's voucher, whichever it is.
 func TestAssignLooksAtTomorrowsPin(t *testing.T) {
 	for v := 1; v <= 2; v++ {
 		ps := ordered("a", "b", "q")
@@ -143,11 +172,46 @@ func TestAssignLooksAtTomorrowsPin(t *testing.T) {
 	}
 }
 
-// All idle units of one day's assignment (two edges per voucher) stay below
-// one unit of edgeCost, so they only break ties.
-func TestIdleTieOnlyBreaksTies(t *testing.T) {
-	if idleTie <= 2*MaxVouchers {
-		t.Fatalf("idleTie %d is not above 2 × %d vouchers", idleTie, MaxVouchers)
+// a and b tie on day 1, but a+1 is day 2's only free slot on voucher 1 (x is
+// pinned on voucher 2): a must not take voucher 1, or it hands straight to
+// a+1. The look at tomorrow's slots breaks the tie.
+func TestTieLooksAtTomorrowsSlots(t *testing.T) {
+	ps := ordered("a", "b", "x")
+	for i := range ps {
+		ps[i].Plus = 1
+	}
+	p := mustCompute(t, mkEvent(2, ps...), []Pin{{Label: "x", Day: 2, Voucher: 2}, {Label: "x+1", Day: 3, Voucher: 1}})
+	if p.Stats.Forbidden != 0 {
+		t.Fatalf("%v, stats %+v", p.ToExport().Grid, p.Stats)
+	}
+}
+
+// The tomorrow tier takes the cheapest edge to any of tomorrow's slots.
+func TestTomorrowCostTakesTheCheapest(t *testing.T) {
+	ps := ordered("a", "c")
+	ps[0].Plus = 1
+	e := mkEvent(1, ps...)
+	if _, err := Normalize(e); err != nil {
+		t.Fatal(err)
+	}
+	a, a1, c := &Slot{PersonID: "a"}, &Slot{PersonID: "a", K: 1}, &Slot{PersonID: "c"}
+	if got := tomorrowCost(e, a, []*Slot{a1, c}); got != costPass*tomorrowScale {
+		t.Fatalf("a before a+1 or c: %d", got)
+	}
+	if got := tomorrowCost(e, a, []*Slot{a1}); got != costForbidden*tomorrowScale {
+		t.Fatalf("a before a+1 only: %d", got)
+	}
+}
+
+// Each tier of the assignment outweighs all a day can add up below it: per
+// slot four single units (three idle edges, day 1's order) and two tomorrow
+// edges, for up to MaxVouchers slots.
+func TestTieScales(t *testing.T) {
+	if units := 4 * MaxVouchers; units >= tomorrowScale {
+		t.Fatalf("%d single units reach tomorrowScale %d", units, tomorrowScale)
+	}
+	if below := MaxVouchers * (2*costForbidden*tomorrowScale + 4); below >= costScale {
+		t.Fatalf("%d below reaches costScale %d", below, costScale)
 	}
 }
 
@@ -179,9 +243,9 @@ func TestGroupPrefersItsVoucherToAFreshOne(t *testing.T) {
 	}
 }
 
-// Day 1 follows the priority order, so a holds voucher 1 and would hand it
-// straight to a+1, pinned on day 2; the 2-opt pass must swap a and b.
-func TestImproveLooksPastPins(t *testing.T) {
+// Day 1 follows the priority order, so a would take voucher 1 and hand it
+// straight to a+1, pinned there on day 2; the look at the pin swaps a and b.
+func TestDayOneLooksAtPins(t *testing.T) {
 	ps := ordered("a", "b", "c")
 	ps[0].Plus = 1
 	p := mustCompute(t, mkEvent(2, ps...), []Pin{{Label: "a+1", Day: 2, Voucher: 1}})
