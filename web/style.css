@@ -90,6 +90,7 @@ th small { display: block; color: var(--muted); font-weight: 400; }
 #matrix td.cell.empty { color: var(--muted); font-style: italic; outline: 1px dashed var(--line); outline-offset: -4px; }
 #matrix td.cell.extra { border-style: dashed; color: var(--muted); }
 #matrix td.cell.na { background: repeating-linear-gradient(45deg, transparent 0 6px, var(--line) 6px 7px); cursor: default; }
+#matrix td.cell.lost { background: repeating-linear-gradient(-45deg, transparent 0 6px, var(--forbidden) 6px 7px); }
 #matrix.editable td.cell { cursor: pointer; }
 #matrix.editable td.cell.dragover { outline: 3px dashed var(--select); outline-offset: -3px; }
 #matrix input.cellname { width: 100%; min-width: 6rem; padding: .1rem .3rem; font-size: .85rem; }
@@ -143,6 +144,7 @@ button.badge { cursor: pointer; font: inherit; font-size: .8rem; border-color: v
 .tile { border: 1px solid var(--line); border-left: 5px solid var(--stranger); border-radius: 8px; padding: .5rem .7rem; background: var(--bg); }
 .tile b, .tile small { display: block; }
 .tile.holding { border-left-color: var(--received); } .tile.moving { border-left-color: var(--accent); } .tile.done { border-left-color: var(--known); }
+.tile.lost { border-left-style: dashed; border-left-color: var(--forbidden); }
 .tile.late { border-left-color: var(--forbidden); } .tile small.late { color: var(--forbidden); font-weight: 600; }
 .cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 0 1.5rem; }
 .cols ul { margin: 0; padding: 0; list-style: none; } .cols li { margin: .2rem 0; }

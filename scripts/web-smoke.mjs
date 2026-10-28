@@ -11,7 +11,8 @@
 // Requires a prior `go build -o vouch0rzii .` and `scripts/build-web.sh`.
 import { createRequire } from 'node:module';
 import { execFileSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -44,6 +45,21 @@ const planned = bridge.plan(eventJSON, '[]');
 check('plan() ok', planned.ok, JSON.stringify(planned.errors));
 check('plan JSON equals CLI -format json byte for byte', planned.exportJson === refJSON);
 check('plan returns markdown/csv/svg', planned.markdown.includes('47 slots') && planned.markdown.startsWith('# congress2026') && planned.csv.startsWith('Voucher;') && planned.svg.startsWith('<svg '));
+
+// The same after the start: the first three days pinned and frozen, voucher 3
+// lost from day 2, so its pins there are dropped with a warning.
+const ref = JSON.parse(refJSON);
+const startedEvent = { ...JSON.parse(readFileSync(eventPath, 'utf8')), frozen: ref.days[2].date, lost: [{ voucher: 3, date: ref.days[1].date }] };
+const pastPins = ref.sheets.filter((s) => s.day <= 3).map(({ label, day, voucher }) => ({ label, day, voucher }));
+const tmp = mkdtempSync(join(tmpdir(), 'vouch0rzii-smoke-'));
+writeFileSync(join(tmp, 'event.json'), JSON.stringify(startedEvent));
+writeFileSync(join(tmp, 'pins.json'), JSON.stringify(pastPins));
+const startedRef = execFileSync(cli, ['-event', join(tmp, 'event.json'), '-pins', join(tmp, 'pins.json'), '-format', 'json']).toString();
+rmSync(tmp, { recursive: true });
+const startedPlan = bridge.plan(JSON.stringify(startedEvent), JSON.stringify(pastPins));
+check('after the start (frozen, lost, pins): plan JSON equals the CLI byte for byte', startedPlan.ok && startedPlan.exportJson === startedRef, JSON.stringify(startedPlan.errors));
+const sx = startedPlan.ok ? JSON.parse(startedPlan.exportJson) : { voucherLost: [], warnings: [] };
+check('after the start: voucher 3 lost from day 2, its pins there dropped', sx.voucherLost[2] === 2 && sx.warnings.some((w) => w.endsWith('voucher 3 is lost from day 2, dropped')), JSON.stringify(sx.warnings));
 
 const broken = bridge.plan('{"name":"x","vouchers":0,"start":"nope","people":[]}', '');
 check('broken event → ok:false with errors, no exception', broken.ok === false && broken.errors.length >= 3, JSON.stringify(broken.errors));

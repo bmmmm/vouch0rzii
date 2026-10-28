@@ -95,6 +95,14 @@
       fileUnreadable: (e) => `Datei nicht lesbar: ${e}`, skipped: (list) => `Schon vorhanden, übersprungen: ${list}`,
       added: (n) => `${n} Person(en) hinzugefügt, jetzt „Plan berechnen"`, nothingAdded: 'Nichts Neues hinzugefügt',
       noneGone: 'Noch kein Tag vergangen, nichts festzunageln', frozen: (n) => `${n} Slot(s) bis heute festgenagelt`,
+      lost: 'verloren', lostCell: 'Voucher verloren', lostFrom: (day) => `verloren ab ${day}`, lostMarked: (v, n) => `Voucher ${v} verloren, ${n} Slot(s) verschoben`,
+      lostTitle: (v, who, day) => `Voucher ${v} ging bei ${who} verloren: ab ${day} ist er zu, ${who} und alle Späteren darauf kommen nach heute neu in den Plan`,
+      found: 'wieder da', foundTitle: (v) => `Voucher ${v} ist wieder da: der Plan nutzt ihn wieder`,
+      blockLost: 'Gewürfelt wird nur vor dem Start: ein Voucher ist verloren.',
+      lockedStarted: 'Nach dem Start gesperrt: das würde die Vergangenheit verschieben. Frei erst ohne Pins, Status und verlorene Voucher.',
+      lockedVouchers: 'Nach dem Start bleiben die Voucher-Nummern: keine Voucher weniger, neue nur hinten dran. Mit zusätzlichen Vouchers verschiebt ein höheres „Vouchers" deren Nummern; dann lieber einen weiteren Eintrag bei „Zusätzliche Vouchers".',
+      lockedPins: 'Nach dem Start bleiben Pins, wo sie sind: die Änderung würde einen gepinnten Slot verschieben oder streichen. Erst den Pin lösen (×).',
+      futureMoved: (n) => `${n} geplante(r) Slot(s) verschoben: Betroffene informieren.`,
       adminLink: (fp) => `Admin-Link, Stand ${fp},`, viewLink: (fp) => `Viewer-Link, Stand ${fp},`, boardLink: (fp) => `Board-Link, Stand ${fp},`,
       collectLink: 'Sammel-Link', needTo: 'Für den Sammel-Link braucht es die Orga-Adresse (Feld oben).', needName: 'Für den Sammel-Link braucht es den Event-Namen.',
       line: 'Zeile', theEvent: 'das Event',
@@ -166,6 +174,14 @@
       fileUnreadable: (e) => `File not readable: ${e}`, skipped: (list) => `Already there, skipped: ${list}`,
       added: (n) => `${n} person(s) added, now "Compute plan"`, nothingAdded: 'Nothing new added',
       noneGone: 'No day has passed yet, nothing to pin', frozen: (n) => `${n} slot(s) pinned until today`,
+      lost: 'lost', lostCell: 'Voucher lost', lostFrom: (day) => `lost from ${day}`, lostMarked: (v, n) => `Voucher ${v} lost, ${n} slot(s) moved`,
+      lostTitle: (v, who, day) => `Voucher ${v} got lost with ${who}: from ${day} on it is closed, ${who} and everyone after on it are planned again after today`,
+      found: 'found', foundTitle: (v) => `Voucher ${v} is back: the plan uses it again`,
+      blockLost: 'Rolling is only for the start: a voucher is lost.',
+      lockedStarted: 'Locked after the start: it would move the past. Free again without pins, statuses and lost vouchers.',
+      lockedVouchers: 'After the start the voucher numbers stay: no fewer vouchers, new ones only at the end. With extra vouchers, raising "Vouchers" renumbers them; add another entry under "Extra vouchers" instead.',
+      lockedPins: 'After the start pins stay where they are: this change would move or drop a pinned slot. Release the pin (×) first.',
+      futureMoved: (n) => `${n} planned slot(s) moved: tell the people concerned.`,
       adminLink: (fp) => `Admin link, state ${fp},`, viewLink: (fp) => `Viewer link, state ${fp},`, boardLink: (fp) => `Board link, state ${fp},`,
       collectLink: 'Sign-up link', needTo: 'The sign-up link needs the organiser address (field above).', needName: 'The sign-up link needs the event name.',
       line: 'Line', theEvent: 'the event',
@@ -398,14 +414,44 @@
   }
 
   // ---------- planning
+  // Started: a pin, a status or a lost voucher. From then on the past is
+  // fact; settings that would move it are locked (applyLocks, lockedChange).
+  // Without a plan every status counts, so a form error keeps the locks.
+  const started = () => state.pins.length > 0 || (state.event.lost || []).length > 0 || (plan ? tracking() : Object.keys(state.status).length > 0);
+  // lockedChange tries a form change after the start: the voucher numbers
+  // stay (pins and lost marks name them; extras are numbered after the base
+  // vouchers), and no pin moves or drops while its slot still exists.
+  // Returns the TEXT key of the reason, or ''.
+  function lockedChange(ev) {
+    if (!plan || !started() || canon(ev) === canon(state.event)) return '';
+    const trial = bridge.plan(JSON.stringify(ev), JSON.stringify(state.pins));
+    if (!trial.ok) return ''; // the computation shows the errors
+    const x = JSON.parse(trial.exportJson);
+    if (plan.voucherFrom.some((f, i) => x.voucherFrom[i] !== f)) return 'lockedVouchers';
+    const at = new Map(x.sheets.map((s) => [s.label, s]));
+    const pub = new Set(x.public);
+    const dropped = (p) => { const s = at.get(p.label); return s ? !s.pinned : pub.has(p.label); }; // an applied pin sits on its cell
+    return state.pins.some(dropped) ? 'lockedPins' : '';
+  }
+  // movedSince counts the slots of an older plan that the current plan puts
+  // on another day or voucher, or into the public sale.
+  function movedSince(old) {
+    const now = new Map(plan.sheets.map((s) => [s.label, s]));
+    const pub = new Set(plan.public);
+    return old.sheets.filter((w) => { const s = now.get(w.label); return s ? s.day !== w.day || s.voucher !== w.voucher : pub.has(w.label); }).length;
+  }
   function computePlan({ fromForm = true, shuffle = false } = {}) {
     let warnings = [];
     const anchor = fromForm ? $('#compute').parentElement : null; // form problems show under "Compute plan"
+    const old = fromForm && started() ? plan : null; // after the start a form change says what it moved
     if (fromForm) {
       const f = readForm();
       const r = rosterToPeople();
       if (!r) return false;
-      mutate(() => { state.event = { ...f.event, people: r.people }; state.collect = { to: f.to }; });
+      const ev = { ...f.event, people: r.people };
+      const locked = lockedChange(ev);
+      if (locked) { showMessages([() => t(locked)], [], anchor); return false; }
+      mutate(() => { state.event = ev; state.collect = { to: f.to }; });
       warnings = r.warnings;
     }
     const pinnedAt = new Map(plan ? plan.sheets.filter((s) => s.pinned).map((s) => [s.label, { day: s.day, date: s.date, name: dayName(plan.days[s.day - 1]) }]) : []);
@@ -420,6 +466,8 @@
     // Pins hold plan days: a new start, weekend rule or every moves them in the calendar.
     const moved = plan.sheets.filter((s) => { const was = s.pinned && pinnedAt.get(s.label); return was && was.day === s.day && was.date !== s.date; }); // a pin moved to another day is a move, not a calendar change
     if (moved.length) warnings.push(t('pinsMoved', moved.map((s) => `${s.label} ${pinnedAt.get(s.label).name} → ${dayName(plan.days[s.day - 1])}`).join(', ')));
+    const shifted = old ? movedSince(old) : 0;
+    if (shifted) warnings.push(() => t('futureMoved', shifted));
     showMessages([], warnings.concat(plan.warnings), anchor);
     renderResult();
     if (shuffle) shuffleMatrix();
@@ -507,6 +555,38 @@
     computePlan({ fromForm: false });
     return true;
   }
+  // pinUntilToday pins every slot up to today and closes those days: frozen
+  // days take no new slot, so free cells in the past stay free. Returns how
+  // many slots it pinned. Inside mutate.
+  function pinUntilToday() {
+    const now = today();
+    const gone = plan.sheets.filter((s) => s.date <= now);
+    for (const s of gone) setPin(s.label, s.day, s.voucher);
+    if (gone.length) state.event = { ...state.event, frozen: now };
+    return gone.length;
+  }
+  // markLost closes the voucher of a slot from that slot's day on: its chain
+  // broke there. The past is pinned as with "Pin until today", except the
+  // closed cells, so that slot and every later one on the voucher are
+  // planned again after today, in priority order on the vouchers left.
+  function markLost(s) {
+    const old = plan;
+    const closed = (x) => x.voucher === s.voucher && x.day >= s.day;
+    mutate(() => {
+      pinUntilToday();
+      state.pins = state.pins.filter((p) => !closed(p));
+      state.event = { ...state.event, lost: [...(state.event.lost || []).filter((x) => x.voucher !== s.voucher), { voucher: s.voucher, date: s.date }] };
+    });
+    selected = null;
+    if (computePlan({ fromForm: false })) toast(t('lostMarked', s.voucher, movedSince(old)));
+  }
+  // foundVoucher takes a lost mark back; the voucher carries slots again
+  // after the frozen days.
+  function foundVoucher(v) {
+    mutate(() => { state.event = { ...state.event, lost: (state.event.lost || []).filter((x) => x.voucher !== v) }; }); // the link leaves an empty list out
+    selected = null;
+    computePlan({ fromForm: false });
+  }
 
   // ---------- live status (curated by admins, carried in the link)
   const statusOf = (label) => (STATUS.includes(state.status[label]) ? state.status[label] : 'open');
@@ -535,14 +615,16 @@
   }
   const handoverFrom = (label) => plan.handovers.find((h) => h.from === label);
   // voucherState reads the curated status of one chain: where the voucher is
-  // (kind: done, moving, holding, orga, none) and whether it is overdue.
-  // Overdue marks only once the sale is being tracked (track).
+  // (kind: lost, done, moving, holding, orga, none) and whether it is
+  // overdue. Overdue marks only once the sale is being tracked (track).
   function voucherState(v, now, track) {
     const chain = plan.sheets.filter((s) => s.voucher === v); // in day order
     const st = chain.map((s) => statusOf(s.label));
     const holder = Math.max(st.lastIndexOf('received'), st.lastIndexOf('bought'));
     const passed = st.lastIndexOf('passed');
     const day = (s) => dayName(plan.days[s.day - 1]);
+    const lost = (plan.voucherLost || [])[v - 1]; // the day may lie beyond the grid: then the date of the mark
+    if (lost) return { v, kind: 'lost', text: t('lostFrom', lost <= plan.days.length ? dayName(plan.days[lost - 1]) : (state.event.lost.find((x) => x.voucher === v) || {}).date) };
     if (passed > holder) {
       const next = chain[passed + 1];
       if (!next) return { v, kind: 'done', text: t('chainDone') };
@@ -581,7 +663,8 @@
     const items = [];
     for (let v = 1; v <= plan.vouchers; v++) {
       const s = voucherState(v, now, track);
-      items.push(el('li', { class: s.late ? 'live overdue' : 'live' }, `Voucher ${v}: ${s.text}`, s.late ? ` — ${t('overdue')}` : ''));
+      items.push(el('li', { class: s.late ? 'live overdue' : 'live' }, `Voucher ${v}: ${s.text}`, s.late ? ` — ${t('overdue')}` : '',
+        s.kind === 'lost' && state.mode === 'admin' && [' ', el('button', { type: 'button', class: 'small found', title: t('foundTitle', v), onclick: () => foundVoucher(v) }, t('found'))]));
     }
     $('#liveList').replaceChildren(...items);
     $('#liveAt').textContent = statusStand();
@@ -631,8 +714,27 @@
   }
 
   // ---------- rendering
+  // applyLocks disables the settings that would move the past once the sale
+  // has started: the calendar (start, weekends, every) and the draw (seed,
+  // and the name while it stands in for the seed). A locked field shows the
+  // value in use; an edit not computed yet would move the past just as well.
+  const LOCKS = [ // DEFAULT_EVENT fills all but every
+    ['#f-start', (ev) => ev.start], ['#f-weekends', (ev) => ev.weekends], ['#f-every', (ev) => ev.every || 1],
+    ['#f-seed', (ev) => ev.seed], ['#f-name', (ev) => ev.name],
+  ];
+  function applyLocks() {
+    const lock = started();
+    for (const [id, value] of LOCKS) {
+      const n = $(id);
+      n.disabled = lock && (id !== '#f-name' || !state.event.seed);
+      if (!n.disabled) { n.removeAttribute('title'); continue; }
+      n.title = t('lockedStarted');
+      n[n.type === 'checkbox' ? 'checked' : 'value'] = value(state.event);
+    }
+  }
   function renderResult() {
     renderStart();
+    applyLocks();
     const board = state.mode === 'board';
     $('#result').hidden = !plan || board;
     $('#board').hidden = !plan || !board;
@@ -683,8 +785,9 @@
     }
     return out;
   };
-  // Only before the start: no pins and no status on a slot of the plan.
-  const randomBlock = () => state.pins.length ? 'blockPins' : tracking() ? 'blockStatus' : plan && plan.draw && plan.draw.lineups === '1' ? 'blockNothing' : '';
+  // Only before the start: no pins, no status on a slot of the plan, no lost voucher.
+  const randomBlock = () => state.pins.length ? 'blockPins' : tracking() ? 'blockStatus' : (state.event.lost || []).length ? 'blockLost'
+    : plan && plan.draw && plan.draw.lineups === '1' ? 'blockNothing' : '';
   // big shows a decimal string exactly up to 15 digits, beyond as m × 10^e
   // with three significant digits, rounded.
   const big = (s) => {
@@ -871,6 +974,8 @@
         const label = d.extra ? '' : (plan.grid[d.day - 1][v - 1] || '');
         const na = plan.voucherFrom[v - 1] > d.day; // voucher does not exist yet (also in the "+ Tag" column)
         if (na) return el('td', { class: 'cell na', title: t('notYet') });
+        const lost = (plan.voucherLost || [])[v - 1];
+        if (lost && d.day >= lost) return el('td', { class: 'cell na lost', title: t('lostCell') });
         const cell = { label, day: d.day, voucher: v };
         const h = incoming.get(`${d.day}-${v}`);
         const cls = ['cell'];
@@ -974,7 +1079,8 @@
         el('td', {}, s.to || t('chainEnds'), s.toEmail && el('small', {}, el('br'), s.toEmail)),
         el('td', {}, badge, report && [' ', el('a', { href: report, title: t('reportTitle') }, t('report'))]),
         el('td', {}, mail && el('a', { href: mail, title: t('mailTitle') }, 'Mail'),
-          admin && [' ', el('button', { type: 'button', class: 'small', title: t('linkTitle', s.person), onclick: () => copy(linkFor('view', { pins: plan.pins, me: s.person }), t('linkFor', s.person)) }, 'Link')]),
+          admin && [' ', el('button', { type: 'button', class: 'small', title: t('linkTitle', s.person), onclick: () => copy(linkFor('view', { pins: plan.pins, me: s.person }), t('linkFor', s.person)) }, 'Link'),
+            ' ', el('button', { type: 'button', class: 'small lost', title: t('lostTitle', s.voucher, s.label, dayName(plan.days[s.day - 1])), onclick: () => markLost(s) }, t('lost'))]),
       );
     });
     table.replaceChildren(el('thead', {}, head), el('tbody', {}, rows));
@@ -1019,6 +1125,7 @@
       return;
     }
     eventToForm();
+    applyLocks(); // a link without people computes nothing
     peopleToRoster(state.event.people);
     if (state.me) $('#who').value = state.me;
     if (state.event.people && state.event.people.length) computePlan({ fromForm: false });
@@ -1080,16 +1187,12 @@
     $('#unpinAll').addEventListener('click', () => { mutate(() => { state.pins = []; state.event = { ...state.event }; delete state.event.frozen; }); selected = null; computePlan({ fromForm: false }); });
     $('#freezeToday').addEventListener('click', () => {
       if (!plan) return;
-      const now = today();
-      const gone = plan.sheets.filter((s) => s.date <= now);
-      if (!gone.length) { toast(t('noneGone')); return; }
-      mutate(() => {
-        for (const s of gone) setPin(s.label, s.day, s.voucher);
-        state.event = { ...state.event, frozen: now }; // frozen days take no new slot, so free cells in the past stay free
-      });
+      let n = 0;
+      mutate(() => { n = pinUntilToday(); });
+      if (!n) { toast(t('noneGone')); return; }
       selected = null;
       computePlan({ fromForm: false });
-      toast(t('frozen', gone.length));
+      toast(t('frozen', n));
     });
     $('#undo').addEventListener('click', undo);
     $('#redo').addEventListener('click', redo);
