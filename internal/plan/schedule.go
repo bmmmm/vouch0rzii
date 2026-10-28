@@ -330,9 +330,10 @@ func placeSlots(slots []*Slot, pins []Pin, from, until []int, frozen, horizon in
 // earlier: at the end of that day, groups in priority order, its other
 // slots take target days from that day on, one per day while one chain
 // suffices, otherwise the first chain from that day and further chains
-// ending on the last day. A pinned slot takes the target of its day, a day without a free cell is skipped,
-// and a slot left without a target waits for its turn like everybody
-// else's: a group chains only once, so pinning the past keeps the future.
+// ending on the last day. A pinned slot takes the target of its day, a day
+// without a free cell is skipped, and a slot left without a target waits
+// for its turn like everybody else's: a group chains only once, so pinning
+// the past keeps the future.
 // The last day is the plan's, so the group runs on as few vouchers as the
 // plan's length allows; with OneChain it is the horizon, so one chain may
 // make the plan longer. With MembersFirst a group's chain starts on its

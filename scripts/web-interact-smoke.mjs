@@ -285,7 +285,7 @@ try {
   check('locks: a change that does not compute is not applied, the plan stays', (await js(`!document.getElementById('result').hidden`)) && (await stats()) === statsFrozen && (await errorText()).includes('exceeds the limit'), await errorText());
   await js(`(() => { const r = document.getElementById('roster'); r.value = r.value.replace('${bigRow}', ''); })(); 0`);
   await js(`document.getElementById('f-vouchers').value = '6'; document.getElementById('compute').click(); 0`);
-  check('locks: fewer vouchers are rejected, also right after a change that did not compute', (await stats()) === statsFrozen && (await linkState()).event.vouchers === 7 && (await errorText()).includes('behalten die Voucher Nummer und Starttag'), await errorText());
+  check('locks: fewer vouchers are rejected, also right after a change that did not compute', (await stats()) === statsFrozen && (await linkState()).event.vouchers === 7 && (await errorText()).includes('behalten die Voucher ihre Nummer und ihren Starttag'), await errorText());
   await js(`document.getElementById('f-vouchers').value = '7'; document.getElementById('f-end').value = '2026-11-02'; document.getElementById('compute').click(); 0`);
   check('locks: an end that would drop pinned slots is rejected', (await stats()) === statsFrozen && (await linkState()).event.end === '2026-11-13' && (await errorText()).includes('bleiben Pins, wo sie sind'), await errorText());
   await js(`document.getElementById('f-end').value = '2026-11-13'; 0`);
