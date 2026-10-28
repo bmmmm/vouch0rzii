@@ -48,12 +48,16 @@ what to check.
   still in the roster, or does not compute is rejected with the reason and
   the plan stays; other changes go through and say how many planned slots
   moved.
+- `frozen` in the event: days up to this date take pinned slots only.
+  "Pin until today" sets it, "Release all pins" clears it.
+- The page marks the plan as outdated as soon as settings or roster differ
+  from it, and blocks its links, exports, matrix and sheet actions, undo
+  and printing until "Compute plan" ran.
 
 ### Changed
 
 - The page explains × on a pin on a frozen day: nobody bought there, the
   slot is planned again after the frozen days and the cell stays free.
-
 - Groups keep their voucher: a person with the group flag gets their slots
   day after day on as few vouchers as the plan's length allows, so the
   voucher stays in one mailbox instead of passing through strangers. The new
@@ -82,6 +86,15 @@ what to check.
   arrow kinds are `kept`, `pass` and `forbidden`; the legend shows only
   "group keeps the voucher".
 
+### Removed
+
+- `Knows` (Kennt): the roster column, the sign-up field and the preference
+  for handovers between people who know each other. The sign-up line is now
+  `Name; Email; Status; +N; Note`; `parseSignup` takes the text only.
+  Event files with `knows` are rejected, a `Kennt` column is ignored with a
+  warning, and older sign-up lines with six or seven fields are read by
+  content, their handles ending up in the note.
+
 ### Fixed
 
 - "Pin until today" closes the past: it also sets `frozen` in the event to
@@ -93,15 +106,22 @@ what to check.
   days after `frozen` only. "Release all pins" clears `frozen` as well, and
   the saved event file leaves it out, as it leaves out the pins. Since
   `frozen` is a setting, freezing changes the fingerprint.
-
-### Removed
-
-- `Knows` (Kennt): the roster column, the sign-up field and the preference
-  for handovers between people who know each other. The sign-up line is now
-  `Name; Email; Status; +N; Note`; `parseSignup` takes the text only.
-  Event files with `knows` are rejected, a `Kennt` column is ignored with a
-  warning, and older sign-up lines with six or seven fields are read by
-  content, their handles ending up in the note.
+- A group's chain takes its targets from the day after its first slot
+  instead of that day, which the slot already holds: with more slots than
+  days left, a slot lost its target and fell back to its turn. 49 of 1,500
+  random plans change; the example stays byte for byte.
+- A compute that fails no longer empties the page: the last plan and state
+  stay, with the reason (a loaded file, a link, undo, a lost mark near the
+  400-day limit). A rejected change shows the roster's warnings too.
+- After the start, a pin the plan already did not honour (a link made by
+  hand) no longer blocks every change.
+- Typing into a free cell while a roster edit does not compute no longer
+  throws.
+- Empty cells on frozen days read "closed" instead of "free".
+- `frozen` is trimmed like the other dates, and when frozen days use up all
+  400 plan days the error says so.
+- The order of `lost` entries no longer changes fingerprint, link or
+  export: they are sorted by voucher.
 
 
 ## [0.1.0] - 2026-10-27

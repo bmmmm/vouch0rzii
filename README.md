@@ -133,7 +133,10 @@ placement); admin and viewer links of the same state show the same emoji,
 so two people can tell at a glance whether they look at the same plan.
 
 - **Admin**: settings, roster, pins and the organiser's address. Edit, compute,
-  pin cells, copy links.
+  pin cells, copy links. Edits apply with "Compute plan"; until then the
+  plan is marked outdated and its links, exports and actions are blocked.
+  A change, file or link that does not compute leaves the last plan as it
+  is.
 - **Viewer**: settings, roster without notes, the organisers' address, the
   live status and the frozen plan (every placed slot pinned), so it renders
   identically on any later version. Filter "I am …" to find your row; the
