@@ -19,8 +19,10 @@ data, and your browser history keeps it like any other link.
    leave and the end of the voucher phase (rule 7) change that, the grid
    shows the result. Weekends are skipped unless the event says otherwise.
    A "day" is a buying day: with `every` set to 2 (the new voucher only
-   arrives the day after next) buying days are two days apart, and a
-   handover is listed on the evening the new voucher is expected.
+   arrives the day after next) buying days are two plan days apart, and a
+   handover is listed on the evening the new voucher is expected. Without
+   weekends the voucher process rests on Saturday and Sunday too, so plan
+   days are weekdays: bought on Friday, handed over on Monday evening.
 2. **Tiers.** Named people first — members, then frequent guests, then
    acquaintances. After all named people come everybody's +1, then everybody's
    +2, each round ordered by the sponsor's position. Within a tier the order is

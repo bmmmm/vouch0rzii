@@ -71,6 +71,7 @@
       nerdHonest: 'Gleicher Seed, gleiche Aufstellung, auf jedem Gerät; mit der CLI kann es jede Person nachrechnen. Gewürfelt wird nur vor dem Start, ohne Pins und Status, damit niemand laufende Ketten umwirft. Wer oft würfelt, könnte sich eine Aufstellung aussuchen; welche gilt, zeigt der Seed im Link.',
       phase: (day, days, free) => `Voucher-Phase bis ${day} (${days} Tage) · ${free} Slots frei`,
       noEnd: (free) => `Kein Ende der Voucher-Phase gesetzt · ${free} Slots frei im Plan`,
+      pinsMoved: (list) => `Gepinnte Slots haben jetzt ein anderes Datum: ${list} Ein Pin merkt sich den Plantag, nicht das Datum.`, // German day names end in "."
       addDay: '+ Tag', free: 'frei', notYet: 'Voucher noch nicht verfügbar', fromOrga: 'bekommt den Voucher von der Orga',
       freeCell: 'Voucher verfügbar, noch niemand eingeplant', unpin: 'Pin lösen',
       evening: (day, date, at) => `${day} (${date}), ${at} Uhr`,
@@ -141,6 +142,7 @@
       nerdHonest: 'Same seed, same lineup, on every device; anyone can recompute it with the CLI. Rolling is only possible before the start, without pins or status, so nobody upsets running chains. Rolling many times could pick a lineup; the seed in the link shows which one counts.',
       phase: (day, days, free) => `Voucher phase until ${day} (${days} days) · ${free} slots free`,
       noEnd: (free) => `No end of the voucher phase set · ${free} slots free in the plan`,
+      pinsMoved: (list) => `Pinned slots now have another date: ${list}. A pin keeps the plan day, not the date.`,
       addDay: '+ day', free: 'free', notYet: 'Voucher not available yet', fromOrga: 'gets the voucher from the organisers',
       freeCell: 'Voucher available, nobody planned yet', unpin: 'Release pin',
       evening: (day, date, at) => `${day} (${date}), ${at}`,
@@ -402,6 +404,7 @@
       mutate(() => { state.event = { ...f.event, people: r.people }; state.collect = { to: f.to }; });
       warnings = r.warnings;
     }
+    const pinnedAt = new Map(plan ? plan.sheets.filter((s) => s.pinned).map((s) => [s.label, { day: s.day, date: s.date, name: dayName(plan.days[s.day - 1]) }]) : []);
     const r = bridge.plan(JSON.stringify(state.event), JSON.stringify(state.pins));
     if (!r.ok) {
       showMessages(r.errors, warnings.concat(r.warnings), anchor);
@@ -410,6 +413,9 @@
       return false;
     }
     plan = { ...JSON.parse(r.exportJson), exportJson: r.exportJson, markdown: r.markdown, csv: r.csv, svg: r.svg };
+    // Pins hold plan days: a new start, weekend rule or every moves them in the calendar.
+    const moved = plan.sheets.filter((s) => { const was = s.pinned && pinnedAt.get(s.label); return was && was.day === s.day && was.date !== s.date; }); // a pin moved to another day is a move, not a calendar change
+    if (moved.length) warnings.push(t('pinsMoved', moved.map((s) => `${s.label} ${pinnedAt.get(s.label).name} → ${dayName(plan.days[s.day - 1])}`).join(', ')));
     showMessages([], warnings.concat(plan.warnings), anchor);
     renderResult();
     if (shuffle) shuffleMatrix();
@@ -582,17 +588,13 @@
     const now = today(), track = tracking();
     const sheets = plan.sheets;
     const first = plan.days[0];
-    // Plan day number of a date, counting past the grid up to the end; steps
-    // like Go's Dates: every N days, a weekend day moves on to Monday.
+    // Plan day number of a date, counting past the grid up to the end; like
+    // Go's Dates every N-th day the process runs (weekdays unless weekends).
     const planDay = (date) => {
       const [y, m, d] = first.date.split('-').map(Number);
       let n = 0;
-      for (const t = new Date(y, m - 1, d); fmtDate(t) <= date;) {
-        if (!state.event.weekends && !(t.getDay() % 6)) { t.setDate(t.getDate() + 1); continue; } // % 6: Sunday 0 and Saturday 6 are skipped
-        n++;
-        t.setDate(t.getDate() + (state.event.every || 1));
-      }
-      return n;
+      for (const t = new Date(y, m - 1, d); fmtDate(t) <= date; t.setDate(t.getDate() + 1)) if (state.event.weekends || t.getDay() % 6) n++; // % 6: Sunday 0 and Saturday 6 are skipped
+      return Math.ceil(n / (state.event.every || 1));
     };
     const total = plan.end.day || plan.days.length;
     const last = plan.days[plan.days.length - 1];

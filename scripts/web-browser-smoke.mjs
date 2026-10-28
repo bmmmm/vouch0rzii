@@ -90,10 +90,10 @@ check('admin: a German browser gets the German page', admin.includes('<html lang
 const fp = (html) => (html.match(/id="fingerprint"[^>]*>([^<]*)</) || [])[1] || '';
 check('admin: four-emoji fingerprint shown', [...fp(admin)].length === 4);
 
-const every2 = dom(withEvent(link('admin'), { every: 2 })); // buy Fri, the new voucher Sat evening, the next buyer Mon
-check('every 2: buying days two apart, weekend day moves to Monday', every2.includes('>Fr 30.10.<small>2026-10-30<') && every2.includes('>Mo 02.11.<small>2026-11-02<') && every2.includes('>Mi 04.11.<small>2026-11-04<') && !every2.includes('<small>2026-11-03<'));
-check('every 2: handover on the evening the new voucher is expected', every2.includes('<h3>Sa 31.10. (2026-10-31), 23:00 Uhr</h3>') && every2.includes('<h3>Di 03.11. (2026-11-03), 23:00 Uhr</h3>'));
-check('every 2: the mail names the evening to pass on', decodeURIComponent(every2).includes('gib den neuen Voucher am Di 03.11. um 23:00 Uhr weiter'));
+const every2 = dom(withEvent(link('admin'), { every: 2 })); // the weekend rests: buy Fri, the new voucher Mon evening, the next buyer Tue
+check('every 2: buying days two weekdays apart', every2.includes('>Fr 30.10.<small>2026-10-30<') && every2.includes('>Di 03.11.<small>2026-11-03<') && every2.includes('>Do 05.11.<small>2026-11-05<') && !every2.includes('<small>2026-11-02<'));
+check('every 2: handover on the evening the new voucher is expected, never on the weekend', every2.includes('<h3>Mo 02.11. (2026-11-02), 23:00 Uhr</h3>') && every2.includes('<h3>Mi 04.11. (2026-11-04), 23:00 Uhr</h3>') && !/<h3>(Sa|So) /.test(every2));
+check('every 2: the mail names the evening to pass on', decodeURIComponent(every2).includes('gib den neuen Voucher am Mi 04.11. um 23:00 Uhr weiter'));
 check('every 2: no error box', noError(every2));
 
 const view = dom(link('view'));

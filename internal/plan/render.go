@@ -89,10 +89,11 @@ func (p *Plan) dayLabel(d int) string {
 }
 
 // handoverDate is the evening on which the new voucher of h is expected:
-// Every-1 days after From's buying day.
+// Every-1 plan days after From's buying day.
 func (p *Plan) handoverDate(h Handover) time.Time {
 	t, _ := ParseDate(p.Dates[h.Day-1])
-	return t.AddDate(0, 0, p.Event.EveryOrDefault()-1)
+	every := p.Event.EveryOrDefault()
+	return planDays(t, every, p.Event.Weekends)[every-1]
 }
 
 // end describes the last day of the voucher phase; zero without an end.

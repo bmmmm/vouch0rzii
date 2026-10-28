@@ -10,10 +10,14 @@ what to check.
 
 ### Added
 
-- `every` in the event (page: "Voucher every … days"): days from one buying
-  day of a chain to the next, 1 to 14, default 1. A buying day that would fall
-  on a skipped weekend moves to Monday. Handovers are dated on the evening the
-  new voucher is expected; the JSON export gives each handover a `label`.
+- `every` in the event (page: "Voucher every … days"): plan days from one
+  buying day of a chain to the next, 1 to 14, default 1. Without weekends the
+  voucher process rests on Saturday and Sunday, so `every` counts weekdays.
+  Handovers are dated on the evening the new voucher is expected; the JSON
+  export gives each handover a `label`. `"every": 1` is the default and keeps
+  the fingerprint.
+- The page warns when a change of start, weekends or `every` moves pinned
+  slots to other dates.
 
 ## [0.1.0] - 2026-10-27
 

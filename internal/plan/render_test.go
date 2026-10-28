@@ -64,6 +64,27 @@ func TestEveryOtherDay(t *testing.T) {
 	}
 }
 
+// The voucher process rests on the weekend: bought on Friday, the new voucher
+// comes on Monday evening and the next holder buys on Tuesday. With weekends
+// it comes on Saturday.
+func TestEveryOtherDayAcrossTheWeekend(t *testing.T) {
+	for _, tc := range []struct {
+		weekends     bool
+		handover, to string
+	}{
+		{false, "2026-11-02", "2026-11-03"},
+		{true, "2026-10-31", "2026-11-01"},
+	} {
+		e := renderEvent() // starts on Friday 30/10
+		e.Every, e.Weekends = 2, tc.weekends
+		p := mustCompute(t, e, nil)
+		h := p.ToExport().Handovers[0]
+		if h.Date != tc.handover || p.Dates[1] != tc.to {
+			t.Errorf("weekends %v: handover %s, next buys %s; want %s, %s", tc.weekends, h.Date, p.Dates[1], tc.handover, tc.to)
+		}
+	}
+}
+
 func TestJSONExport(t *testing.T) {
 	p := mustCompute(t, renderEvent(), nil)
 	b, err := p.JSON()

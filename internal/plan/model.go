@@ -100,7 +100,7 @@ type Event struct {
 	Start    string   `json:"start"`              // date of day 1, YYYY-MM-DD
 	End      string   `json:"end,omitempty"`      // last day of the voucher phase, YYYY-MM-DD; "" = until everyone is placed
 	Weekends bool     `json:"weekends,omitempty"` // plan on Saturdays and Sundays too
-	Every    int      `json:"every,omitempty"`    // days from one buying day of a chain to the next; 0 = 1
+	Every    int      `json:"every,omitempty"`    // plan days from one buying day of a chain to the next; 0 = 1
 	PlusMax  int      `json:"plusMax,omitempty"`  // 0 = DefaultPlusMax
 	Seed     string   `json:"seed,omitempty"`     // "" = Name; a different seed is a new draw
 	Handover string   `json:"handover,omitempty"` // display only, "" = DefaultHandover
@@ -125,7 +125,7 @@ func (e *Event) SeedOrDefault() string {
 	return e.Seed
 }
 
-// EveryOrDefault returns the number of days between two buying days.
+// EveryOrDefault returns the number of plan days between two buying days.
 func (e *Event) EveryOrDefault() int {
 	if e.Every <= 0 {
 		return 1
@@ -181,7 +181,7 @@ func SlotLabel(id string, k int) string {
 }
 
 // Handover is one evening transfer of a voucher: once From has bought on Day,
-// the new voucher is expected on the evening Every-1 days later and goes to
+// the new voucher is expected on the evening Every-1 plan days later and goes to
 // To, who holds it next in the same chain — on the next buying day, or later
 // if the voucher idles in between.
 type Handover struct {

@@ -36,7 +36,7 @@ func TestDatesEveryOtherDay(t *testing.T) {
 		weekends bool
 		want     []string
 	}{
-		{false, []string{"2026-10-30", "2026-11-02", "2026-11-04", "2026-11-06", "2026-11-09"}}, // Sunday moves to Monday
+		{false, []string{"2026-10-30", "2026-11-03", "2026-11-05", "2026-11-09", "2026-11-11"}}, // the weekend rests: every counts weekdays
 		{true, []string{"2026-10-30", "2026-11-01", "2026-11-03", "2026-11-05", "2026-11-07"}},
 	} {
 		var got []string
