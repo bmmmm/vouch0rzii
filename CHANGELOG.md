@@ -69,8 +69,9 @@ what to check.
   of the plan) took the next slot once someone joined, and a group slot
   could move back into it: in the example with `oneChain`, pinned until
   day 9, a new member landed on day 7, now on day 10. `free` counts the
-  days after `frozen` only. "Release all pins" clears `frozen` as well.
-  Since `frozen` is a setting, freezing changes the fingerprint.
+  days after `frozen` only. "Release all pins" clears `frozen` as well, and
+  the saved event file leaves it out, as it leaves out the pins. Since
+  `frozen` is a setting, freezing changes the fingerprint.
 
 ### Removed
 

@@ -217,6 +217,8 @@ try {
   await js(`document.getElementById('roster').value += '\\tlatecomer\\tMitglied\\t\\t\\t\\t\\t\\t\\n'; document.getElementById('compute').click(); 0`);
   const lateDay = () => js(`[...document.querySelectorAll('#matrix td.cell')].find((td) => td.firstChild?.nodeValue === 'latecomer')?.cellIndex`);
   check('freeze: a member added afterwards buys on day 10, after the frozen days', (await lateDay()) === 10 && (await stats()).includes('48 Slots'), `day ${await lateDay()}, ${await stats()}`);
+  const saved = await js(`(() => { let text = ''; const B = globalThis.Blob, click = HTMLAnchorElement.prototype.click; globalThis.Blob = class extends B { constructor(parts, o) { super(parts, o); text = parts.join(''); } }; HTMLAnchorElement.prototype.click = () => {}; document.getElementById('saveFile').click(); globalThis.Blob = B; HTMLAnchorElement.prototype.click = click; return text; })()`);
+  check('freeze: the saved event file leaves out the frozen days, as it leaves out the pins', saved.includes('latecomer') && !saved.includes('frozen'), saved.slice(0, 120));
   await js(`document.getElementById('unpinAll').click(); 0`);
   st = await linkState();
   check('freeze: "Release all pins" drops the pins and the frozen days', !('frozen' in st.event) && !(st.pins || []).length && !(await stats()).includes('gepinnt'), JSON.stringify({ frozen: st.event.frozen, pins: (st.pins || []).length }));

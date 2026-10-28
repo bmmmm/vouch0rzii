@@ -1048,6 +1048,7 @@
       const f = readForm();
       const r = rosterToPeople();
       if (!r) return;
+      delete f.event.frozen; // the file carries no pins; frozen days without them would push the whole plan behind them
       download(`${f.event.name || 'event'}.json`, JSON.stringify({ ...f.event, people: r.people }, null, 2) + '\n', 'application/json');
     });
     $('#addInbox').addEventListener('click', () => {
