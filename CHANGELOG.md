@@ -108,11 +108,12 @@ what to check.
   `frozen` is a setting, freezing changes the fingerprint.
 - A group's chain takes its targets from the day after its first slot
   instead of that day, which the slot already holds: with more slots than
-  days left, a slot lost its target and fell back to its turn. 49 of 1,500
-  random plans change; the example stays byte for byte.
+  days left, a slot lost its target and fell back to its turn. Plans with
+  groups can come out differently: 49 to 65 of 1,500 random rosters, 55 of
+  200 other seeds for the example; the example itself stays byte for byte.
 - A compute that fails no longer empties the page: the last plan and state
-  stay, with the reason (a loaded file, a link, undo, a lost mark near the
-  400-day limit). A rejected change shows the roster's warnings too.
+  stay, with the reason (a loaded file, undo, a lost mark near the 400-day
+  limit). A rejected change shows the roster's warnings too.
 - After the start, a pin the plan already did not honour (a link made by
   hand) no longer blocks every change.
 - Typing into a free cell while a roster edit does not compute no longer
@@ -120,8 +121,8 @@ what to check.
 - Empty cells on frozen days read "closed" instead of "free".
 - `frozen` is trimmed like the other dates, and when frozen days use up all
   400 plan days the error says so.
-- The order of `lost` entries no longer changes fingerprint, link or
-  export: they are sorted by voucher.
+- The order of `lost` entries no longer changes the fingerprint or the
+  exports: they are sorted by voucher.
 
 
 ## [0.1.0] - 2026-10-27

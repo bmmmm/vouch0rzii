@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 // Gate: the admin matrix works under clicks and keys. Drives headless Chrome
 // over the DevTools protocol on a pipe (fds 3 and 4; no WebSocket, no
-// dependencies): swaps two slots, undoes and redoes with the keyboard, turns
-// pending roster edits into an undo step, names a free cell with a new
+// dependencies): swaps two slots, undoes and redoes with the keyboard, blocks
+// an outdated plan until it is computed again, names a free cell with a new
 // handle, an existing slot and "handle+k", and keeps a rejected name from
 // touching the plan. Prints SKIP and exits 0 when no Chrome is found; set
 // CHROME=/path/to/chrome.
@@ -101,7 +101,6 @@ try {
     return 'ok';
   })()`);
   const nameFreeCell = async (label) => (await openFreeCell()) ? typeInCell(label) : 'no input';
-  if (!process.env.PAGE_STATE_ONLY) {
 
   const a = await text(1, 1), b = await text(1, 2);
   check('matrix: two different slots on day 1', a && b && a !== b, `${a} / ${b}`);
@@ -280,9 +279,10 @@ try {
   // the seed), voucher numbers and pins stay, and other changes say how many
   // planned slots moved.
   const lockedValues = () => js(`['f-start', 'f-weekends', 'f-every', 'f-seed', 'f-name'].map((id) => { const n = document.getElementById(id); return n.type === 'checkbox' ? n.checked : n.value; }).join(' ')`);
-  await js(` 0`); // typed, not computed
   await onDay3(`document.getElementById('freezeToday').click();`);
   check('locks: after "Pin until today" start, weekends, every and seed are locked, the name not while there is a seed', (await locked()) === 'f-start f-weekends f-every f-seed' && await js(`document.getElementById('f-start').title.startsWith('Nach dem Start gesperrt')`), await locked());
+  // A value left in a locked field (restored by the browser, say) yields to the plan's on the next render.
+  await js(`document.getElementById('f-start').value = '2026-11-02'; document.getElementById('f-weekends').checked = true; document.getElementById('f-every').value = '2'; document.getElementById('f-seed').value = 'typed'; document.getElementById('lang').click(); document.getElementById('lang').click(); 0`);
   check('locks: a locked field shows the value of the plan, not a pending edit', (await lockedValues()) === '2026-10-30 false 1 other congress2026', await lockedValues());
   const statsFrozen = await stats();
   const errorText = () => js(`document.querySelector('#messages .error')?.textContent || ''`);
@@ -667,8 +667,6 @@ try {
   const afterSolo = await startState(); // values were set without input events: the plan alone ends the start page
   check('start: a computed plan ends the start page, even without typing', afterSolo.demoLinks.every((v) => !v) && afterSolo.newEvent, JSON.stringify(afterSolo));
 
-  }
-
   // Page state regressions: use real bridge inputs and the rendered controls.
   const openState = async (event, pins = []) => {
     await js(`location.hash = '#s=' + vouch0rzii.encodeState(JSON.stringify({ mode: 'admin', event: ${JSON.stringify(event)}, pins: ${JSON.stringify(pins)} })).encoded; 0`);
@@ -719,11 +717,30 @@ try {
   await js(`(async () => { const d = new DataTransfer(); d.items.add(new File([JSON.stringify({ ...${JSON.stringify(small)}, vouchers: 0 })], 'bad.json')); const f = document.getElementById('loadFile'); f.files = d.files; f.dispatchEvent(new Event('change')); await new Promise(r => setTimeout(r, 50)); })()`);
   check('state 2: a noncomputing file preserves plan, state and form and shows its error', (await stats()) === beforeBadStats && (await js('location.hash')) === beforeBadFile && await js(`document.getElementById('f-vouchers').value === '2' && !!document.querySelector('#messages .error') && !document.getElementById('redo').disabled`));
   await openState({ ...small, vouchers: 0 });
-  check('state 2: a noncomputing link preserves the old state and its error', (await stats()) === beforeBadStats && (await js('location.hash')) === beforeBadFile && await js(`!!document.querySelector('#messages .error')`));
+  const badLinkError = await js(`!!document.querySelector('#messages .error')`);
+  await js(`history.back(); 0`);
+  await sleep(150);
+  check('state 2: a noncomputing link shows its error, and Back returns to the last plan', badLinkError && (await stats()) === beforeBadStats && (await js('location.hash')) === beforeBadFile, `${badLinkError} ${await stats()}`);
   await openState(small);
   const beforeLost = await js('location.hash'), beforeLostStats = await stats();
   await js(`(() => { const D = globalThis.Date; globalThis.Date = class extends D { constructor(...a) { super(...(a.length ? a : [2027, 1, 4, 12])); } }; document.querySelector('#sheets button.lost').click(); globalThis.Date = D; })(); 0`);
   check('state 2: loss beyond the day limit rolls back event and pins, keeps the plan and error', (await stats()) === beforeLostStats && (await js('location.hash')) === beforeLost && await js(`!!document.querySelector('#messages .error') && !document.body.classList.contains('stale-plan') && document.getElementById('undo').disabled && document.getElementById('redo').disabled`), await js(`document.getElementById('messages').textContent + location.hash.slice(0,30)`));
+  // Another link in the same tab drops the outdated marking: a sign-up link
+  // and an admin link without people have no plan to mark.
+  await js(`document.getElementById('f-vouchers').value = '3'; document.getElementById('f-vouchers').dispatchEvent(new Event('input', { bubbles: true })); 0`);
+  const markedBefore = await js(`document.body.classList.contains('stale-plan')`);
+  await js(`location.hash = '#s=' + vouch0rzii.encodeState(JSON.stringify({ mode: 'collect', event: ${JSON.stringify({ ...small, people: [] })}, collect: { to: 'orga@example.org' } })).encoded; 0`);
+  await sleep(150);
+  const unmarked = () => js(`!document.body.classList.contains('stale-plan') && document.getElementById('staleNotice').hidden && !document.getElementById('copyAdmin').disabled && !document.getElementById('saveFile').disabled`);
+  check('state 1: a sign-up link in the same tab is not marked outdated', markedBefore && await unmarked());
+  await openState(small);
+  await js(`document.getElementById('f-vouchers').value = '3'; document.getElementById('f-vouchers').dispatchEvent(new Event('input', { bubbles: true })); 0`);
+  await openState({ ...small, people: [] });
+  check('state 1: an admin link without people is not marked outdated', await unmarked());
+  // Without a plan there is nothing to keep: a file that does not compute
+  // stays in the form with its error, to be fixed there.
+  await js(`(async () => { const d = new DataTransfer(); d.items.add(new File([JSON.stringify({ name: 'file1', start: '', people: [{ id: 'alpha', tier: 'member' }] })], 'bad.json')); const f = document.getElementById('loadFile'); f.files = d.files; f.dispatchEvent(new Event('change')); await new Promise(r => setTimeout(r, 50)); })()`);
+  check('state 2: without a plan a noncomputing file stays in the form with its error', await js(`document.getElementById('f-name').value === 'file1' && document.getElementById('roster').value.includes('alpha') && !!document.querySelector('#messages .error')`), await js(`document.getElementById('f-name').value + ' | ' + document.getElementById('messages').textContent`));
 } catch (e) {
   check(`no exception: ${e.message}`, false);
 } finally {

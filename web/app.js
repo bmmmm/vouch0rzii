@@ -256,8 +256,8 @@
     peopleToRoster(state.event.people);
     return computePlan({ fromForm: false });
   }
-  // Both first apply what is typed in the form, so pending roster edits
-  // become a step of their own instead of being overwritten.
+  // Both first apply the form. While it differs from the plan the controls
+  // are blocked (renderStale), so this only re-checks the computed state.
   function undo() {
     if (!computePlan()) return;
     if (!past.length) { toast(t('nothingToUndo')); return; }
@@ -488,13 +488,13 @@
     const r = bridge.plan(JSON.stringify(state.event), JSON.stringify(state.pins));
     if (!r.ok) {
       showMessages(r.errors, warnings.concat(r.warnings), anchor);
-      if (checkpoint) {
+      if (checkpoint && plan) { // the last good plan stays with its state; without one, what failed stays in the form to be fixed
         state = checkpoint.state;
         past.splice(0, past.length, ...checkpoint.past);
         future.splice(0, future.length, ...checkpoint.future);
-        checkpoint = null;
-        if (!fromForm) { eventToForm(); peopleToRoster(state.event.people); }
+        if (!fromForm) { eventToForm(); peopleToRoster(state.event.people); computedForm = formStamp(); }
       }
+      checkpoint = null;
       renderResult();
       return false;
     }
@@ -571,8 +571,8 @@
   }
   // assignLabel pins a typed label to a cell: an existing slot moves there,
   // "handle+k" raises that person's +N to k, an unknown handle joins the
-  // roster as Bekanntschaft. Pending form edits are applied first; the new
-  // roster is tried on a copy, so a rejected name changes nothing and the
+  // roster as Bekanntschaft. The form matches the plan here (an outdated
+  // plan blocks the matrix); the new roster is tried on a copy, so a rejected name changes nothing and the
   // reasons stay on screen. Returns whether the label was applied.
   function assignLabel(label, cell) {
     if (!computePlan()) return false;
@@ -1024,7 +1024,7 @@
         if (label && pinned.has(label)) cls.push('pinned');
         if (label && statusOf(label) !== 'open') cls.push('st-' + statusOf(label));
         if (selected && label && selected.label === label) cls.push('selected');
-        const closed = d.date <= state.event.frozen;
+        const closed = d.date <= (state.event.frozen || '').trim(); // Go trims it too
         const title = label ? `${h ? `${h.from} → ${h.to}` : t('fromOrga')} · ${statusLabel(statusOf(label))}` : d.extra ? '' : closed ? t('closed') : t('freeCell');
         const td = el('td', { class: cls.join(' '), draggable: editable && label ? 'true' : null, tabindex: editable ? '0' : null, title }, label || (d.extra ? '·' : closed ? t('closed') : t('free')));
         if (editable) {
@@ -1173,9 +1173,10 @@
   function wireAdmin() {
     $('#compute').addEventListener('click', () => { selected = null; computePlan({ shuffle: !drawShown }); }); // the first plan shows its draw
     $('#editor').addEventListener('input', () => { if (!typed) { typed = true; renderStart(); } renderStale(); });
-    // Capture also covers generated controls, links, drag/drop and keyboard actions.
+    // Capture also covers generated controls, links, drag/drop and keyboard
+    // actions. The cheap test first: stalePlan parses the roster.
     for (const type of ['click', 'keydown', 'dragstart', 'drop']) document.addEventListener(type, (e) => {
-      if (stalePlan() && e.target.closest('#result, #sharebar button, #saveFile')) { e.preventDefault(); e.stopImmediatePropagation(); renderStale(); }
+      if (e.target.closest('#result, #sharebar button, #saveFile') && stalePlan()) { e.preventDefault(); e.stopImmediatePropagation(); renderStale(); }
     }, true);
     // Leaving for a new event first puts pending edits into the link, if they
     // compute, so the browser's Back returns to them.
@@ -1330,15 +1331,9 @@
     wireResult();
     wireCollect();
     const boot = () => {
-      const previous = plan ? '#s=' + encodeState(state) : '';
       closeEntropy(); // a new link starts without an open super random
       noteKey = '';
       const st = readHash();
-      if (previous && !st) { showMessages([() => t('linkUnreadable', 'Invalid state')]); history.replaceState(null, '', previous); return; }
-      if (previous && st && st.mode !== 'collect' && st.event?.people?.length) {
-        const trial = bridge.plan(JSON.stringify({ ...DEFAULT_EVENT, ...st.event }), JSON.stringify(st.pins || []));
-        if (!trial.ok) { showMessages(trial.errors, trial.warnings); history.replaceState(null, '', previous); return; }
-      }
       if (st) {
         state = {
           ...emptyState(), mode: st.mode || 'admin', event: { ...DEFAULT_EVENT, ...(st.event || {}) },
@@ -1351,6 +1346,7 @@
       picked.clear();
       past.length = future.length = 0; // a new link is a new baseline
       applyMode();
+      renderStale(); // collect and plan-less links never render a result
     };
     // ?demo without a readable demo state is no demo: the flag leaves the
     // address bar, so the admin's own event never reloads as the demo.
