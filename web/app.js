@@ -1174,9 +1174,10 @@
     $('#compute').addEventListener('click', () => { selected = null; computePlan({ shuffle: !drawShown }); }); // the first plan shows its draw
     $('#editor').addEventListener('input', () => { if (!typed) { typed = true; renderStart(); } renderStale(); });
     // Capture also covers generated controls, links, drag/drop and keyboard
-    // actions. The cheap test first: stalePlan parses the roster.
+    // actions. The cheap test first: stalePlan parses the roster; a text drag
+    // starts on a Text node, which has no closest.
     for (const type of ['click', 'keydown', 'dragstart', 'drop']) document.addEventListener(type, (e) => {
-      if (e.target.closest('#result, #sharebar button, #saveFile') && stalePlan()) { e.preventDefault(); e.stopImmediatePropagation(); renderStale(); }
+      if (e.target.closest?.('#result, #sharebar button, #saveFile') && stalePlan()) { e.preventDefault(); e.stopImmediatePropagation(); renderStale(); }
     }, true);
     // Leaving for a new event first puts pending edits into the link, if they
     // compute, so the browser's Back returns to them.

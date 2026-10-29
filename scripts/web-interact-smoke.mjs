@@ -717,10 +717,13 @@ try {
   await js(`(async () => { const d = new DataTransfer(); d.items.add(new File([JSON.stringify({ ...${JSON.stringify(small)}, vouchers: 0 })], 'bad.json')); const f = document.getElementById('loadFile'); f.files = d.files; f.dispatchEvent(new Event('change')); await new Promise(r => setTimeout(r, 50)); })()`);
   check('state 2: a noncomputing file preserves plan, state and form and shows its error', (await stats()) === beforeBadStats && (await js('location.hash')) === beforeBadFile && await js(`document.getElementById('f-vouchers').value === '2' && !!document.querySelector('#messages .error') && !document.getElementById('redo').disabled`));
   await openState({ ...small, vouchers: 0 });
-  const badLinkError = await js(`!!document.querySelector('#messages .error')`);
+  // #r-stats keeps its text while #result is hidden: the hidden result shows
+  // the link was open (the bad file kept its plan), the result shown again
+  // and the old voucher count that Back computed the last plan.
+  const badLink = await js(`!!document.querySelector('#messages .error') && document.getElementById('result').hidden`);
   await js(`history.back(); 0`);
   await sleep(150);
-  check('state 2: a noncomputing link shows its error, and Back returns to the last plan', badLinkError && (await stats()) === beforeBadStats && (await js('location.hash')) === beforeBadFile, `${badLinkError} ${await stats()}`);
+  check('state 2: a noncomputing link shows its error, and Back returns to the last plan', badLink && await js(`!document.getElementById('result').hidden && document.getElementById('f-vouchers').value === '2'`) && (await stats()) === beforeBadStats && (await js('location.hash')) === beforeBadFile, `${badLink} ${await stats()}`);
   await openState(small);
   const beforeLost = await js('location.hash'), beforeLostStats = await stats();
   await js(`(() => { const D = globalThis.Date; globalThis.Date = class extends D { constructor(...a) { super(...(a.length ? a : [2027, 1, 4, 12])); } }; document.querySelector('#sheets button.lost').click(); globalThis.Date = D; })(); 0`);
