@@ -60,8 +60,11 @@ what to check.
   voucher, one row per plan day, so chains fill downward and "+ day" adds
   a row at the bottom. The matrix keeps its voucher and day headers in view
   while it scrolls in its box, frames today's row, outlines free cells more
-  strongly and names every mark in its legend; the diagram has a legend for
-  its arrow colours. `-format svg` draws the same top-down layout.
+  strongly and wraps long handles instead of widening their column; its
+  legend now also shows straight to one's own companion, pinned, today, not
+  available yet and lost, and the diagram has a legend for its arrow
+  colours. `-format svg` draws the same top-down layout; the Markdown and
+  CSV exports keep one row per voucher.
 - The page explains × on a pin on a frozen day: nobody bought there, the
   slot is planned again after the frozen days and the cell stays free.
 - Groups keep their voucher: a person with the group flag gets their slots

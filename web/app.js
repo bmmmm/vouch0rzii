@@ -1013,7 +1013,7 @@
     const rows = days.map((d) => {
       const tds = vouchers.map((v) => {
         const label = d.extra ? '' : (plan.grid[d.day - 1][v - 1] || '');
-        const na = plan.voucherFrom[v - 1] > d.day; // voucher does not exist yet (also in the "+ Tag" column)
+        const na = plan.voucherFrom[v - 1] > d.day; // voucher does not exist yet (also in the "+ Tag" row)
         if (na) return el('td', { class: 'cell na', title: t('notYet') });
         const lost = (plan.voucherLost || [])[v - 1];
         if (lost && d.day >= lost) return el('td', { class: 'cell na lost', title: t('lostCell') });

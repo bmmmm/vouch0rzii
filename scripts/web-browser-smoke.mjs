@@ -81,7 +81,7 @@ check('admin: freeze and extra-voucher controls present', admin.includes('id="fr
 check('admin: matrix cells keyboard-focusable', (admin.match(/tabindex="0"/g) || []).length >= 47);
 check('admin: intro hidden once a plan exists', admin.includes('<p id="intro" class="intro" hidden=""'));
 check('admin: voucher phase summary, free cells marked, nothing for the public sale', admin.includes('Voucher-Phase bis Fr 13.11. (11 Tage) · 30 Slots frei') && (admin.match(/>frei<\/td>/g) || []).length === 2 && admin.includes('<div id="r-public" class="warning" hidden="">'));
-check('admin: "+ Tag" column offered while the phase has room', admin.includes('>+ Tag<'));
+check('admin: "+ Tag" row offered while the phase has room', admin.includes('>+ Tag<'));
 check('admin: mammut keeps its vouchers, marked and named in the legend', admin.includes('7 Vouchers · 7 Tage · 47 Slots · 40 Übergaben, davon 9 innerhalb einer Gruppe') && (admin.match(/class="cell[^"]*\bkept\b/g) || []).length === 9 && admin.includes('<span class="sw kept"></span> Gruppe behält den Voucher <span class="sw forbidden">'));
 check('admin: the draw is explained with the seed', admin.includes('entscheidet das Los mit Seed „congress2026"'));
 check('admin: share buttons visible', admin.includes('<nav id="sharebar">'));
@@ -120,7 +120,7 @@ const live = dom(withStatus(link('board'), { fennek: 'passed', quokka: 'received
 check('board with statuses: progress, holding tiles, status stand', live.includes('2 von 47 Tickets gekauft') && live.includes('<progress id="b-bar" max="47" value="2">') && (live.match(/<li class="tile holding/g) || []).length === 2 && (live.match(/<li class="tile orga/g) || []).length === 5 && live.includes('3 Slot(s) mit Status, Stand'));
 
 // The same roster with the voucher phase ending after five days: 35 slots
-// fit, twelve go to the public sale, no "+ Tag" column past the end. And
+// fit, twelve go to the public sale, no "+ Tag" row past the end. And
 // without any end: the open-ended path every older link takes.
 const scratch = mkdtempSync(join(tmpdir(), 'vouch0rzii-'));
 const variant = (name, patch) => {

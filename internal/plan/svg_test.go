@@ -129,41 +129,58 @@ func TestSVGTopDownOrientation(t *testing.T) {
 	if err := xml.Unmarshal([]byte(p.SVG()), &diagram); err != nil {
 		t.Fatal(err)
 	}
-	var dayCount, voucherCount, dayX, dayY, voucherX, voucherY int
+	// Day labels (font-weight 600) give each row's y, voucher headers (700)
+	// each column's x; slot labels carry no weight and sit where both meet.
+	var dayY, voucherX []int
+	dayX, voucherY := -1, -1
+	slotAt := map[string][2]int{}
 	for _, label := range diagram.Texts {
-		switch {
-		case label.Weight == "600":
-			dayCount++
-			if dayCount > len(p.Grid) {
-				t.Fatalf("extra day label with font-weight 600: %q", label.Label)
+		switch label.Weight {
+		case "600":
+			if dayX >= 0 && (label.X != dayX || label.Y <= dayY[len(dayY)-1]) {
+				t.Errorf("day labels must share x and increase y: %q at (%d,%d)", label.Label, label.X, label.Y)
 			}
-			if label.Label != p.dayLabel(dayCount) {
-				t.Errorf("day label %d = %q, want %q", dayCount, label.Label, p.dayLabel(dayCount))
+			dayX, dayY = label.X, append(dayY, label.Y)
+			if d := len(dayY); d > len(p.Grid) || label.Label != p.dayLabel(d) {
+				t.Errorf("day label %d = %q, want one per plan day in order", d, label.Label)
 			}
-			if dayCount > 1 && (label.X != dayX || label.Y <= dayY) {
-				t.Errorf("day labels must share x and increase y: (%d,%d) then (%d,%d)", dayX, dayY, label.X, label.Y)
+		case "700":
+			if voucherY >= 0 && (label.Y != voucherY || label.X <= voucherX[len(voucherX)-1]) {
+				t.Errorf("voucher headers must share y and increase x: %q at (%d,%d)", label.Label, label.X, label.Y)
 			}
-			dayX, dayY = label.X, label.Y
-		case strings.HasPrefix(label.Label, "V"):
-			voucherCount++
-			if want := "V" + strconv.Itoa(voucherCount); label.Label != want {
+			voucherY, voucherX = label.Y, append(voucherX, label.X)
+			if want := "V" + strconv.Itoa(len(voucherX)); label.Label != want {
 				t.Errorf("voucher header = %q, want %q", label.Label, want)
 			}
-			if voucherCount > 1 && (label.Y != voucherY || label.X <= voucherX) {
-				t.Errorf("voucher headers must share y and increase x: (%d,%d) then (%d,%d)", voucherX, voucherY, label.X, label.Y)
-			}
-			voucherX, voucherY = label.X, label.Y
+		case "":
+			slotAt[label.Label] = [2]int{label.X, label.Y}
 		}
 	}
-	if dayCount != len(p.Grid) || dayCount < 2 || voucherCount != len(p.From) || voucherCount < 2 {
-		t.Fatalf("want all days and vouchers, at least two each; got %d days and %d vouchers", dayCount, voucherCount)
+	if len(dayY) != len(p.Grid) || len(dayY) < 2 || len(voucherX) != len(p.From) || len(voucherX) < 2 {
+		t.Fatalf("want all days and vouchers, at least two each; got %d days and %d vouchers", len(dayY), len(voucherX))
+	}
+	slots := 0
+	for d, row := range p.Grid {
+		for v, s := range row {
+			if s == nil {
+				continue
+			}
+			slots++
+			if at, want := slotAt[s.Label], [2]int{voucherX[v], dayY[d]}; at != want {
+				t.Errorf("slot %s (day %d, voucher %d) drawn at %v, want %v: in its voucher's column and its day's row", s.Label, d+1, v+1, at, want)
+			}
+		}
+	}
+	if slots == 0 || len(slotAt) != slots {
+		t.Errorf("want one label per slot, got %d labels for %d slots", len(slotAt), slots)
 	}
 	if len(diagram.Lines) != len(p.Handovers) || len(diagram.Lines) == 0 {
 		t.Fatalf("want a nonempty line per handover, got %d lines for %d handovers", len(diagram.Lines), len(p.Handovers))
 	}
-	for _, line := range diagram.Lines {
-		if line.X1 != line.X2 || line.Y2 <= line.Y1 {
-			t.Errorf("handover must point straight down: (%d,%d) to (%d,%d)", line.X1, line.Y1, line.X2, line.Y2)
+	for i, h := range p.Handovers { // arrows are drawn in handover order
+		line, x := diagram.Lines[i], voucherX[h.Voucher-1]
+		if line.X1 != x || line.X2 != x || !(dayY[h.From.Day-1] < line.Y1 && line.Y1 < line.Y2 && line.Y2 < dayY[h.To.Day-1]) {
+			t.Errorf("handover %s → %s must run straight down voucher %d from below the giver to above the receiver: (%d,%d) to (%d,%d)", h.From.Label, h.To.Label, h.Voucher, line.X1, line.Y1, line.X2, line.Y2)
 		}
 	}
 }

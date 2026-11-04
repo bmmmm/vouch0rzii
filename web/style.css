@@ -90,7 +90,7 @@ th small { display: block; color: var(--muted); font-weight: 400; }
 #matrix thead th { position: sticky; top: 0; z-index: 2; text-align: center; box-shadow: inset 0 -2px 0 var(--field); }
 #matrix thead th.corner { left: 0; z-index: 3; text-align: left; }
 #matrix tbody th { position: sticky; left: 0; z-index: 1; }
-#matrix td.cell { position: relative; height: 2.6rem; vertical-align: middle; overflow: hidden; text-overflow: ellipsis; border-left: 4px solid transparent; }
+#matrix td.cell { position: relative; height: 2.6rem; vertical-align: middle; white-space: normal; overflow-wrap: anywhere; border-left: 4px solid transparent; }
 #matrix td.cell.kept { border-left-color: var(--known); }
 #matrix td.cell.forbidden { border-left-color: var(--forbidden); }
 #matrix td.cell.pinned { background: var(--pin); font-weight: 700; }
@@ -189,7 +189,7 @@ button.badge { cursor: pointer; font: inherit; font-size: .8rem; border-color: v
   .card { border: none; padding: 0; margin: 0 0 1rem; break-inside: avoid; }
   #sheets-card { break-before: page; }
   .matrix-wrap { max-height: none; overflow: visible; }
-  #matrix th { position: static; }
+  #matrix thead th, #matrix tbody th { position: static; }
   a { color: inherit; text-decoration: none; }
   th, td { border-color: #999; }
 }
