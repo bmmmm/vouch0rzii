@@ -56,6 +56,12 @@ what to check.
 
 ### Changed
 
+- The plan matrix and the flow diagram run top to bottom: one column per
+  voucher, one row per plan day, so chains fill downward and "+ day" adds
+  a row at the bottom. The matrix keeps its voucher and day headers in view
+  while it scrolls in its box, frames today's row, outlines free cells more
+  strongly and names every mark in its legend; the diagram has a legend for
+  its arrow colours. `-format svg` draws the same top-down layout.
 - The page explains × on a pin on a frozen day: nobody bought there, the
   slot is planned again after the frozen days and the cell stays free.
 - Groups keep their voucher: a person with the group flag gets their slots
@@ -83,8 +89,7 @@ what to check.
   days that have passed.
 - Exports: `stats.kept` and `handovers[].kept` (handovers within a group)
   replace `stats.known`, `stats.unknown` and `handovers[].known`; the SVG
-  arrow kinds are `kept`, `pass` and `forbidden`; the legend shows only
-  "group keeps the voucher".
+  arrow kinds are `kept`, `pass` and `forbidden`.
 
 ### Removed
 
