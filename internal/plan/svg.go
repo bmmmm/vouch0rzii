@@ -28,10 +28,9 @@ func kindOf(h Handover) int {
 // SVG draws the plan top to bottom: one column per voucher, one row per day,
 // a box per slot and a downward arrow per handover (also across idle days).
 // Faint separators mark day rows; pinned slots get a thick border and tint.
-// Text and boxes use currentColor, so the
-// diagram follows the page's light or dark theme when inlined and is black on
-// transparent as a file. Labels are escaped; the output is deterministic, so
-// CLI and wasm agree byte for byte.
+// Text and boxes use currentColor, so the diagram follows the page's light or
+// dark theme when inlined and is black on transparent as a file. Labels are
+// escaped; the output is deterministic, so CLI and wasm agree byte for byte.
 func (p *Plan) SVG() string {
 	const (
 		cellW, cellH = 140, 64

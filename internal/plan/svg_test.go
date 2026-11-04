@@ -47,6 +47,29 @@ func TestEdgeColoursContrast(t *testing.T) {
 	}
 }
 
+// TestLegendMatchesEdgeKinds keeps the page's diagram legend in step with the
+// arrows: every kind has a swatch in its colour in web/style.css and is named
+// in both languages in web/index.html.
+func TestLegendMatchesEdgeKinds(t *testing.T) {
+	css, err := os.ReadFile("../../web/style.css")
+	if err != nil {
+		t.Fatal(err)
+	}
+	page, err := os.ReadFile("../../web/index.html")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, k := range edgeKinds {
+		m := regexp.MustCompile(`\.sw\.arrow\.` + k.name + ` \{ background: (#[0-9a-f]{6}); \}`).FindSubmatch(css)
+		if m == nil || string(m[1]) != k.color {
+			t.Errorf("web/style.css: .sw.arrow.%s should be %s, got %q", k.name, k.color, m)
+		}
+		if n := strings.Count(string(page), `<span class="sw arrow `+k.name+`"></span>`); n != 2 {
+			t.Errorf("web/index.html: want the %s arrow in the German and the English legend, got %d", k.name, n)
+		}
+	}
+}
+
 // a is a group and a+1 is pinned to day 2 on voucher 1, so a keeps voucher 1
 // (a → a+1, kept) and b passes voucher 2 on (b → c<x).
 func TestSVGDrawsBoxesArrowsAndEscapes(t *testing.T) {
