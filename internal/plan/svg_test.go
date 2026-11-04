@@ -3,6 +3,7 @@
 package plan
 
 import (
+	"encoding/xml"
 	"math"
 	"os"
 	"regexp"
@@ -83,5 +84,63 @@ func TestSVGEscapesTitle(t *testing.T) {
 	e.Name = "t<1"
 	if svg := mustCompute(t, e, nil).SVG(); !strings.Contains(svg, "<title>t&lt;1</title>") {
 		t.Fatalf("title not escaped:\n%.200s", svg)
+	}
+}
+
+func TestSVGTopDownOrientation(t *testing.T) {
+	p := mustCompute(t, renderEvent(), nil)
+	var diagram struct {
+		Texts []struct {
+			X      int    `xml:"x,attr"`
+			Y      int    `xml:"y,attr"`
+			Weight string `xml:"font-weight,attr"`
+			Label  string `xml:",chardata"`
+		} `xml:"text"`
+		Lines []struct {
+			X1 int `xml:"x1,attr"`
+			Y1 int `xml:"y1,attr"`
+			X2 int `xml:"x2,attr"`
+			Y2 int `xml:"y2,attr"`
+		} `xml:"line"`
+	}
+	if err := xml.Unmarshal([]byte(p.SVG()), &diagram); err != nil {
+		t.Fatal(err)
+	}
+	var dayCount, voucherCount, dayX, dayY, voucherX, voucherY int
+	for _, label := range diagram.Texts {
+		switch {
+		case label.Weight == "600":
+			dayCount++
+			if dayCount > len(p.Grid) {
+				t.Fatalf("extra day label with font-weight 600: %q", label.Label)
+			}
+			if label.Label != p.dayLabel(dayCount) {
+				t.Errorf("day label %d = %q, want %q", dayCount, label.Label, p.dayLabel(dayCount))
+			}
+			if dayCount > 1 && (label.X != dayX || label.Y <= dayY) {
+				t.Errorf("day labels must share x and increase y: (%d,%d) then (%d,%d)", dayX, dayY, label.X, label.Y)
+			}
+			dayX, dayY = label.X, label.Y
+		case strings.HasPrefix(label.Label, "V"):
+			voucherCount++
+			if want := "V" + strconv.Itoa(voucherCount); label.Label != want {
+				t.Errorf("voucher header = %q, want %q", label.Label, want)
+			}
+			if voucherCount > 1 && (label.Y != voucherY || label.X <= voucherX) {
+				t.Errorf("voucher headers must share y and increase x: (%d,%d) then (%d,%d)", voucherX, voucherY, label.X, label.Y)
+			}
+			voucherX, voucherY = label.X, label.Y
+		}
+	}
+	if dayCount != len(p.Grid) || dayCount < 2 || voucherCount != len(p.From) || voucherCount < 2 {
+		t.Fatalf("want all days and vouchers, at least two each; got %d days and %d vouchers", dayCount, voucherCount)
+	}
+	if len(diagram.Lines) != len(p.Handovers) || len(diagram.Lines) == 0 {
+		t.Fatalf("want a nonempty line per handover, got %d lines for %d handovers", len(diagram.Lines), len(p.Handovers))
+	}
+	for _, line := range diagram.Lines {
+		if line.X1 != line.X2 || line.Y2 <= line.Y1 {
+			t.Errorf("handover must point straight down: (%d,%d) to (%d,%d)", line.X1, line.Y1, line.X2, line.Y2)
+		}
 	}
 }
