@@ -84,8 +84,8 @@ try {
   }
   check('page: plan rendered from the admin link', ready);
 
-  // Helpers run inside the page. Rows are vouchers, the first column a <th>.
-  const cell = (d, v) => `document.querySelector('#matrix tbody tr:nth-child(${v}) td:nth-child(${d + 1})')`;
+  // Helpers run inside the page. Rows are days, each led by a <th>; columns are vouchers.
+  const cell = (d, v) => `document.querySelector('#matrix tbody tr:nth-child(${d}) td:nth-child(${v + 1})')`;
   const text = (d, v) => js(`${cell(d, v)}.firstChild.nodeValue.trim()`);
   const click = (d, v) => js(`${cell(d, v)}.click(); 0`);
   const key = (k, shift = false, on = 'document.body') => js(`${on}.dispatchEvent(new KeyboardEvent('keydown', { key: '${k}', ctrlKey: true, shiftKey: ${shift}, bubbles: true, cancelable: true })); 0`);
@@ -132,7 +132,7 @@ try {
   await js(`document.getElementById('f-every').value = '2'; document.getElementById('compute').click(); 0`);
   check('pins: every 2 moves the day-2 pins from Monday to Tuesday, and says so', (await warning()).includes(`Gepinnte Slots haben jetzt ein anderes Datum: ${day2[1]} Mo 02.11. → Di 03.11., ${day2[0]} Mo 02.11. → Di 03.11. Ein Pin`), await warning());
   await key('z');
-  check('pins: Ctrl+Z restores daily buying days', await js(`document.getElementById('f-every').value === '1' && document.querySelector('#matrix thead th:nth-child(3) small').textContent === '2026-11-02'`));
+  check('pins: Ctrl+Z restores daily buying days', await js(`document.getElementById('f-every').value === '1' && document.querySelector('#matrix tbody tr:nth-child(2) th small').textContent === '2026-11-02'`));
   await key('z');
   check('pins: and the swap is gone again', (await text(2, 1)) === day2[0] && !(await stats()).includes('gepinnt'));
 
@@ -221,7 +221,7 @@ try {
   let st = await linkState();
   check('freeze: pins every slot up to today and freezes the days, the plan stays', st.event.frozen === '2026-11-11' && st.pins.length > 0 && (await stats()).startsWith('7 Vouchers · 11 Tage · 47 Slots · 40 Übergaben, davon 9 innerhalb einer Gruppe'), `${st.event.frozen} ${st.pins.length} ${await stats()}`);
   await js(`document.getElementById('roster').value += '\\tlatecomer\\tMitglied\\t\\t\\t\\t\\t\\t\\n'; document.getElementById('compute').click(); 0`);
-  const lateDay = () => js(`[...document.querySelectorAll('#matrix td.cell')].find((td) => td.firstChild?.nodeValue === 'latecomer')?.cellIndex`);
+  const lateDay = () => js(`[...document.querySelectorAll('#matrix td.cell')].find((td) => td.firstChild?.nodeValue === 'latecomer')?.parentElement.rowIndex`);
   check('freeze: a member added afterwards buys on day 10, after the frozen days', (await lateDay()) === 10 && (await stats()).includes('48 Slots'), `day ${await lateDay()}, ${await stats()}`);
   const saved = await js(`(() => { let text = ''; const B = globalThis.Blob, click = HTMLAnchorElement.prototype.click; globalThis.Blob = class extends B { constructor(parts, o) { super(parts, o); text = parts.join(''); } }; HTMLAnchorElement.prototype.click = () => {}; document.getElementById('saveFile').click(); globalThis.Blob = B; HTMLAnchorElement.prototype.click = click; return text; })()`);
   check('freeze: the saved event file leaves out the frozen days, as it leaves out the pins', saved.includes('latecomer') && !saved.includes('frozen'), saved.slice(0, 120));
@@ -237,7 +237,7 @@ try {
   // checked against the matrix before and after.
   const onDate = (ymd, expr) => js(`(() => { const D = globalThis.Date, at = new D('${ymd}T12:00:00'); globalThis.Date = class extends D { constructor(...a) { super(...(a.length ? a : [at])); } static now() { return at.getTime(); } }; try { ${expr} } finally { globalThis.Date = D; } })(); 0`);
   const onDay3 = (expr) => onDate('2026-11-03', expr);
-  const placed = () => js(`(() => { const m = {}; for (const td of document.querySelectorAll('#matrix tbody td.cell:not(.empty):not(.extra)')) if (td.firstChild) m[td.firstChild.nodeValue] = { at: td.cellIndex + '-' + td.parentElement.rowIndex, pinned: td.classList.contains('pinned') }; return m; })()`);
+  const placed = () => js(`(() => { const m = {}; for (const td of document.querySelectorAll('#matrix tbody td.cell:not(.empty):not(.extra)')) if (td.firstChild) m[td.firstChild.nodeValue] = { at: td.parentElement.rowIndex + '-' + td.cellIndex, pinned: td.classList.contains('pinned') }; return m; })()`);
   const movedCount = async (was) => {
     const now = await placed(), pub = await js(`document.querySelector('#r-public b')?.textContent.split(', ') || []`);
     return Object.keys(was).filter((l) => now[l] ? !now[l].pinned && now[l].at !== was[l].at : pub.includes(l)).length;
@@ -530,7 +530,7 @@ try {
   const rolledEvent = join(profile, 'rolled.json');
   writeFileSync(rolledEvent, JSON.stringify({ ...demoEvent, seed: seedAfter }));
   const cliDay1 = JSON.parse(execFileSync(cli, ['-event', rolledEvent, '-format', 'json']).toString()).grid[0];
-  check('chance: the CLI draws the same day 1 from that seed', JSON.stringify(cliDay1) === JSON.stringify(await js(`[...document.querySelectorAll('#matrix tbody tr')].map((tr) => tr.cells[1].firstChild.nodeValue)`)), JSON.stringify(cliDay1));
+  check('chance: the CLI draws the same day 1 from that seed', JSON.stringify(cliDay1) === JSON.stringify(await js(`[...document.querySelector('#matrix tbody tr').cells].slice(1).map((td) => td.firstChild.nodeValue)`)), JSON.stringify(cliDay1));
   await js(`document.getElementById('roll').click(); 0`);
   const rolledAgain = await isShuffling();
   for (const type of ['mousePressed', 'mouseReleased']) await send('Input.dispatchMouseEvent', { type, x: 5, y: 5, button: 'left', clickCount: 1 }, sessionId);
@@ -707,9 +707,9 @@ try {
   await js(`document.getElementById('f-end').value = '2026-01-01'; document.getElementById('compute').click(); 0`);
   check('state 5: an honoured pin still rejects a change that drops it', await js(`/bleiben Pins/.test(document.querySelector('#messages .error')?.textContent || '')`));
   await openState({ ...small, frozen: '2026-01-03', end: '2026-01-05', people: [...small.people, { id: 'c', tier: 'member' }] }, [{ label: 'a', day: 1, voucher: 1 }, { label: 'b', day: 1, voucher: 2 }]);
-  check('state 6: empty frozen cells say closed in German', await js(`document.querySelector('#matrix tbody tr td:nth-child(3)').textContent === 'geschlossen' && document.querySelector('#matrix tbody tr td:nth-child(4)').textContent === 'geschlossen' && document.querySelector('#matrix tbody tr td:nth-child(3)').title === 'geschlossen'`), await js(`document.getElementById('matrix').textContent`));
+  check('state 6: empty frozen cells say closed in German', await js(`document.querySelector('#matrix tbody tr:nth-child(2) td:nth-child(2)').textContent === 'geschlossen' && document.querySelector('#matrix tbody tr:nth-child(3) td:nth-child(2)').textContent === 'geschlossen' && document.querySelector('#matrix tbody tr:nth-child(2) td:nth-child(2)').title === 'geschlossen'`), await js(`document.getElementById('matrix').textContent`));
   await js(`document.getElementById('lang').click(); 0`);
-  check('state 6: empty frozen cells say closed in English', await js(`document.querySelector('#matrix tbody tr td:nth-child(3)').textContent === 'closed'`));
+  check('state 6: empty frozen cells say closed in English', await js(`document.querySelector('#matrix tbody tr:nth-child(2) td:nth-child(2)').textContent === 'closed'`));
   await js(`document.getElementById('lang').click(); 0`);
   await js(`document.getElementById('f-handover').value = '21:00'; document.getElementById('compute').click(); 0`);
   await key('z');

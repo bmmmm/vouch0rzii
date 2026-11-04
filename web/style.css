@@ -82,13 +82,21 @@ table { border-collapse: collapse; width: 100%; font-size: .9rem; }
 th, td { border: 1px solid var(--line); padding: .35rem .5rem; text-align: left; white-space: nowrap; vertical-align: top; }
 th { background: var(--bg); font-weight: 600; }
 th small { display: block; color: var(--muted); font-weight: 400; }
-#matrix td.cell { position: relative; min-width: 6.5rem; height: 2.4rem; border-left: 4px solid transparent; }
+/* The plan top to bottom: equal voucher columns (--vouchers set by app.js),
+   one row per day; both headers stay in view while the plan scrolls in its box. */
+.matrix-wrap { max-height: 75vh; overflow: auto; }
+#matrix { table-layout: fixed; min-width: calc(8rem + var(--vouchers, 1) * 7.5rem); font-size: .95rem; }
+#matrix th.corner { width: 8rem; color: var(--muted); }
+#matrix thead th { position: sticky; top: 0; z-index: 2; text-align: center; box-shadow: inset 0 -2px 0 var(--field); }
+#matrix thead th.corner { left: 0; z-index: 3; text-align: left; }
+#matrix tbody th { position: sticky; left: 0; z-index: 1; }
+#matrix td.cell { position: relative; height: 2.6rem; vertical-align: middle; overflow: hidden; text-overflow: ellipsis; border-left: 4px solid transparent; }
 #matrix td.cell.kept { border-left-color: var(--known); }
 #matrix td.cell.forbidden { border-left-color: var(--forbidden); }
 #matrix td.cell.pinned { background: var(--pin); font-weight: 700; }
 #matrix td.cell.selected { outline: 3px solid var(--select); outline-offset: -3px; }
-#matrix td.cell.empty { color: var(--muted); font-style: italic; outline: 1px dashed var(--line); outline-offset: -4px; }
-#matrix td.cell.extra { border-style: dashed; color: var(--muted); }
+#matrix td.cell.empty { color: var(--muted); font-style: italic; outline: 1px dashed var(--field); outline-offset: -5px; }
+#matrix tr.extra > * { border-style: dashed; color: var(--muted); }
 #matrix td.cell.na { background: repeating-linear-gradient(45deg, transparent 0 6px, var(--line) 6px 7px); cursor: default; }
 #matrix td.cell.lost { background: repeating-linear-gradient(-45deg, transparent 0 6px, var(--forbidden) 6px 7px); }
 #matrix.editable td.cell { cursor: pointer; }
@@ -99,6 +107,15 @@ th small { display: block; color: var(--muted); font-weight: 400; }
 .legend { color: var(--muted); font-size: .85rem; margin: .5rem 0 0; }
 .sw { display: inline-block; width: .9rem; height: .9rem; vertical-align: -0.1rem; border-radius: 2px; margin: 0 .2rem 0 .6rem; }
 .sw.kept { background: var(--known); }
+.sw.forbidden { background: var(--forbidden); }
+.sw.pinned { background: var(--pin); border: 1px solid var(--field); }
+.sw.today { border: 1px solid var(--line); box-shadow: inset 0 3px 0 var(--accent), inset 0 -3px 0 var(--accent); }
+.sw.na { border: 1px solid var(--line); background: repeating-linear-gradient(45deg, transparent 0 3px, var(--field) 3px 4px); }
+.sw.lost { border: 1px solid var(--line); background: repeating-linear-gradient(-45deg, transparent 0 3px, var(--forbidden) 3px 4px); }
+/* Flow diagram: arrow colours as edgeKinds in internal/plan/svg.go (TestLegendMatchesEdgeKinds). */
+.sw.arrow { width: .3rem; height: 1rem; border-radius: 1px; }
+.sw.arrow.kept { background: #2f8f5b; } .sw.arrow.pass { background: #8c8c8c; } .sw.arrow.forbidden { background: #e04a4a; }
+.sw.box { border: 3px solid var(--ink); }
 
 #handovers h3 { font-size: .95rem; margin: .8rem 0 .3rem; }
 #handovers ul { margin: 0; padding-left: .2rem; list-style: none; }
@@ -124,8 +141,8 @@ button.badge { cursor: pointer; font: inherit; font-size: .8rem; border-color: v
 #matrix td.cell.st-received { background: #e3effa; }
 #matrix td.cell.st-bought { background: #e2f3e9; }
 #matrix td.cell.st-passed { color: var(--muted); text-decoration: line-through; }
-#matrix th.today { color: var(--accent); }
-#matrix td.cell.today { box-shadow: inset 0 -3px 0 var(--accent); }
+#matrix tr.today > th { color: var(--accent); box-shadow: inset 4px 0 0 var(--accent); }
+#matrix td.cell.today { box-shadow: inset 0 3px 0 var(--accent), inset 0 -3px 0 var(--accent); }
 #liveList { margin: 0; padding-left: 1.2rem; }
 #liveList li { margin: .15rem 0; }
 #liveList li.overdue { color: var(--forbidden); }
@@ -171,6 +188,8 @@ button.badge { cursor: pointer; font: inherit; font-size: .8rem; border-color: v
   header nav, #editor, #collect, #r-pinhelp, #r-random, #r-demo, #r-nerd, #entropy, button, .button, #toast, p.hint, label.inline, #matrix .extra, #bulk, #sheets td:has(> input.pick), #sheets th:has(> #pickAll), footer { display: none !important; }
   .card { border: none; padding: 0; margin: 0 0 1rem; break-inside: avoid; }
   #sheets-card { break-before: page; }
+  .matrix-wrap { max-height: none; overflow: visible; }
+  #matrix th { position: static; }
   a { color: inherit; text-decoration: none; }
   th, td { border-color: #999; }
 }

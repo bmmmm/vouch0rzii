@@ -66,12 +66,13 @@ check('empty page: intro visible', home.includes('<p id="intro" class="intro">')
 check('empty page: no error box', noError(home));
 
 const demoDom = dom(page + demo);
-check('demo: plan rendered in admin mode', planned(demoDom) && demoDom.includes('<table id="matrix" class="editable">'));
+check('demo: plan rendered in admin mode', planned(demoDom) && demoDom.includes('<table id="matrix" class="editable" style="--vouchers: 7;">'));
 check('demo: diagram inlined', demoDom.includes('<div class="scroll" id="diagram"><svg'));
 
 const admin = dom(link('admin'));
 check('admin: plan rendered from the link', planned(admin));
-check('admin: matrix editable and shows the group slot', admin.includes('<table id="matrix" class="editable">') && admin.includes('mammut+10'));
+check('admin: matrix editable and shows the group slot', admin.includes('<table id="matrix" class="editable" style="--vouchers: 7;">') && admin.includes('mammut+10'));
+check('admin: matrix top-down, a column per voucher, a row per day plus "+ Tag"', (admin.match(/<th scope="col">Voucher \d+<\/th>/g) || []).length === 7 && (admin.match(/<th scope="row">/g) || []).length === 8 && admin.includes('<tr class="extra"><th scope="row">+ Tag'));
 check('admin: one sheet row per slot', (admin.match(/data-who=/g) || []).length === 47);
 check('admin: live status lists every voucher', (admin.match(/<li class="live/g) || []).length === 7);
 check('admin: status buttons on every sheet row', (admin.match(/<button type="button" class="badge st-open"/g) || []).length === 47);
@@ -81,7 +82,7 @@ check('admin: matrix cells keyboard-focusable', (admin.match(/tabindex="0"/g) ||
 check('admin: intro hidden once a plan exists', admin.includes('<p id="intro" class="intro" hidden=""'));
 check('admin: voucher phase summary, free cells marked, nothing for the public sale', admin.includes('Voucher-Phase bis Fr 13.11. (11 Tage) · 30 Slots frei') && (admin.match(/>frei<\/td>/g) || []).length === 2 && admin.includes('<div id="r-public" class="warning" hidden="">'));
 check('admin: "+ Tag" column offered while the phase has room', admin.includes('>+ Tag<'));
-check('admin: mammut keeps its vouchers, marked and named in the legend', admin.includes('7 Vouchers · 7 Tage · 47 Slots · 40 Übergaben, davon 9 innerhalb einer Gruppe') && (admin.match(/class="cell[^"]*\bkept\b/g) || []).length === 9 && admin.includes('<span class="sw kept"></span> Gruppe behält den Voucher</p>'));
+check('admin: mammut keeps its vouchers, marked and named in the legend', admin.includes('7 Vouchers · 7 Tage · 47 Slots · 40 Übergaben, davon 9 innerhalb einer Gruppe') && (admin.match(/class="cell[^"]*\bkept\b/g) || []).length === 9 && admin.includes('<span class="sw kept"></span> Gruppe behält den Voucher <span class="sw forbidden">'));
 check('admin: the draw is explained with the seed', admin.includes('entscheidet das Los mit Seed „congress2026"'));
 check('admin: share buttons visible', admin.includes('<nav id="sharebar">'));
 check('admin: board hidden, "Board" opens a board state in a new tab', admin.includes('<section id="board" class="card" hidden="">') && /id="toBoard" class="button" href="[^"]+"[^>]* rel="noopener"[^>]* target="_blank"/.test(admin) && decode(hrefOf(admin, 'toBoard')).mode === 'board');

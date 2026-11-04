@@ -73,7 +73,7 @@
       phase: (day, days, free) => `Voucher-Phase bis ${day} (${days} Tage) · ${free} Slots frei`,
       noEnd: (free) => `Kein Ende der Voucher-Phase gesetzt · ${free} Slots frei im Plan`,
       pinsMoved: (list) => `Gepinnte Slots haben jetzt ein anderes Datum: ${list} Ein Pin merkt sich den Plantag, nicht das Datum.`, // German day names end in "."
-      addDay: '+ Tag', free: 'frei', notYet: 'Voucher noch nicht verfügbar', fromOrga: 'bekommt den Voucher von der Orga',
+      addDay: '+ Tag', dayHead: 'Tag', free: 'frei', notYet: 'Voucher noch nicht verfügbar', fromOrga: 'bekommt den Voucher von der Orga',
       freeCell: 'Voucher verfügbar, noch niemand eingeplant', unpin: 'Pin lösen',
       evening: (day, date, at) => `${day} (${date}), ${at} Uhr`,
       forbidden: 'direkt an eigene Begleitung', kept: 'Gruppe behält den Voucher', passed: 'weitergegeben',
@@ -153,7 +153,7 @@
       phase: (day, days, free) => `Voucher phase until ${day} (${days} days) · ${free} slots free`,
       noEnd: (free) => `No end of the voucher phase set · ${free} slots free in the plan`,
       pinsMoved: (list) => `Pinned slots now have another date: ${list}. A pin keeps the plan day, not the date.`,
-      addDay: '+ day', free: 'free', notYet: 'Voucher not available yet', fromOrga: 'gets the voucher from the organisers',
+      addDay: '+ day', dayHead: 'Day', free: 'free', notYet: 'Voucher not available yet', fromOrga: 'gets the voucher from the organisers',
       freeCell: 'Voucher available, nobody planned yet', unpin: 'Release pin',
       evening: (day, date, at) => `${day} (${date}), ${at}`,
       forbidden: "straight to one's own companion", kept: 'group keeps the voucher', passed: 'passed on',
@@ -558,7 +558,7 @@
   // any re-render of the matrix discards it; assignLabel resolves the text.
   function nameCell(td, cell) {
     const input = el('input', { class: 'cellname', placeholder: 'Handle', 'aria-label': t('cellAria') });
-    const refocus = () => { const c = $(`#matrix tbody tr:nth-child(${cell.voucher}) td:nth-child(${cell.day + 1})`); if (c) c.focus(); };
+    const refocus = () => { const c = $(`#matrix tbody tr:nth-child(${cell.day}) td:nth-child(${cell.voucher + 1})`); if (c) c.focus(); };
     input.addEventListener('click', (e) => e.stopPropagation()); // not a second pick of the cell
     input.addEventListener('keydown', (e) => {
       e.stopPropagation();
@@ -893,7 +893,7 @@
       const now = performance.now() - start;
       let open = 0;
       cells.forEach((td, i) => {
-        if (now >= 350 + (td.cellIndex - 1) * step) { // day columns start at cellIndex 1
+        if (now >= 350 + (td.parentElement.rowIndex - 1) * step) { // day rows start at rowIndex 1, below the header
           if (td.classList.contains('flicker')) { td.firstChild.nodeValue = labels[i]; td.classList.replace('flicker', 'settle'); }
           return;
         }
@@ -997,6 +997,7 @@
     const table = $('#matrix');
     const editable = state.mode === 'admin';
     table.classList.toggle('editable', editable);
+    table.style.setProperty('--vouchers', plan.vouchers); // column count for the minimum width; CSSOM, allowed by style-src 'self'
     const now = today();
     const pos = positions();
     const incoming = new Map(); // "day-voucher" of the receiving cell → handover
@@ -1005,10 +1006,12 @@
     const days = plan.days.slice();
     if (editable && !(plan.end.day && days.length >= plan.end.day)) days.push({ day: days.length + 1, date: '', label: t('addDay'), extra: true }); // no day after the end
 
-    const head = el('tr', {}, el('th', {}, 'Voucher'), days.map((d) => el('th', { class: d.extra ? 'extra' : d.date === now ? 'today' : null }, dayName(d), d.date && el('small', {}, d.date))));
-    const rows = [];
-    for (let v = 1; v <= plan.vouchers; v++) {
-      const tds = days.map((d) => {
+    // Top to bottom: one column per voucher, one row per plan day; chains
+    // fill downward and "+ day" adds a row at the bottom.
+    const vouchers = Array.from({ length: plan.vouchers }, (_, i) => i + 1);
+    const head = el('tr', {}, el('th', { class: 'corner' }, t('dayHead')), vouchers.map((v) => el('th', { scope: 'col' }, `Voucher ${v}`)));
+    const rows = days.map((d) => {
+      const tds = vouchers.map((v) => {
         const label = d.extra ? '' : (plan.grid[d.day - 1][v - 1] || '');
         const na = plan.voucherFrom[v - 1] > d.day; // voucher does not exist yet (also in the "+ Tag" column)
         if (na) return el('td', { class: 'cell na', title: t('notYet') });
@@ -1050,8 +1053,9 @@
         }
         return td;
       });
-      rows.push(el('tr', {}, el('th', {}, v), tds));
-    }
+      return el('tr', { class: d.extra ? 'extra' : d.date === now ? 'today' : null },
+        el('th', { scope: 'row' }, dayName(d), d.date && el('small', {}, d.date)), tds);
+    });
     table.replaceChildren(el('thead', {}, head), el('tbody', {}, rows));
   }
 

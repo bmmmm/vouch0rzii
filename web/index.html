@@ -186,8 +186,8 @@
   <section id="result" hidden>
     <div class="card">
       <h2><span lang="de">Live-Status</span><span lang="en">Live status</span></h2>
-      <p class="hint" lang="de">Schritte je Slot: offen → Voucher da → Ticket gekauft → weitergegeben. Admins klicken den Status in der Tabelle „Wer, wann, von wem, an wen" weiter und teilen den Link neu; Teilnehmende melden ihren Status dort per Mail. Die heutige Spalte ist im Plan markiert.</p>
-      <p class="hint" lang="en">Steps per slot: open → voucher received → ticket bought → passed on. Admins click the status further in the table "Who, when, from whom, to whom" and share the link again; participants report their status there by mail. Today's column is marked in the plan.</p>
+      <p class="hint" lang="de">Schritte je Slot: offen → Voucher da → Ticket gekauft → weitergegeben. Admins klicken den Status in der Tabelle „Wer, wann, von wem, an wen" weiter und teilen den Link neu; Teilnehmende melden ihren Status dort per Mail. Die heutige Zeile ist im Plan markiert.</p>
+      <p class="hint" lang="en">Steps per slot: open → voucher received → ticket bought → passed on. Admins click the status further in the table "Who, when, from whom, to whom" and share the link again; participants report their status there by mail. Today's row is marked in the plan.</p>
       <ul id="liveList"></ul>
       <p id="liveAt" class="hint"></p>
     </div>
@@ -225,9 +225,9 @@
         <button type="button" id="redo" class="small" title="Strg+Shift+Z" data-en-title="Ctrl+Shift+Z" disabled><span lang="de">↷ Wiederholen</span><span lang="en">↷ Redo</span></button>
         <button type="button" id="freezeToday" class="small" title="Alle Slots bis heute pinnen, damit Änderungen nur die Zukunft treffen" data-en-title="Pin every slot up to today so changes only affect the future"><span lang="de">Bis heute festnageln</span><span lang="en">Pin until today</span></button>
         <button type="button" id="unpinAll" class="small"><span lang="de">Alle Pins lösen</span><span lang="en">Release all pins</span></button></p>
-      <div class="scroll"><table id="matrix"></table></div>
-      <p class="legend" lang="de"><span class="sw kept"></span> Gruppe behält den Voucher</p>
-      <p class="legend" lang="en"><span class="sw kept"></span> group keeps the voucher</p>
+      <div class="scroll matrix-wrap"><table id="matrix"></table></div>
+      <p class="legend" lang="de">Spalten sind die Voucher, jede Zeile ein Tag; die Kette läuft nach unten. <span class="sw kept"></span> Gruppe behält den Voucher <span class="sw forbidden"></span> direkt an eigene Begleitung <span class="sw pinned"></span> gepinnt <span class="sw today"></span> heute <span class="sw na"></span> Voucher noch nicht verfügbar <span class="sw lost"></span> Voucher verloren</p>
+      <p class="legend" lang="en">Columns are the vouchers, each row a day; the chain runs downward. <span class="sw kept"></span> group keeps the voucher <span class="sw forbidden"></span> straight to one's own companion <span class="sw pinned"></span> pinned <span class="sw today"></span> today <span class="sw na"></span> voucher not available yet <span class="sw lost"></span> voucher lost</p>
     </div>
     <div class="card">
       <div class="row">
@@ -236,6 +236,8 @@
         <button type="button" id="dlSvg"><span lang="de">SVG herunterladen</span><span lang="en">Download SVG</span></button>
       </div>
       <div class="scroll" id="diagram"></div>
+      <p class="legend" lang="de">Pfeile: <span class="sw arrow kept"></span> Gruppe behält den Voucher <span class="sw arrow pass"></span> weitergegeben <span class="sw arrow forbidden"></span> direkt an eigene Begleitung <span class="sw box"></span> gepinnt</p>
+      <p class="legend" lang="en">Arrows: <span class="sw arrow kept"></span> group keeps the voucher <span class="sw arrow pass"></span> passed on <span class="sw arrow forbidden"></span> straight to one's own companion <span class="sw box"></span> pinned</p>
     </div>
     <div class="card">
       <h2><span lang="de">Übergaben je Abend</span><span lang="en">Handovers per evening</span></h2>
