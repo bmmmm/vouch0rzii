@@ -130,11 +130,29 @@ try {
   check('pins: moving a pinned slot to another day warns about nothing', (await text(3, 1)) === day2[1] && !(await warning()).includes('anderes Datum'));
   await key('z');
   await js(`document.getElementById('f-every').value = '2'; document.getElementById('compute').click(); 0`);
-  check('pins: every 2 moves the day-2 pins from Monday to Tuesday, and says so', (await warning()).includes(`Gepinnte Slots haben jetzt ein anderes Datum: ${day2[1]} Mo 02.11. → Di 03.11., ${day2[0]} Mo 02.11. → Di 03.11. Ein Pin`), await warning());
+  check('pins: every 2 moves the day-2 pins from Monday to Wednesday, and says so', (await warning()).includes(`Gepinnte Slots haben jetzt ein anderes Datum: ${day2[1]} Mo 02.11. → Mi 04.11., ${day2[0]} Mo 02.11. → Mi 04.11. Ein Pin`), await warning());
   await key('z');
-  check('pins: Ctrl+Z restores daily buying days', await js(`document.getElementById('f-every').value === '1' && document.querySelector('#matrix tbody tr:nth-child(2) th small').textContent === '2026-11-02'`));
+  check('pins: Ctrl+Z restores every buying day', await js(`document.getElementById('f-every').value === '1' && document.querySelector('#matrix tbody tr:nth-child(2) th small').textContent === '2026-11-02'`));
   await key('z');
   check('pins: and the swap is gone again', (await text(2, 1)) === day2[0] && !(await stats()).includes('gepinnt'));
+
+  // Buying days: the seven boxes are the week; the day rows follow them.
+  const linkState = () => js(`JSON.parse(globalThis.vouch0rzii.decodeState(location.hash.slice(3)).stateJson)`);
+  const dayRow = (n) => js(`document.querySelector('#matrix tbody tr:nth-child(${n}) th small')?.textContent`);
+  const tickDays = (on) => js(`['mon','tue','wed','thu','fri','sat','sun'].forEach((d) => { document.getElementById('f-day-' + d).checked = ${JSON.stringify(on)}.includes(d); }); document.getElementById('compute').click(); 0`);
+  await tickDays(['mon', 'fri']);
+  check('days: Monday and Friday only, the rows follow', (await dayRow(2)) === '2026-11-02' && (await dayRow(3)) === '2026-11-06' && JSON.stringify((await linkState()).event.days) === '["mon","fri"]', `${await dayRow(3)} ${JSON.stringify((await linkState()).event.days)}`);
+  await tickDays(['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']);
+  check('days: all seven are stored as weekends', (await dayRow(2)) === '2026-10-31' && (await linkState()).event.days === undefined && (await linkState()).event.weekends === true);
+  await tickDays(['mon', 'tue', 'wed', 'thu', 'fri']);
+  check('days: Monday to Friday is stored as no days', (await dayRow(3)) === '2026-11-03' && (await linkState()).event.days === undefined && !(await linkState()).event.weekends);
+  await tickDays([]);
+  check('days: no box ticked is Go\'s error, the plan stays', (await js(`document.querySelector('#messages .error')?.textContent || ''`)).includes('days names no weekday') && (await dayRow(3)) === '2026-11-03');
+  await tickDays(['mon', 'tue', 'wed', 'thu', 'fri']); // undo applies the form first, so it must be valid
+  await key('z');
+  await key('z');
+  await key('z');
+  check('days: Ctrl+Z three times restores Mon, Wed, Fri in rows and boxes', (await dayRow(3)) === '2026-11-04' && (await js(`['mon','tue','wed','thu','fri','sat','sun'].map((d) => +document.getElementById('f-day-' + d).checked).join('')`)) === '1010100');
 
   // Pending roster edits become an undo step of their own.
   await js(`document.getElementById('roster').value += '\\tdodo2\\tBekanntschaft\\t\\t\\t\\t\\t\\t\\n'; 0`);
@@ -212,14 +230,13 @@ try {
   await key('z');
   check('groups: Ctrl+Z restores the box and the plan', (await stats()).startsWith('7 Vouchers · 7 Tage · 47 Slots · 40 Übergaben, davon 9 innerhalb einer Gruppe') && await js(`!document.getElementById('f-membersFirst').checked`), await stats());
 
-  // Pin until today on day 9 (11 Nov) with one voucher per group: mammut's
+  // Pin until today on day 9 (18 Nov) with one voucher per group: mammut's
   // chain leaves cells free in the past; a member added afterwards buys on
   // day 10, not in them. "Release all pins" reopens the past.
-  const linkState = () => js(`JSON.parse(globalThis.vouch0rzii.decodeState(location.hash.slice(3)).stateJson)`);
   await js(`document.getElementById('f-oneChain').click(); document.getElementById('compute').click(); 0`);
-  await js(`(() => { const D = globalThis.Date, at = new D(2026, 10, 11, 12); globalThis.Date = class extends D { constructor(...a) { super(...(a.length ? a : [at])); } static now() { return at.getTime(); } }; document.getElementById('freezeToday').click(); globalThis.Date = D; })(); 0`);
+  await js(`(() => { const D = globalThis.Date, at = new D(2026, 10, 18, 12); globalThis.Date = class extends D { constructor(...a) { super(...(a.length ? a : [at])); } static now() { return at.getTime(); } }; document.getElementById('freezeToday').click(); globalThis.Date = D; })(); 0`);
   let st = await linkState();
-  check('freeze: pins every slot up to today and freezes the days, the plan stays', st.event.frozen === '2026-11-11' && st.pins.length > 0 && (await stats()).startsWith('7 Vouchers · 11 Tage · 47 Slots · 40 Übergaben, davon 9 innerhalb einer Gruppe'), `${st.event.frozen} ${st.pins.length} ${await stats()}`);
+  check('freeze: pins every slot up to today and freezes the days, the plan stays', st.event.frozen === '2026-11-18' && st.pins.length > 0 && (await stats()).startsWith('7 Vouchers · 11 Tage · 47 Slots · 40 Übergaben, davon 9 innerhalb einer Gruppe'), `${st.event.frozen} ${st.pins.length} ${await stats()}`);
   await js(`document.getElementById('roster').value += '\\tlatecomer\\tMitglied\\t\\t\\t\\t\\t\\t\\n'; document.getElementById('compute').click(); 0`);
   const lateDay = () => js(`[...document.querySelectorAll('#matrix td.cell')].find((td) => td.firstChild?.nodeValue === 'latecomer')?.parentElement.rowIndex`);
   check('freeze: a member added afterwards buys on day 10, after the frozen days', (await lateDay()) === 10 && (await stats()).includes('48 Slots'), `day ${await lateDay()}, ${await stats()}`);
@@ -231,18 +248,19 @@ try {
   for (let i = 0; i < 4; i++) await key('z');
   check('freeze: Ctrl+Z four times restores the plain plan', (await stats()).startsWith('7 Vouchers · 7 Tage · 47 Slots · 40 Übergaben, davon 9 innerhalb einer Gruppe') && !(await roster()).includes('latecomer') && await js(`!document.getElementById('f-oneChain').checked`), await stats());
 
-  // A voucher lost at its slot on day 2 while today is day 3 (3 Nov): the
+  // A voucher lost at its slot on day 2 while today is day 3 (4 Nov): the
   // past is pinned except voucher 2 from day 2 on, which is closed, and the
   // slots from there move after today. The counts in the messages are
   // checked against the matrix before and after.
   const onDate = (ymd, expr) => js(`(() => { const D = globalThis.Date, at = new D('${ymd}T12:00:00'); globalThis.Date = class extends D { constructor(...a) { super(...(a.length ? a : [at])); } static now() { return at.getTime(); } }; try { ${expr} } finally { globalThis.Date = D; } })(); 0`);
-  const onDay3 = (expr) => onDate('2026-11-03', expr);
+  const onDay3 = (expr) => onDate('2026-11-04', expr);
   const placed = () => js(`(() => { const m = {}; for (const td of document.querySelectorAll('#matrix tbody td.cell:not(.empty):not(.extra)')) if (td.firstChild) m[td.firstChild.nodeValue] = { at: td.parentElement.rowIndex + '-' + td.cellIndex, pinned: td.classList.contains('pinned') }; return m; })()`);
   const movedCount = async (was) => {
     const now = await placed(), pub = await js(`document.querySelector('#r-public b')?.textContent.split(', ') || []`);
     return Object.keys(was).filter((l) => now[l] ? !now[l].pinned && now[l].at !== was[l].at : pub.includes(l)).length;
   };
-  const locked = () => js(`['f-start', 'f-weekends', 'f-every', 'f-seed', 'f-name'].filter((id) => document.getElementById(id).disabled).join(' ')`);
+  const CAL = 'f-start f-day-mon f-day-tue f-day-wed f-day-thu f-day-fri f-day-sat f-day-sun f-every'; // the calendar fields
+  const locked = () => js(`${JSON.stringify([...CAL.split(' '), 'f-seed', 'f-name'])}.filter((id) => document.getElementById(id).disabled).join(' ')`);
   const isLost = (d, v) => js(`${cell(d, v)}.classList.contains('lost')`);
   check('locks: nothing locked before the start', (await locked()) === '');
   await js(`document.getElementById('f-vouchers').value = '6'; document.getElementById('compute').click(); 0`);
@@ -257,7 +275,7 @@ try {
   st = await linkState();
   const lostToast = await js(`document.getElementById('toast').textContent`), lostMoved = await movedCount(plain);
   const pastOpen = Object.values(plain).filter(({ at }) => { const [d, v] = at.split('-').map(Number); return d <= 3 && !(v === 2 && d >= 2); }).length;
-  check('lost: the mark at a slot closes its voucher from that day on and pins the rest of the past', JSON.stringify(st.event.lost) === '[{"voucher":2,"date":"2026-11-02"}]' && st.event.frozen === '2026-11-03' && st.pins.length === pastOpen && st.pins.every((p) => p.voucher !== 2 || p.day < 2), `${JSON.stringify(st.event.lost)} ${st.event.frozen} ${st.pins.length}/${pastOpen}`);
+  check('lost: the mark at a slot closes its voucher from that day on and pins the rest of the past', JSON.stringify(st.event.lost) === '[{"voucher":2,"date":"2026-11-02"}]' && st.event.frozen === '2026-11-04' && st.pins.length === pastOpen && st.pins.every((p) => p.voucher !== 2 || p.day < 2), `${JSON.stringify(st.event.lost)} ${st.event.frozen} ${st.pins.length}/${pastOpen}`);
   check('lost: its cells are closed in the matrix from that day on', !(await isLost(1, 2)) && (await isLost(2, 2)) && (await isLost(5, 2)) && !(await isLost(2, 1)));
   const brokeNow = (await placed())[brokeAt];
   check('lost: the slot from there is planned again after today', brokeNow && Number(brokeNow.at.split('-')[0]) > 3, JSON.stringify(brokeNow));
@@ -268,7 +286,7 @@ try {
   check('lost: marking the same voucher earlier replaces the mark', JSON.stringify((await linkState()).event.lost) === '[{"voucher":2,"date":"2026-10-30"}]' && (await isLost(1, 2)), JSON.stringify((await linkState()).event.lost));
   await key('z');
   await js(`document.getElementById('unpinAll').click(); 0`);
-  check('lost: without pins a lost voucher alone locks the calendar and the dice', (await locked()) === 'f-start f-weekends f-every f-seed' && await js(`document.getElementById('roll').disabled && document.getElementById('roll').title.includes('verloren')`), await locked());
+  check('lost: without pins a lost voucher alone locks the calendar and the dice', (await locked()) === `${CAL} f-seed` && await js(`document.getElementById('roll').disabled && document.getElementById('roll').title.includes('verloren')`), await locked());
   await js(`document.querySelector('#liveList button.found').click(); 0`);
   st = await linkState();
   check('lost: "wieder da" takes the mark back and frees the settings', !('lost' in st.event) && !(await isLost(2, 2)) && (await locked()) === '', JSON.stringify(st.event.lost));
@@ -278,12 +296,12 @@ try {
   // After the start: calendar and draw are locked (the name only while it is
   // the seed), voucher numbers and pins stay, and other changes say how many
   // planned slots moved.
-  const lockedValues = () => js(`['f-start', 'f-weekends', 'f-every', 'f-seed', 'f-name'].map((id) => { const n = document.getElementById(id); return n.type === 'checkbox' ? n.checked : n.value; }).join(' ')`);
+  const lockedValues = () => js(`${JSON.stringify([...CAL.split(' '), 'f-seed', 'f-name'])}.map((id) => { const n = document.getElementById(id); return n.type === 'checkbox' ? n.checked : n.value; }).join(' ')`);
   await onDay3(`document.getElementById('freezeToday').click();`);
-  check('locks: after "Pin until today" start, weekends, every and seed are locked, the name not while there is a seed', (await locked()) === 'f-start f-weekends f-every f-seed' && await js(`document.getElementById('f-start').title.startsWith('Nach dem Start gesperrt')`), await locked());
+  check('locks: after "Pin until today" start, buying days, every and seed are locked, the name not while there is a seed', (await locked()) === `${CAL} f-seed` && await js(`document.getElementById('f-start').title.startsWith('Nach dem Start gesperrt')`), await locked());
   // A value left in a locked field (restored by the browser, say) yields to the plan's on the next render.
-  await js(`document.getElementById('f-start').value = '2026-11-02'; document.getElementById('f-weekends').checked = true; document.getElementById('f-every').value = '2'; document.getElementById('f-seed').value = 'typed'; document.getElementById('lang').click(); document.getElementById('lang').click(); 0`);
-  check('locks: a locked field shows the value of the plan, not a pending edit', (await lockedValues()) === '2026-10-30 false 1 other congress2026', await lockedValues());
+  await js(`document.getElementById('f-start').value = '2026-11-02'; document.getElementById('f-day-sat').checked = true; document.getElementById('f-day-mon').checked = false; document.getElementById('f-every').value = '2'; document.getElementById('f-seed').value = 'typed'; document.getElementById('lang').click(); document.getElementById('lang').click(); 0`);
+  check('locks: a locked field shows the value of the plan, not a pending edit', (await lockedValues()) === '2026-10-30 true false true false true false false 1 other congress2026', await lockedValues());
   const statsFrozen = await stats();
   const errorText = () => js(`document.querySelector('#messages .error')?.textContent || ''`);
   const bigRow = '\\tbig\\tMitglied\\t3\\t\\t\\t\\t\\n';
@@ -293,22 +311,22 @@ try {
   await js(`document.getElementById('f-vouchers').value = '6'; document.getElementById('compute').click(); 0`);
   check('locks: fewer vouchers are rejected, also right after a change that did not compute', (await stats()) === statsFrozen && (await linkState()).event.vouchers === 7 && (await errorText()).includes('behalten die Voucher ihre Nummer und ihren Starttag'), await errorText());
   await js(`document.getElementById('f-vouchers').value = '7'; document.getElementById('f-end').value = '2026-11-02'; document.getElementById('compute').click(); 0`);
-  check('locks: an end that would drop pinned slots is rejected', (await stats()) === statsFrozen && (await linkState()).event.end === '2026-11-13' && (await errorText()).includes('bleiben Pins, wo sie sind'), await errorText());
-  await js(`document.getElementById('f-end').value = '2026-11-13'; 0`);
+  check('locks: an end that would drop pinned slots is rejected', (await stats()) === statsFrozen && (await linkState()).event.end === '2026-11-23' && (await errorText()).includes('bleiben Pins, wo sie sind'), await errorText());
+  await js(`document.getElementById('f-end').value = '2026-11-23'; 0`);
   await click(4, 1);
   await click(7, 1); // the day-4 slot goes to day 7, pinned
   check('locks: a move by hand after the start names no moved slots', !(await warning()).includes('verschoben'), await warning());
   const statsSwapped = await stats();
   await js(`document.getElementById('f-end').value = '2026-11-06'; document.getElementById('compute').click(); 0`);
   check('locks: an end that would move a pinned slot to another day is rejected', (await stats()) === statsSwapped && (await errorText()).includes('bleiben Pins, wo sie sind'), await errorText());
-  await js(`document.getElementById('f-end').value = '2026-11-13'; 0`);
+  await js(`document.getElementById('f-end').value = '2026-11-23'; 0`);
   await key('z');
   const frozenPlan = await placed();
   await js(`document.getElementById('f-oneChain').click(); document.getElementById('compute').click(); 0`);
   const chainMoved = await movedCount(frozenPlan);
   check('locks: one voucher per group goes through and counts the planned slots that moved', chainMoved > 0 && (await warning()).includes(`${chainMoved} geplante(r) Slot(s) verschoben`), `${chainMoved}: ${await warning()}`);
   await key('z');
-  await js(`document.getElementById('f-end').value = '2026-11-09'; document.getElementById('roster').value += '\\tm1\\tMitglied\\t\\t\\t\\t\\t\\n\\tm2\\tMitglied\\t\\t\\t\\t\\t\\n\\tm3\\tMitglied\\t\\t\\t\\t\\t\\n'; document.getElementById('compute').click(); 0`);
+  await js(`document.getElementById('f-end').value = '2026-11-13'; document.getElementById('roster').value += '\\tm1\\tMitglied\\t\\t\\t\\t\\t\\n\\tm2\\tMitglied\\t\\t\\t\\t\\t\\n\\tm3\\tMitglied\\t\\t\\t\\t\\t\\n'; document.getElementById('compute').click(); 0`);
   const crowdMoved = await movedCount(frozenPlan);
   const crowdPublic = await js(`(document.querySelector('#r-public b')?.textContent.split(', ') || []).filter((l) => !/^m[123]$/.test(l)).length`);
   check('locks: members added after the start push planned slots into the public sale, counted as moved', crowdPublic > 0 && (await warning()).includes(`${crowdMoved} geplante(r) Slot(s) verschoben`), `${crowdPublic} public, ${crowdMoved}: ${await warning()}`);
@@ -317,7 +335,7 @@ try {
   check('locks: "Release all pins" frees them again, without the reason', (await locked()) === '' && !(await js(`document.getElementById('f-start').title`)));
   await js(`document.getElementById('f-seed').value = ''; document.getElementById('compute').click(); 0`);
   await onDay3(`document.getElementById('freezeToday').click();`);
-  check('locks: without a seed the name is the seed and locked too', (await locked()) === 'f-start f-weekends f-every f-seed f-name' && (await lockedValues()) === '2026-10-30 false 1  congress2026', `${await locked()} / ${await lockedValues()}`);
+  check('locks: without a seed the name is the seed and locked too', (await locked()) === `${CAL} f-seed f-name` && (await lockedValues()) === '2026-10-30 true false true false true false false 1  congress2026', `${await locked()} / ${await lockedValues()}`);
   await onDay3(`document.querySelector('#sheets tr[data-label="${await text(2, 2)}"] button.lost').click();`);
   const asAdmin = await js(`location.hash`);
   const asView = await js(`'#s=' + vouch0rzii.encodeState(JSON.stringify({ ...JSON.parse(vouch0rzii.decodeState(location.hash.slice(3)).stateJson), mode: 'view' })).encoded`);
@@ -326,13 +344,27 @@ try {
   check('lost: a viewer sees the lost voucher, without "lost" or "found" buttons', await js(`document.getElementById('liveList').textContent.includes('Voucher 2: verloren ab Mo 02.11.') && !document.querySelector('#liveList button.found') && !document.querySelector('#sheets button.lost')`));
   await js(`location.hash = ${JSON.stringify(asAdmin)}; 0`);
   for (let i = 0; i < 100 && !(await js(`!document.getElementById('editor').hidden && !document.getElementById('result').hidden`)); i++) await sleep(50);
-  check('locks: the started admin link without a seed opens locked, the seed field empty', (await locked()) === 'f-start f-weekends f-every f-seed f-name' && (await lockedValues()) === '2026-10-30 false 1  congress2026', `${await locked()} / ${await lockedValues()}`);
+  check('locks: the started admin link without a seed opens locked, the seed field empty', (await locked()) === `${CAL} f-seed f-name` && (await lockedValues()) === '2026-10-30 true false true false true false false 1  congress2026', `${await locked()} / ${await lockedValues()}`);
+  // A hand-made link (or file) may spell the week in German and any case: the
+  // boxes and the lock follow Go's reading, and the link takes its spelling.
+  await js(`location.hash = '#s=' + vouch0rzii.encodeState(JSON.stringify((() => { const st = JSON.parse(vouch0rzii.decodeState(location.hash.slice(3)).stateJson); st.event.days = ['Mo', ' mi', 'FR']; return st; })())).encoded; 0`);
+  for (let i = 0; i < 100 && JSON.stringify((await linkState()).event.days) !== '["mon","wed","fri"]'; i++) await sleep(50);
+  check('days: German names in any case tick and lock Mon, Wed, Fri; the link spells them in English', (await locked()) === `${CAL} f-seed f-name` && (await lockedValues()) === '2026-10-30 true false true false true false false 1  congress2026' && JSON.stringify((await linkState()).event.days) === '["mon","wed","fri"]', `${await lockedValues()} / ${JSON.stringify((await linkState()).event.days)}`);
   await js(`location.hash = '#s=' + vouch0rzii.encodeState(JSON.stringify({ v: 1, mode: 'admin', event: { name: 'empty', vouchers: 7, start: '2026-10-30', people: [] } })).encoded; 0`);
   for (let i = 0; i < 100 && (await js(`document.getElementById('f-name').value`)) !== 'empty'; i++) await sleep(50);
   check('locks: a new link without people in the same tab starts unlocked', (await js(`document.getElementById('f-name').value`)) === 'empty' && (await locked()) === '', await locked());
   await js(`location.hash = ${JSON.stringify(other.slice(other.indexOf('#')))}; 0`);
   for (let i = 0; i < 100 && (await js(`document.getElementById('result').hidden`)); i++) await sleep(50);
   check('locks: back on the plan link, plain plan', (await stats()).startsWith('7 Vouchers · 7 Tage · 47 Slots · 40 Übergaben, davon 9') && (await locked()) === '', await stats());
+  const boxes = () => js(`['mon','tue','wed','thu','fri','sat','sun'].map((d) => +document.getElementById('f-day-' + d).checked).join('')`);
+  await js(`location.hash = '#s=' + vouch0rzii.encodeState(JSON.stringify((() => { const st = JSON.parse(vouch0rzii.decodeState(location.hash.slice(3)).stateJson); st.event.days = ['Mo', ' mi', 'FR']; return st; })())).encoded; 0`);
+  for (let i = 0; i < 100 && JSON.stringify((await linkState()).event.days) !== '["mon","wed","fri"]'; i++) await sleep(50);
+  check('days: unlocked, German names in any case tick Mon, Wed, Fri', (await locked()) === '' && (await boxes()) === '1010100' && JSON.stringify((await linkState()).event.days) === '["mon","wed","fri"]', await boxes());
+  await js(`location.hash = '#s=' + vouch0rzii.encodeState(JSON.stringify((() => { const st = JSON.parse(vouch0rzii.decodeState(location.hash.slice(3)).stateJson); st.event.days = ['mon', 'Wed', 'fri']; st.event.vouchers = 0; return st; })())).encoded; 0`);
+  for (let i = 0; i < 100 && (await js(`document.getElementById('f-vouchers').value`)) !== '0'; i++) await sleep(50);
+  check('days: a link that fails on another field still ticks the week Go read', (await boxes()) === '1010100' && (await js(`document.querySelector('#messages .error')?.textContent || ''`)).includes('vouchers must be'), await boxes());
+  await js(`location.hash = ${JSON.stringify(other.slice(other.indexOf('#')))}; 0`);
+  for (let i = 0; i < 100 && (await js(`document.getElementById('result').hidden`)); i++) await sleep(50);
 
   // Language switch: re-renders in place, keeps pending input, and switching
   // back restores the German text and attributes.
@@ -463,6 +495,9 @@ try {
   await send('Emulation.setEmulatedMedia', { media: '', features: [] }, sessionId);
   await go(share('board'), 'board');
   await contrast('board');
+  await onDate('2026-11-04', `window.dispatchEvent(new HashChangeEvent('hashchange'));`);
+  const boardDay = await js(`document.getElementById('b-day').textContent`);
+  check('board: Wed 4 Nov is buying day 3 of 11 (Fri, Mon, Wed)', boardDay.startsWith('Tag 3 von 11 · Ende'), boardDay);
   await go(share('view'), 'result');
   await js(`(() => { const w = document.getElementById('who'); w.value = 'mammut'; w.dispatchEvent(new Event('input')); })(); 0`);
   check('contrast: viewer highlights the own rows', await js(`document.querySelectorAll('#sheets tr.me').length > 0`));
@@ -596,9 +631,9 @@ try {
   check('chance: a pin locks dice and super random, the reason is shown', await js(`['roll', 'superRandom'].every((id) => document.getElementById(id).disabled) && document.getElementById('roll').title.includes('Pins') && document.getElementById('r-randomnote').textContent === document.getElementById('roll').title`));
   await js(`document.getElementById('unpinAll').click(); 0`);
   await js(`document.querySelector('#sheets tbody tr input.pick').click(); document.querySelector('#bulk button[data-st="received"]').click(); 0`);
-  check('chance: a status locks them too, and the calendar', await js(`document.getElementById('roll').disabled && document.getElementById('roll').title.includes('Status')`) && (await locked()) === 'f-start f-weekends f-every f-seed', await locked());
+  check('chance: a status locks them too, and the calendar', await js(`document.getElementById('roll').disabled && document.getElementById('roll').title.includes('Status')`) && (await locked()) === `${CAL} f-seed`, await locked());
   await js(`document.getElementById('roster').value += '${bigRow}'; document.getElementById('compute').click(); 0`);
-  check('chance: with a status, a roster the plan rejects shows its error, the plan and the locks stay', (await js(`!document.getElementById('result').hidden`)) && (await errorText()).includes('exceeds the limit') && (await locked()) === 'f-start f-weekends f-every f-seed', `${await errorText()} / ${await locked()}`);
+  check('chance: with a status, a roster the plan rejects shows its error, the plan and the locks stay', (await js(`!document.getElementById('result').hidden`)) && (await errorText()).includes('exceeds the limit') && (await locked()) === `${CAL} f-seed`, `${await errorText()} / ${await locked()}`);
   await js(`(() => { const r = document.getElementById('roster'); r.value = r.value.replace('${bigRow}', ''); document.getElementById('compute').click(); })(); 0`);
   check('chance: the roster fixed computes again', (await js(`!document.getElementById('result').hidden`)) && !(await errorText()), await errorText());
   await js(`(() => { // the person with the status leaves the roster: a status on no slot of the plan locks nothing

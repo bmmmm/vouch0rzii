@@ -56,7 +56,7 @@ func Compute(e *Event, pins []Pin) (*Plan, error) {
 	assignChains(e, slots, grid, starts, until)
 
 	p := &Plan{Event: e, PhaseDays: phase, From: starts, Until: until, Slots: slots, Grid: grid, Warnings: warnings}
-	for _, t := range Dates(start, len(grid), e.Weekends, e.Every) {
+	for _, t := range Dates(start, len(grid), e.Week(), e.Every) {
 		p.Dates = append(p.Dates, t.Format(DateLayout))
 	}
 	// Every holder except the first of a chain receives the voucher from the

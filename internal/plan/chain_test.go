@@ -355,6 +355,9 @@ func randomCase(t *testing.T, round uint64) (mk func() *Event, manual []Pin) {
 		if r.IntN(4) == 0 { // drawn last, so the cases above stay as they were
 			e.Lost = []Lost{{Voucher: 1 + r.IntN(e.Vouchers), Date: []string{"2026-10-30", "2026-11-03", "2026-11-09"}[r.IntN(3)]}}
 		}
+		if r.IntN(4) == 0 { // after the lost voucher for the same reason
+			e.Weekends, e.Days = false, []string{"mon", "wed", "fri"}
+		}
 		return e
 	}
 	r := rand.New(rand.NewPCG(round, 5))

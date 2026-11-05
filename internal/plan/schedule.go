@@ -138,7 +138,7 @@ func voucherStarts(e *Event) ([]int, error) {
 		return from, nil
 	}
 	start, _ := ParseDate(e.Start)
-	dates := Dates(start, MaxDays, e.Weekends, e.Every)
+	dates := Dates(start, MaxDays, e.Week(), e.Every)
 	for _, x := range e.Extra {
 		day := dayOnOrAfter(dates, x.Date)
 		if day == 0 {
@@ -159,7 +159,7 @@ func voucherEnds(e *Event, total int) ([]int, error) {
 		return until, nil
 	}
 	start, _ := ParseDate(e.Start)
-	dates := Dates(start, MaxDays, e.Weekends, e.Every)
+	dates := Dates(start, MaxDays, e.Week(), e.Every)
 	for _, x := range e.Lost {
 		day := dayOnOrAfter(dates, x.Date)
 		if day == 0 {
@@ -203,7 +203,7 @@ func daysThrough(e *Event, date string) int {
 	}
 	start, _ := ParseDate(e.Start)
 	n := 0
-	for _, d := range Dates(start, MaxDays, e.Weekends, e.Every) {
+	for _, d := range Dates(start, MaxDays, e.Week(), e.Every) {
 		if d.Format(DateLayout) > date {
 			break
 		}

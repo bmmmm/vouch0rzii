@@ -20,6 +20,7 @@ type Export struct {
 	Handover    string           `json:"handover"`
 	End         DayExport        `json:"end"` // last day of the voucher phase; zero without an end
 	Days        []DayExport      `json:"days"`
+	Calendar    []string         `json:"calendar"` // dates of plan days 1 … the later of the last day and End, for counting days on the page
 	Grid        [][]string       `json:"grid"`
 	Handovers   []HandoverExport `json:"handovers"`
 	Sheets      []Sheet          `json:"sheets"`
@@ -94,7 +95,7 @@ func (p *Plan) dayLabel(d int) string {
 func (p *Plan) handoverDate(h Handover) time.Time {
 	t, _ := ParseDate(p.Dates[h.Day-1])
 	every := p.Event.EveryOrDefault()
-	return planDays(t, every, p.Event.Weekends)[every-1]
+	return planDays(t, every, p.Event.Week())[every-1]
 }
 
 // end describes the last day of the voucher phase; zero without an end.
@@ -116,6 +117,7 @@ func (p *Plan) ToExport() *Export {
 		VoucherLost: p.Until,
 		Handover:    p.Event.HandoverOrDefault(),
 		End:         p.end(),
+		Calendar:    []string{},
 		Handovers:   []HandoverExport{},
 		Sheets:      []Sheet{},
 		Public:      p.Public(),
@@ -123,6 +125,10 @@ func (p *Plan) ToExport() *Export {
 		Stats:       p.Stats,
 		Draw:        p.Event.Draw(),
 		Warnings:    append([]string{}, p.Warnings...),
+	}
+	start, _ := ParseDate(p.Event.Start)
+	for _, t := range Dates(start, max(len(p.Grid), p.PhaseDays), p.Event.Week(), p.Event.Every) {
+		ex.Calendar = append(ex.Calendar, t.Format(DateLayout))
 	}
 	for d := range p.Grid {
 		ex.Days = append(ex.Days, DayExport{Day: d + 1, Date: p.Dates[d], Label: p.dayLabel(d + 1)})
@@ -188,7 +194,7 @@ func (p *Plan) Markdown() string {
 	for v, u := range p.Until {
 		if u > 0 { // the day may lie beyond the grid
 			start, _ := ParseDate(p.Event.Start)
-			fmt.Fprintf(&b, "Voucher %d lost from %s.\n\n", v+1, DayLabel(Dates(start, u, p.Event.Weekends, p.Event.Every)[u-1]))
+			fmt.Fprintf(&b, "Voucher %d lost from %s.\n\n", v+1, DayLabel(Dates(start, u, p.Event.Week(), p.Event.Every)[u-1]))
 		}
 	}
 	if pub := p.Public(); len(pub) > 0 {

@@ -11,6 +11,7 @@ import (
 	"os"
 	"sort"
 	"strings"
+	"time"
 )
 
 // LoadEvent reads and decodes an event file. Call Normalize before planning.
@@ -102,6 +103,7 @@ func Normalize(e *Event) (warnings []string, err error) {
 	} else if e.Every == 1 {
 		e.Every = 0 // the default, so "every": 1 and no every are the same event and fingerprint
 	}
+	errs = append(errs, normalizeDays(e)...)
 	if e.PlusMax < 0 || e.PlusMax > MaxPlus {
 		errs = append(errs, fmt.Errorf("plusMax must be between 0 and %d, got %d", MaxPlus, e.PlusMax))
 	}
@@ -167,4 +169,44 @@ func Normalize(e *Event) (warnings []string, err error) {
 	}
 
 	return warnings, nil
+}
+
+// normalizeDays validates Days and writes the week in its one canonical form,
+// so the same week is the same event and fingerprint however it was spelled:
+// Monday to Friday as no days, all seven as Weekends, any other set as days
+// from Monday on. A days list that names no weekday at all is an error.
+func normalizeDays(e *Event) []error {
+	if e.Days == nil {
+		return nil
+	}
+	if len(e.Days) > len(Week{}) {
+		return []error{fmt.Errorf("days lists %d entries, a week has %d", len(e.Days), len(Week{}))}
+	}
+	var errs []error
+	var week Week
+	for _, s := range e.Days {
+		if d, ok := parseWeekday(s); ok {
+			week[d] = true
+		} else {
+			errs = append(errs, fmt.Errorf("days: %q is not a weekday (mon, tue, wed, thu, fri, sat, sun)", s))
+		}
+	}
+	switch {
+	case errs != nil:
+		return errs
+	case week == Week{}:
+		return []error{errors.New("days names no weekday: tick at least one")}
+	case e.Weekends && week != fullWeek:
+		return []error{errors.New("weekends and days disagree: list the days only")}
+	}
+	e.Days, e.Weekends = nil, week == fullWeek
+	if e.Weekends || week == workweek {
+		return nil
+	}
+	for i := range week {
+		if d := time.Weekday((i + 1) % len(week)); week[d] { // from Monday on
+			e.Days = append(e.Days, strings.ToLower(weekdayShort[d]))
+		}
+	}
+	return nil
 }

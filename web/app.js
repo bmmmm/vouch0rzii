@@ -200,6 +200,11 @@
   };
 
   const DEFAULT_EVENT = { name: '', vouchers: 7, start: '', weekends: false, plusMax: 2, seed: '', handover: '23:00', people: [] };
+  // The plan weekdays, Monday first, in the form Go writes them (normalizeDays):
+  // no days are Monday to Friday, weekends all seven, other sets are listed.
+  const WEEKDAYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+  const WORKWEEK = WEEKDAYS.slice(0, 5);
+  const weekOf = (ev) => (ev.days && ev.days.length ? ev.days : ev.weekends ? WEEKDAYS : WORKWEEK);
   const STATUS = ['open', 'received', 'bought', 'passed'];
   const statusLabel = (st) => t('status')[st];
 
@@ -376,7 +381,9 @@
     ev.start = $('#f-start').value;
     ev.end = $('#f-end').value;
     if (!ev.end) delete ev.end;
-    ev.weekends = $('#f-weekends').checked;
+    const days = WEEKDAYS.filter((d) => $(`#f-day-${d}`).checked);
+    ev.weekends = days.length === WEEKDAYS.length;
+    if (ev.weekends || days.join() === WORKWEEK.join()) delete ev.days; else ev.days = days; // none ticked is Go's error
     if ($('#f-oneChain').checked) ev.oneChain = true; else delete ev.oneChain;
     if ($('#f-membersFirst').checked) ev.membersFirst = true; else delete ev.membersFirst;
     ev.every = Number($('#f-every').value) || 0;
@@ -397,7 +404,7 @@
     $('#f-vouchers').value = ev.vouchers || 7;
     $('#f-start').value = ev.start || '';
     $('#f-end').value = ev.end || '';
-    $('#f-weekends').checked = !!ev.weekends;
+    for (const d of WEEKDAYS) $(`#f-day-${d}`).checked = weekOf(ev).includes(d);
     $('#f-oneChain').checked = !!ev.oneChain;
     $('#f-membersFirst').checked = !!ev.membersFirst;
     $('#f-every').value = ev.every || 1;
@@ -470,6 +477,15 @@
     const pub = new Set(plan.public);
     return old.sheets.filter((w) => { const s = now.get(w.label); return s ? s.day !== w.day || s.voucher !== w.voucher : pub.has(w.label); }).length;
   }
+  // Go reads a week in any spelling (German names, any case, a file or a
+  // hand-made link) and writes it one way: state, boxes and locks take that,
+  // also when another field fails and the event stays in the form.
+  function adoptWeek(r) {
+    if (!r.eventDays || (String(state.event.days || '') === String(r.eventDays) && !!state.event.weekends === r.eventWeekends)) return;
+    if (r.eventDays.length) state.event.days = r.eventDays; else delete state.event.days;
+    state.event.weekends = r.eventWeekends;
+    for (const d of WEEKDAYS) $(`#f-day-${d}`).checked = weekOf(state.event).includes(d);
+  }
   function computePlan({ fromForm = true, shuffle = false } = {}) {
     let warnings = [];
     const anchor = fromForm ? $('#compute').parentElement : null; // form problems show under "Compute plan"
@@ -493,13 +509,14 @@
         past.splice(0, past.length, ...checkpoint.past);
         future.splice(0, future.length, ...checkpoint.future);
         if (!fromForm) { eventToForm(); peopleToRoster(state.event.people); computedForm = formStamp(); }
-      }
+      } else adoptWeek(r);
       checkpoint = null;
       renderResult();
       return false;
     }
     plan = { ...JSON.parse(r.exportJson), exportJson: r.exportJson, markdown: r.markdown, csv: r.csv, svg: r.svg };
-    // Pins hold plan days: a new start, weekend rule or every moves them in the calendar.
+    adoptWeek(r);
+    // Pins hold plan days: a new start, other weekdays or every moves them in the calendar.
     const moved = plan.sheets.filter((s) => { const was = s.pinned && pinnedAt.get(s.label); return was && was.day === s.day && was.date !== s.date; }); // a pin moved to another day is a move, not a calendar change
     if (moved.length) warnings.push(t('pinsMoved', moved.map((s) => `${s.label} ${pinnedAt.get(s.label).name} → ${dayName(plan.days[s.day - 1])}`).join(', ')));
     const shifted = old ? movedSince(old) : 0;
@@ -712,14 +729,8 @@
     const now = today(), track = tracking();
     const sheets = plan.sheets;
     const first = plan.days[0];
-    // Plan day number of a date, counting past the grid up to the end; like
-    // Go's Dates every N-th day the process runs (weekdays unless weekends).
-    const planDay = (date) => {
-      const [y, m, d] = first.date.split('-').map(Number);
-      let n = 0;
-      for (const t = new Date(y, m - 1, d); fmtDate(t) <= date; t.setDate(t.getDate() + 1)) if (state.event.weekends || t.getDay() % 6) n++; // % 6: Sunday 0 and Saturday 6 are skipped
-      return Math.ceil(n / (state.event.every || 1));
-    };
+    // Plan day number of a date, counting past the grid up to the end.
+    const planDay = (date) => plan.calendar.filter((d) => d <= date).length;
     const total = plan.end.day || plan.days.length;
     const last = plan.days[plan.days.length - 1];
     const ended = plan.end.day ? now > plan.end.date : now > last.date;
@@ -752,11 +763,11 @@
 
   // ---------- rendering
   // applyLocks disables the settings that would move the past once the sale
-  // has started: the calendar (start, weekends, every) and the draw (seed,
+  // has started: the calendar (start, weekdays, every) and the draw (seed,
   // and the name while it stands in for the seed). A locked field shows the
   // value in use; an edit not computed yet would move the past just as well.
   const LOCKS = [ // DEFAULT_EVENT fills all but every
-    ['#f-start', (ev) => ev.start], ['#f-weekends', (ev) => ev.weekends], ['#f-every', (ev) => ev.every || 1],
+    ['#f-start', (ev) => ev.start], ...WEEKDAYS.map((d) => [`#f-day-${d}`, (ev) => weekOf(ev).includes(d)]), ['#f-every', (ev) => ev.every || 1],
     ['#f-seed', (ev) => ev.seed], ['#f-name', (ev) => ev.name],
   ];
   function applyLocks() {

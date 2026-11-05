@@ -53,8 +53,8 @@ and watch a test go red before trusting it.
   add inputs.
 - English is the one language of code, comments, docs, tests and everything
   Go writes (exports, roster text, day labels, messages, the sign-up line).
-  German is read on input (headers, tier words, ja/nein) and shown only by
-  the page: UI strings exist in German and English, static text in
+  German is read on input (headers, tier words, ja/nein, weekdays) and shown
+  only by the page: UI strings exist in German and English, static text in
   `index.html` as `lang="de"`/`lang="en"` pairs plus `data-en-*` attributes,
   built text in `TEXT` in `app.js`, which also relabels Go's day labels and
   `organisers` for the German page. Commits conventional (`feat:`, `fix:`,

@@ -17,13 +17,15 @@ data, and your browser history keeps it like any other link.
 1. **As few days as possible.** With `V` vouchers from day 1 and `N` ticket
    slots the plan has `ceil(N / V)` days; extra vouchers, pins, people who
    leave, one voucher per group (rule 4) and the end of the voucher phase
-   (rule 7) change that, the grid shows the result. Weekends are skipped
-   unless the event says otherwise.
+   (rule 7) change that, the grid shows the result. Plan days are the
+   buying days of the week, Monday to Friday unless `days` (page: the seven
+   "Buying days" boxes) names others, e.g. `["mon", "wed", "fri"]`.
    A "day" is a buying day: with `every` set to 2 (the new voucher only
    arrives the day after next) buying days are two plan days apart, and a
-   handover is listed on the evening the new voucher is expected. Without
-   weekends the voucher process rests on Saturday and Sunday too, so plan
-   days are weekdays: bought on Friday, handed over on Monday evening.
+   handover is listed on the evening the new voucher is expected. The voucher
+   process rests on the other weekdays too, so `every` counts buying days:
+   on Mon, Wed, Fri with `every` 2, bought on Friday, handed over on Monday
+   evening, the next buyer on Wednesday.
 2. **Tiers.** Named people first — members, then frequent guests, then
    acquaintances. After all named people come everybody's +1, then everybody's
    +2, each round ordered by the sponsor's position. Within a tier the order is
@@ -92,7 +94,7 @@ data, and your browser history keeps it like any other link.
    sale. Pins on the closed cells are dropped with a warning; "found" in
    the live status takes the mark back.
    Once the sale has started — a pin, a status or a lost voucher — the page
-   locks start, weekends, `every` and the seed (the name too while it
+   locks start, buying days, `every` and the seed (the name too while it
    stands in for the seed), and rejects a change that would give the
    existing vouchers other numbers or start days, move or drop a pin whose
    slot is still in the roster, or not compute at all; the plan stays as it
@@ -177,8 +179,8 @@ fingerprint and status timestamp to see who holds the newer link.
 ## Demo and example
 
 `events/congress2026.json` is a pseudonymised real roster (25 animals, 22
-extra slots, 7 vouchers → 7 days, voucher phase of 11 days with 30 slots
-free). Status and e-mail are **placeholders**; the real values live only in your own links
+extra slots, 7 vouchers → 7 days on Mon, Wed, Fri, voucher phase of 11
+buying days with 30 slots free). Status and e-mail are **placeholders**; the real values live only in your own links
 and files. The page's demo link is an admin link of this roster,
 generated at build time; the file itself is not part of the site. It is
 offered only on the untouched start page, so nobody works in the demo by

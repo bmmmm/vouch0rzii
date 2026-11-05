@@ -33,7 +33,7 @@ func TestFrozenWhitespace(t *testing.T) {
 func TestFrozenHorizonError(t *testing.T) {
 	e := mkEvent(1, Person{ID: "a"})
 	start, _ := ParseDate(e.Start)
-	dates := Dates(start, MaxDays+1, e.Weekends, e.Every)
+	dates := Dates(start, MaxDays+1, e.Week(), e.Every)
 	for _, days := range []int{MaxDays - 1, MaxDays, MaxDays + 1} {
 		t.Run(fmt.Sprint(days), func(t *testing.T) {
 			e.Frozen = dates[days-1].Format(DateLayout)

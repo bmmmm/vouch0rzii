@@ -66,7 +66,9 @@ func ok(warnings []string, fields map[string]any) any {
 	return js.ValueOf(res)
 }
 
-// planFn(eventJSON, pinsJSON) → {ok, errors, warnings, exportJson, markdown, csv, svg}
+// planFn(eventJSON, pinsJSON) → {ok, errors, warnings, exportJson, markdown, csv, svg, eventDays, eventWeekends};
+// eventDays and eventWeekends are the week in its one spelling, for the page's
+// state and boxes, also when another field fails.
 func planFn(_ js.Value, args []js.Value) any {
 	e, err := plan.ParseEvent([]byte(strArg(args, 0)))
 	if err != nil {
@@ -80,17 +82,22 @@ func planFn(_ js.Value, args []js.Value) any {
 	}
 	p, err := plan.Compute(e, pins)
 	if err != nil {
-		return fail(err, nil)
+		res := fail(err, nil).(js.Value)
+		res.Set("eventDays", toAny(e.Days)) // Normalize writes a valid week canonically even when it rejects the event
+		res.Set("eventWeekends", e.Weekends)
+		return res
 	}
 	out, err := p.JSON()
 	if err != nil {
 		return fail(err, nil)
 	}
 	return ok(p.Warnings, map[string]any{
-		"exportJson": string(out),
-		"markdown":   p.Markdown(),
-		"csv":        p.CSV(),
-		"svg":        p.SVG(),
+		"exportJson":    string(out),
+		"markdown":      p.Markdown(),
+		"csv":           p.CSV(),
+		"svg":           p.SVG(),
+		"eventDays":     toAny(e.Days),
+		"eventWeekends": e.Weekends,
 	})
 }
 

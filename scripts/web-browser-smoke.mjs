@@ -72,7 +72,7 @@ check('demo: diagram inlined', demoDom.includes('<div class="scroll" id="diagram
 const admin = dom(link('admin'));
 check('admin: plan rendered from the link', planned(admin));
 check('admin: matrix editable and shows the group slot', admin.includes('<table id="matrix" class="editable" style="--vouchers: 7;">') && admin.includes('mammut+10'));
-check('admin: matrix top-down, a column per voucher, a row per day plus "+ Tag"', (admin.match(/<th scope="col">Voucher \d+<\/th>/g) || []).length === 7 && (admin.match(/<th scope="row">/g) || []).length === 8 && admin.includes('<tr class="extra"><th scope="row">+ Tag'));
+check('admin: matrix top-down, a column per voucher, a row per buying day (Mon, Wed, Fri) plus "+ Tag"', (admin.match(/<th scope="col">Voucher \d+<\/th>/g) || []).length === 7 && (admin.match(/<th scope="row">/g) || []).length === 8 && admin.includes('<tr class="extra"><th scope="row">+ Tag') && admin.includes('>Mo 02.11.<small>2026-11-02<') && admin.includes('>Mi 04.11.<small>2026-11-04<') && !admin.includes('<small>2026-11-03<') && !admin.includes('<small>2026-11-05<'));
 check('admin: one sheet row per slot', (admin.match(/data-who=/g) || []).length === 47);
 check('admin: live status lists every voucher', (admin.match(/<li class="live/g) || []).length === 7);
 check('admin: status buttons on every sheet row', (admin.match(/<button type="button" class="badge st-open"/g) || []).length === 47);
@@ -80,7 +80,7 @@ check('admin: a pick box per row, bulk bar shown, bought counter', (admin.match(
 check('admin: freeze and extra-voucher controls present', admin.includes('id="freezeToday"') && admin.includes('id="f-extra"'));
 check('admin: matrix cells keyboard-focusable', (admin.match(/tabindex="0"/g) || []).length >= 47);
 check('admin: intro hidden once a plan exists', admin.includes('<p id="intro" class="intro" hidden=""'));
-check('admin: voucher phase summary, free cells marked, nothing for the public sale', admin.includes('Voucher-Phase bis Fr 13.11. (11 Tage) · 30 Slots frei') && (admin.match(/>frei<\/td>/g) || []).length === 2 && admin.includes('<div id="r-public" class="warning" hidden="">'));
+check('admin: voucher phase summary, free cells marked, nothing for the public sale', admin.includes('Voucher-Phase bis Mo 23.11. (11 Tage) · 30 Slots frei') && (admin.match(/>frei<\/td>/g) || []).length === 2 && admin.includes('<div id="r-public" class="warning" hidden="">'));
 check('admin: "+ Tag" row offered while the phase has room', admin.includes('>+ Tag<'));
 check('admin: mammut keeps its vouchers, marked and named in the legend', admin.includes('7 Vouchers · 7 Tage · 47 Slots · 40 Übergaben, davon 9 innerhalb einer Gruppe') && (admin.match(/class="cell[^"]*\bkept\b/g) || []).length === 9 && admin.includes('<span class="sw kept"></span> Gruppe behält den Voucher <span class="sw forbidden">'));
 check('admin: the draw is explained with the seed', admin.includes('entscheidet das Los mit Seed „congress2026"'));
@@ -92,10 +92,10 @@ check('admin: a German browser gets the German page', admin.includes('<html lang
 const fp = (html) => (html.match(/id="fingerprint"[^>]*>([^<]*)</) || [])[1] || '';
 check('admin: four-emoji fingerprint shown', [...fp(admin)].length === 4);
 
-const every2 = dom(withEvent(link('admin'), { every: 2 })); // the weekend rests: buy Fri, the new voucher Mon evening, the next buyer Tue
-check('every 2: buying days two weekdays apart', every2.includes('>Fr 30.10.<small>2026-10-30<') && every2.includes('>Di 03.11.<small>2026-11-03<') && every2.includes('>Do 05.11.<small>2026-11-05<') && !every2.includes('<small>2026-11-02<'));
-check('every 2: handover on the evening the new voucher is expected, never on the weekend', every2.includes('<h3>Mo 02.11. (2026-11-02), 23:00 Uhr</h3>') && every2.includes('<h3>Mi 04.11. (2026-11-04), 23:00 Uhr</h3>') && !/<h3>(Sa|So) /.test(every2));
-check('every 2: the mail names the evening to pass on', decodeURIComponent(every2).includes('gib den neuen Voucher am Mi 04.11. um 23:00 Uhr weiter'));
+const every2 = dom(withEvent(link('admin'), { every: 2 })); // Mon, Wed, Fri: buy Fri, the new voucher Mon evening, the next buyer Wed
+check('every 2: buying days two plan days apart', every2.includes('>Fr 30.10.<small>2026-10-30<') && every2.includes('>Mi 04.11.<small>2026-11-04<') && every2.includes('>Mo 09.11.<small>2026-11-09<') && !every2.includes('<small>2026-11-02<'));
+check('every 2: handover on the evening the new voucher is expected, never on the weekend', every2.includes('<h3>Mo 02.11. (2026-11-02), 23:00 Uhr</h3>') && every2.includes('<h3>Fr 06.11. (2026-11-06), 23:00 Uhr</h3>') && !/<h3>(Sa|So) /.test(every2));
+check('every 2: the mail names the evening to pass on', decodeURIComponent(every2).includes('gib den neuen Voucher am Fr 06.11. um 23:00 Uhr weiter'));
 check('every 2: no error box', noError(every2));
 
 const view = dom(link('view'));
@@ -119,8 +119,8 @@ check('board: free slots, same fingerprint, "Zum Plan" is a view state', board.i
 const live = dom(withStatus(link('board'), { fennek: 'passed', quokka: 'received', nacktmull: 'bought' }));
 check('board with statuses: progress, holding tiles, status stand', live.includes('2 von 47 Tickets gekauft') && live.includes('<progress id="b-bar" max="47" value="2">') && (live.match(/<li class="tile holding/g) || []).length === 2 && (live.match(/<li class="tile orga/g) || []).length === 5 && live.includes('3 Slot(s) mit Status, Stand'));
 
-// The same roster with the voucher phase ending after five days: 35 slots
-// fit, twelve go to the public sale, no "+ Tag" row past the end. And
+// The same roster with the voucher phase ending after three buying days: 21
+// slots fit, 26 go to the public sale, no "+ Tag" row past the end. And
 // without any end: the open-ended path every older link takes.
 const scratch = mkdtempSync(join(tmpdir(), 'vouch0rzii-'));
 const variant = (name, patch) => {
@@ -130,8 +130,8 @@ const variant = (name, patch) => {
   return dom(link('admin', [], file));
 };
 const early = variant('early.json', { end: '2026-11-05' });
-check('early end: plan stops at the end of the voucher phase', early.includes('7 Vouchers · 5 Tage · 47 Slots') && early.includes('Voucher-Phase bis Do 05.11. (5 Tage) · 0 Slots frei'));
-check('early end: public sale box lists the tickets that did not fit', early.includes('<div id="r-public" class="warning">') && early.includes('12 Ticket(s) passen nicht mehr') && (early.match(/data-who=/g) || []).length === 35);
+check('early end: plan stops at the end of the voucher phase', early.includes('7 Vouchers · 3 Tage · 47 Slots') && early.includes('Voucher-Phase bis Do 05.11. (3 Tage) · 0 Slots frei'));
+check('early end: public sale box lists the tickets that did not fit', early.includes('<div id="r-public" class="warning">') && early.includes('26 Ticket(s) passen nicht mehr') && (early.match(/data-who=/g) || []).length === 21);
 check('early end: no day after the end offered', !early.includes('>+ Tag<') && noError(early));
 const open = variant('open.json', { seed: 'würfel' }); // a seed that differs from the name
 check('no end: open-ended summary, free cells, "+ Tag" offered', open.includes('Kein Ende der Voucher-Phase gesetzt · 2 Slots frei im Plan') && (open.match(/>frei<\/td>/g) || []).length === 2 && open.includes('>+ Tag<') && open.includes('<div id="r-public" class="warning" hidden="">'));
@@ -151,7 +151,7 @@ check('collect: editor hidden', collect.includes('<section id="editor" hidden=""
 // text, app.js renders its own strings, day labels and attributes in English.
 const en = dom(link('admin'), 'en-US');
 check('en: page language follows the browser', en.includes('<html lang="en">') && en.includes('<title>vouch0rzii — voucher chain planner</title>'));
-check('en: plan summary, phase and free cells in English', en.includes('7 vouchers · 7 days · 47 slots') && en.includes('Voucher phase until Fri 13/11 (11 days) · 30 slots free') && (en.match(/>free<\/td>/g) || []).length === 2 && en.includes('>+ day<'));
+check('en: plan summary, phase and free cells in English', en.includes('7 vouchers · 7 days · 47 slots') && en.includes('Voucher phase until Mon 23/11 (11 days) · 30 slots free') && (en.match(/>free<\/td>/g) || []).length === 2 && en.includes('>+ day<'));
 check('en: draw, counter and status badges in English', en.includes('the draw with seed "congress2026" decides') && en.includes('0 of 47 tickets bought') && (en.match(/class="badge st-open"[^>]*>open</g) || []).length === 47);
 check('en: attributes swapped, German kept beside them', en.includes('title="This link holds the roster, settings and pins"') && en.includes('data-de-title="Dieser Link enthält Roster, Einstellungen und Pins"') && en.includes('>DE</button>'));
 check('en: first holders get it from the organisers', (en.match(/<td>organisers<\/td>/g) || []).length === 7 && !en.includes('>Orga<') && en.includes('font-weight="600">Fri 30/10<'));

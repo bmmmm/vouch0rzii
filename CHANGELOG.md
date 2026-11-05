@@ -10,13 +10,23 @@ what to check.
 
 ### Added
 
+- `days` in the event (page: seven "Buying days" boxes, Mo to So): the
+  weekdays of the voucher process, e.g. `["mon", "wed", "fri"]`; plan days,
+  `every`, handover evenings and the end count these days, and an extra or
+  lost date on another weekday counts from the next buying day. Names are
+  read in English or German (`mo`, `di`, `mi` …) and in any case; the event
+  keeps one canonical form, so Monday to Friday stays no `days` and all
+  seven stay `"weekends": true`, and old events keep their fingerprint. A
+  list that names no weekday, or disagrees with `weekends`, is an error. The
+  JSON export gives the plan's dates as `calendar`, and the board counts its
+  days from it.
 - `every` in the event (page: "Voucher every … days"): plan days from one
-  buying day of a chain to the next, 1 to 14, default 1. Without weekends the
-  voucher process rests on Saturday and Sunday, so `every` counts weekdays.
+  buying day of a chain to the next, 1 to 14, default 1. The voucher process
+  rests on the days that are not buying days, so `every` counts buying days.
   Handovers are dated on the evening the new voucher is expected; the JSON
   export gives each handover a `label`. `"every": 1` is the default and keeps
   the fingerprint.
-- The page warns when a change of start, weekends or `every` moves pinned
+- The page warns when a change of start, buying days or `every` moves pinned
   slots to other dates.
 - `membersFirst` in the event (page: "members first"): every member buys
   their own slot on the same day as without groups, and a group's chain
@@ -42,7 +52,7 @@ what to check.
   0 = not lost), the Markdown a line per lost voucher, and `free` leaves
   the closed cells out.
 - The page locks what would move the past once the sale has started (a pin,
-  a status or a lost voucher): start, weekends, `every`, the seed and, while
+  a status or a lost voucher): start, buying days, `every`, the seed and, while
   it stands in for the seed, the name. A change that gives the existing
   vouchers other numbers or start days, moves or drops a pin whose slot is
   still in the roster, or does not compute is rejected with the reason and
@@ -56,6 +66,9 @@ what to check.
 
 ### Changed
 
+- The example and demo buy on Monday, Wednesday and Friday, as the real
+  presale did; its end moved to 2026-11-23 so the voucher phase keeps 11
+  buying days. Its fingerprint changed.
 - The plan matrix and the flow diagram run top to bottom: one column per
   voucher, one row per plan day, so chains fill downward and "+ day" adds
   a row at the bottom. The matrix keeps its voucher and day headers in view
